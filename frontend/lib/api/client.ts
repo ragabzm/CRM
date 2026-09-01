@@ -81,9 +81,7 @@ function correlationMiddleware(requestId: string): Middleware {
 export function createApiClient(options: ApiClientOptions = {}) {
   const client = createClient<paths>({
     baseUrl:
-      options.baseUrl ??
-      process.env.NEXT_PUBLIC_API_BASE_URL ??
-      "http://localhost:8000/api/v1",
+      options.baseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1",
     ...(options.fetch ? { fetch: options.fetch } : {}),
   });
 

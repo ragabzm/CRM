@@ -140,6 +140,136 @@ Two rules live in `globals.css` and nowhere else:
 See `components/README.md`. Four folders, `ui/` `domain/` `screens/` `shell/`,
 each with its contract.
 
+## Bilingual shell and formatting
+
+Established by Story 1.3 (work item 494).
+
+### One direction switch
+
+`dir` and `lang` are set on `<html>` in `app/layout.tsx` and nowhere else. There
+is no second Arabic stylesheet and no per-component `dir` override — every
+logical utility (`ms-`/`me-`/`ps-`/`pe-`/`start-`/`end-`) resolves from that one
+attribute, and `design-system/logical-utilities-only` keeps a physical utility
+from ever creeping in.
+
+`AppShell.test.tsx` asserts the rendered markup is byte-identical under `ltr` and
+`rtl`. If a component ever branches on direction, that test fails.
+
+### Locale resolution
+
+```
+cookie ragab-locale  ->  Accept-Language (q-values honoured)  ->  English
+```
+
+The cookie wins because it is an explicit choice made in this product; the
+header is only a hint about the browser. `POST /api/locale` writes it for a
+year. English is the default and the fallback.
+
+Two files decide the locale, and both call the same `resolveLocale()`:
+
+- `app/layout.tsx` — for `<html dir lang>` and the client provider.
+- `i18n/request.ts` — next-intl's server config, required for the server render.
+
+They cannot disagree.
+
+### Messages
+
+All user-facing text lives in `messages/{en,ar}.json`.
+`design-system/no-literal-jsx-strings` makes hard-coded JSX text an error, and
+`__tests__/messages-parity.test.ts` fails on key drift, placeholder mismatch,
+empty values, and any Arabic string left identical to its English source.
+
+A missing key falls back to English and is reported through
+`translationReporter.report` — a swappable object rather than a bare function,
+so Story 1.4 can wire the Administrators channel in one line.
+
+### One formatting layer
+
+Every date, number, currency and duration goes through `lib/format/`.
+`design-system/no-direct-intl-formatting` makes a direct `Intl.*` or
+`toLocale*` call anywhere else an error.
+
+The reason is not tidiness. Bare `ar` resolves to the **Hijri calendar and
+Eastern Arabic digits** on some ICU builds and not others, so the product's
+answer is written once, as a pinned tag:
+
+```ts
+en: "en-US"
+ar: "ar-u-ca-gregory-nu-latn"   // Gregorian, Western 0-9, on every runtime
+```
+
+Tests assert no `٠-٩` reaches any formatter output in either locale, and that
+the same instant produces the same digits in both.
+
+Client components use `useFormat()`, which binds the locale so no call site has
+to thread it through.
+
+### Mixed direction
+
+`<BidiValue>` wraps any LTR run inside prose — ticket references, ULIDs, phone
+numbers, emails, filenames. Without it the bidi algorithm reorders neutrals at
+the boundary: `TKT-000123` renders as `000123-TKT` and `1-31` reverses to
+`31-1`, silently, and only in Arabic.
+
+## Responsive bands and the accessibility floor
+
+Established by Story 1.4 (work item 495).
+
+### Three bands, and only three
+
+| Band | Width | Posture |
+| --- | --- | --- |
+| `mobile` | 0 – 767px | Base. One pane. A thumb. |
+| `tablet` | 768 – 1023px | One pane plus a drawer. A finger. |
+| `desktop` | 1024px + | Two and three panes. A pointer and a keyboard. |
+
+Bare `sm:` / `md:` / `lg:` / `xl:` / `2xl:` and hand-rolled `@media` are lint
+errors (`design-system/no-adhoc-breakpoint`). Tailwind's defaults are also
+**deleted** from the theme (`--breakpoint-*: initial`), so a bare variant does
+not silently resolve to a real media query — it generates nothing. Belt and
+braces: the rule catches it at author time, the theme makes it inert if the rule
+is ever disabled.
+
+> The band values come from board R-0 of the mockup at
+> `.squad/stories/inti/495/attachments/screen-responsive.html`, whose device
+> table places a half-screen laptop (1024–1180px) in the **desktop** band. The
+> story plan proposed 1280px for that edge; that would classify a half-screen
+> laptop as a tablet, contradicting the design's own table, so the mockup's
+> 1024px is used.
+
+### Two collapse mechanisms
+
+`fold` for lists you scan, `scroll` with a pinned identity column for tables you
+compare. Neither drops a value. See `components/domain/README.md`.
+
+### Focus indicator
+
+One token, `--focus-ring`, applied once in `globals.css` via `:focus-visible`.
+No primitive carries its own ring, and none may carry `outline-none` — a utility
+emitted after `@layer base` would silently beat the rule and the indicator would
+vanish.
+
+It is an **outline, not a box-shadow**: Windows High Contrast Mode discards
+box-shadows, which would make the indicator invisible to precisely the users who
+most depend on it.
+
+### Accessibility gate
+
+`pnpm test:a11y` runs axe (WCAG 2.1 A + AA) against every rendered page and
+component fixture, in **both** writing directions, and fails CI on any violation.
+A violation that only appears in Arabic is the kind that ships, because most
+reviewers never read the Arabic build.
+
+The suite includes a guard-the-guard: a deliberately broken fixture that must
+produce violations, so a misconfigured axe cannot pass everything silently.
+
+### Mobile file upload
+
+`FileInput` is a real `<input type="file">` inside a wrapping `<label>`, carrying
+`accept` and `capture`. No hand-rolled dropzone: a custom shell is invisible to a
+phone, breaks the camera affordance, and has to reimplement keyboard and
+screen-reader behaviour the native control already has.
+
 ## Version pins
 
 Node 24 LTS, Next.js **16.3.3**, React 19.2.x, TypeScript 5.x with `strict`,
@@ -168,7 +298,9 @@ pnpm eslint .
 pnpm run check:next-version
 pnpm run check:no-cross-import
 pnpm run lint:tokens        # no primitives or colour literals in components/
+pnpm run test:a11y          # axe, WCAG 2.1 AA, both directions
 pnpm run lint:all           # every static gate in one command
+pnpm run format             # prettier
 ```
 
 ## Independence from the backend

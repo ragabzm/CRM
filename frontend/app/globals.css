@@ -12,6 +12,13 @@
 
 @custom-variant dark (&:is([data-theme="dark"] *));
 
+/*
+ * The mobile band is max-width, which `--breakpoint-*` cannot express (those
+ * generate min-width queries). Declared here as a custom variant so `mobile:`
+ * reads like the other two bands at every call site.
+ */
+@custom-variant mobile (@media (width < 768px));
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -82,7 +89,7 @@
   }
 
   :focus-visible {
-    outline: none;
-    box-shadow: var(--focus-ring);
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
 }

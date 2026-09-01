@@ -44,6 +44,11 @@ jobs:
           # literal on main is a value nobody can retheme.
           - name: design tokens
             run: node scripts/check-tokens.mjs
+          # Story 1.4: the accessibility merge gate. Runs axe against every
+          # rendered page and component fixture in BOTH writing directions —
+          # a violation that only appears in Arabic is the kind that ships.
+          - name: accessibility
+            run: pnpm run test:a11y
           - name: build
             run: pnpm build
     steps:

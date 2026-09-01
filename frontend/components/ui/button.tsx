@@ -12,10 +12,10 @@ import { cn } from "@/lib/utils";
  * never the only signal, so each variant also differs in weight, border or
  * glyph:
  *
- *   primary      solid fill  + semibold          the only filled accent button
- *   secondary    hairline border + medium        outlined, not filled
- *   ghost        no border, no fill + medium     chrome-free
- *   destructive  solid fill + semibold + glyph   carries a warning mark
+ * primary solid fill  + semibold the only filled accent button
+ * secondary hairline border + medium outlined, not filled
+ * ghost no border, no fill + medium chrome-free
+ * destructive  solid fill + semibold + glyph carries a warning mark
  *
  * `data-variant` is rendered so tests (and a designer with a greyscale filter)
  * can assert the distinction survives desaturation.
@@ -24,18 +24,19 @@ const buttonVariants = cva(
   [
     "group/button inline-flex shrink-0 select-none items-center justify-center gap-2",
     "whitespace-nowrap rounded-md border border-transparent bg-clip-padding",
-    "transition-all outline-none",
-    "focus-visible:ring-3 focus-visible:ring-accent-border/60 focus-visible:border-accent-border",
+    "transition-all",
     "disabled:pointer-events-none disabled:opacity-50",
     "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   ].join(" "),
   {
     variants: {
       variant: {
-        primary: "bg-accent-default text-accent-fg font-semibold hover:bg-accent-hover active:bg-accent-active",
+        primary:
+          "bg-accent-default text-accent-fg font-semibold hover:bg-accent-hover active:bg-accent-active",
         secondary:
           "border-border-strong bg-surface-raised text-fg-default font-medium hover:bg-surface-hover active:bg-surface-active",
-        ghost: "bg-transparent text-fg-default font-medium hover:bg-surface-hover active:bg-surface-active",
+        ghost:
+          "bg-transparent text-fg-default font-medium hover:bg-surface-hover active:bg-surface-active",
         destructive:
           "bg-state-danger text-fg-inverse font-semibold hover:opacity-90 active:opacity-95",
       },

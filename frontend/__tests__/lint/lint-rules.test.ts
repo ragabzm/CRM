@@ -239,3 +239,230 @@ describe("layer separation", () => {
     expect(messagesFrom(messages, LAYER_RULE)).toEqual([]);
   });
 });
+
+const LITERAL_JSX_RULE = "design-system/no-literal-jsx-strings";
+
+describe("hard-coded JSX text ban", () => {
+  it("rejects literal prose in an element", async () => {
+    const messages = await lintFixture(
+      "components/shell/Fixture.tsx",
+      `export const F = () => <span>Ragab CRM</span>;`,
+    );
+
+    const errors = messagesFrom(messages, LITERAL_JSX_RULE);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0]!.message).toMatch(/externalise into messages/i);
+  });
+
+  it("rejects a literal wearing braces", async () => {
+    const messages = await lintFixture(
+      "components/shell/Fixture.tsx",
+      `export const F = () => <span>{"Ragab CRM"}</span>;`,
+    );
+
+    expect(messagesFrom(messages, LITERAL_JSX_RULE).length).toBeGreaterThan(0);
+  });
+
+  it("accepts a translation lookup", async () => {
+    const messages = await lintFixture(
+      "components/shell/Fixture.tsx",
+      `export const F = ({ t }: { t: (k: string) => string }) => <span>{t("shell.brand")}</span>;`,
+    );
+
+    // The rule inspects JSX children, not string arguments to calls.
+    expect(messagesFrom(messages, LITERAL_JSX_RULE)).toEqual([]);
+  });
+
+  it("accepts an interpolated value", async () => {
+    const messages = await lintFixture(
+      "components/shell/Fixture.tsx",
+      `export const F = ({ count }: { count: number }) => <span>{count}</span>;`,
+    );
+
+    expect(messagesFrom(messages, LITERAL_JSX_RULE)).toEqual([]);
+  });
+
+  it("accepts numeric and punctuation-only text", async () => {
+    // A rendered count is a formatted number, not a translation.
+    const messages = await lintFixture(
+      "components/shell/Fixture.tsx",
+      `export const F = () => <span>— 1,284 · 42%</span>;`,
+    );
+
+    expect(messagesFrom(messages, LITERAL_JSX_RULE)).toEqual([]);
+  });
+
+  it("accepts Arabic prose no more than English — both must be externalised", async () => {
+    const messages = await lintFixture(
+      "components/shell/Fixture.tsx",
+      `export const F = () => <span>الرئيسية</span>;`,
+    );
+
+    expect(messagesFrom(messages, LITERAL_JSX_RULE).length).toBeGreaterThan(0);
+  });
+
+  it("honours an explicit data-i18n-ignore opt-out", async () => {
+    const messages = await lintFixture(
+      "components/shell/Fixture.tsx",
+      `export const F = () => <span data-i18n-ignore>SLA</span>;`,
+    );
+
+    expect(messagesFrom(messages, LITERAL_JSX_RULE)).toEqual([]);
+  });
+
+  it("does not police test files", async () => {
+    const messages = await lintFixture(
+      "__tests__/components/Fixture.test.tsx",
+      `export const F = () => <span>Ragab CRM</span>;`,
+    );
+
+    expect(messagesFrom(messages, LITERAL_JSX_RULE)).toEqual([]);
+  });
+});
+
+const DIRECT_INTL_RULE = "design-system/no-direct-intl-formatting";
+
+describe("one formatting layer", () => {
+  it.each([
+    `new Intl.DateTimeFormat("en").format(new Date());`,
+    `new Intl.NumberFormat("en").format(1);`,
+    `new Intl.RelativeTimeFormat("en").format(1, "day");`,
+    `new Intl.ListFormat("en").format(["a"]);`,
+    `new Intl.PluralRules("en").select(1);`,
+  ])("rejects %s outside lib/format", async (source) => {
+    const messages = await lintFixture("components/shell/Fixture.tsx", `export const x = ${source}`);
+
+    const errors = messagesFrom(messages, DIRECT_INTL_RULE);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0]!.message).toMatch(/lib\/format/);
+  });
+
+  it.each(["toLocaleString", "toLocaleDateString", "toLocaleTimeString"])(
+    "rejects %s",
+    async (method) => {
+      const messages = await lintFixture(
+        "components/shell/Fixture.tsx",
+        `export const x = new Date().${method}();`,
+      );
+
+      expect(messagesFrom(messages, DIRECT_INTL_RULE).length).toBeGreaterThan(0);
+    },
+  );
+
+  it("allows the formatting layer itself to call Intl", async () => {
+    // lib/format IS the layer; the ban is on everywhere else reaching past it.
+    const messages = await lintFixture(
+      "lib/format/index.ts",
+      `export const x = new Intl.NumberFormat("en-US").format(1);`,
+    );
+
+    expect(messagesFrom(messages, DIRECT_INTL_RULE)).toEqual([]);
+  });
+
+  it("accepts going through the formatting layer", async () => {
+    const messages = await lintFixture(
+      "components/shell/Fixture.tsx",
+      `import { formatDate } from "@/lib/format";\nexport const x = formatDate(new Date(), "en");`,
+    );
+
+    expect(messagesFrom(messages, DIRECT_INTL_RULE)).toEqual([]);
+  });
+
+  it("does not police test files", async () => {
+    const messages = await lintFixture(
+      "__tests__/lib/Fixture.test.ts",
+      `export const x = new Intl.NumberFormat("en").format(1);`,
+    );
+
+    expect(messagesFrom(messages, DIRECT_INTL_RULE)).toEqual([]);
+  });
+});
+
+const BREAKPOINT_RULE = "design-system/no-adhoc-breakpoint";
+
+describe("three responsive bands", () => {
+  it.each(["sm", "md", "lg", "xl", "2xl"])("rejects the bare screen %s:", async (screen) => {
+    const messages = await lintFixture(
+      "components/domain/Fixture.tsx",
+      `export const F = () => <div className="${screen}:flex">{null}</div>;`,
+    );
+
+    const errors = messagesFrom(messages, BREAKPOINT_RULE);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0]!.message).toMatch(/named band/i);
+  });
+
+  it("rejects a bare screen chained after another variant", async () => {
+    const messages = await lintFixture(
+      "components/domain/Fixture.tsx",
+      `export const F = () => <div className="data-[side=left]:md:hidden">{null}</div>;`,
+    );
+
+    expect(messagesFrom(messages, BREAKPOINT_RULE).length).toBeGreaterThan(0);
+  });
+
+  it("rejects a bare screen in a hoisted class constant", async () => {
+    const messages = await lintFixture(
+      "components/domain/Fixture.tsx",
+      `const FIXTURE_CLASSES = "md:grid"; export const F = () => <div className={FIXTURE_CLASSES} />;`,
+    );
+
+    expect(messagesFrom(messages, BREAKPOINT_RULE).length).toBeGreaterThan(0);
+  });
+
+  it.each(["mobile", "tablet", "desktop"])("accepts the named band %s:", async (band) => {
+    const messages = await lintFixture(
+      "components/domain/Fixture.tsx",
+      `export const F = () => <div className="${band}:flex">{null}</div>;`,
+    );
+
+    expect(messagesFrom(messages, BREAKPOINT_RULE)).toEqual([]);
+  });
+
+  it("rejects a hand-rolled media query", async () => {
+    const messages = await lintFixture(
+      "components/domain/Fixture.tsx",
+      `const CSS = "@media (min-width: 600px) { .x { color: red } }"; export const F = () => CSS;`,
+    );
+
+    expect(messagesFrom(messages, BREAKPOINT_RULE).length).toBeGreaterThan(0);
+  });
+
+  it("rejects a media query in a template literal", async () => {
+    const messages = await lintFixture(
+      "components/domain/Fixture.tsx",
+      "const CSS = `@media (max-width: 480px) { .x { display: none } }`; export const F = () => CSS;",
+    );
+
+    expect(messagesFrom(messages, BREAKPOINT_RULE).length).toBeGreaterThan(0);
+  });
+
+  it("does not misfire on a variant key that merely reads like a screen", async () => {
+    // Button's size variants are named sm/md/lg. They are object keys, not
+    // class tokens, and flagging them would make the rule unusable.
+    const messages = await lintFixture(
+      "components/ui/Fixture.tsx",
+      `export const sizes = { sm: "h-7", md: "h-8", lg: "h-9" };`,
+    );
+
+    expect(messagesFrom(messages, BREAKPOINT_RULE)).toEqual([]);
+  });
+
+  it("does not misfire on prose containing the word medium", async () => {
+    const messages = await lintFixture(
+      "components/domain/Fixture.tsx",
+      `export const F = () => <div className="font-medium text-sm">{null}</div>;`,
+    );
+
+    expect(messagesFrom(messages, BREAKPOINT_RULE)).toEqual([]);
+  });
+
+  it("does not police test files", async () => {
+    const messages = await lintFixture(
+      "__tests__/components/Fixture.test.tsx",
+      `export const F = () => <div className="md:flex">{null}</div>;`,
+    );
+
+    expect(messagesFrom(messages, BREAKPOINT_RULE)).toEqual([]);
+  });
+});

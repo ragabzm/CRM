@@ -1,0 +1,52 @@
+{
+  "shell": {
+    "brand": "رجب CRM",
+    "nav": {
+      "label": "الرئيسية",
+      "home": "الرئيسية",
+      "tickets": "التذاكر",
+      "customers": "العملاء",
+      "administration": "الإدارة"
+    },
+    "actions": {
+      "toggleLanguage": "English",
+      "openNotifications": "الإشعارات",
+      "openUserMenu": "الحساب",
+      "signOut": "تسجيل الخروج",
+      "profile": "الملف الشخصي",
+      "openNavigation": "فتح القائمة"
+    },
+    "notifications": {
+      "heading": "الإشعارات",
+      "empty": "لا توجد إشعارات."
+    }
+  },
+  "home": {
+    "title": "الرئيسية",
+    "placeholder": "سيظهر العمل المسند إليك هنا."
+  },
+  "errors": {
+    "missingTranslation": "ترجمة مفقودة: {key}",
+    "localeSwitchFailed": "تعذّر تغيير اللغة. حاول مرة أخرى."
+  },
+  "common": {
+    "close": "إغلاق",
+    "all": "الكل"
+  },
+  "dataTable": {
+    "search": "بحث",
+    "columns": "الأعمدة",
+    "visibleColumns": "الأعمدة الظاهرة",
+    "identityLocked": "هذا العمود يعرّف الصف ولا يمكن إخفاؤه.",
+    "removeFilter": "إزالة عامل التصفية {label}",
+    "activeFilters": "عوامل التصفية النشطة",
+    "pageOf": "صفحة <num>{page}</num> من <num>{pageCount}</num>",
+    "previous": "السابق",
+    "next": "التالي"
+  },
+  "states": {
+    "noResults": "لا توجد نتائج",
+    "accessDenied": "الوصول مرفوض",
+    "notDisclosed": "غير مُفصح عنه"
+  }
+}

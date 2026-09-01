@@ -11,75 +11,98 @@ vi.mock("@/app/fonts", () => ({
   plexSansArabic: { variable: "--font-plex-sans-arabic" },
 }));
 
-import { DEFAULT_LOCALE, LOCALES, directionFor, isLocale, resolveLocale } from "@/lib/i18n/locale";
-
-/**
- * The bilingual shell.
- *
- * RootLayout renders <html>, which React Testing Library cannot mount into a
- * container (it would nest a document inside a div). The direction contract is
- * therefore asserted at its source — the locale module RootLayout reads — plus
- * a check that the layout actually binds both attributes.
+/*
+ * next/headers only exists inside a request. resolveLocale() reads it, so the
+ * cookie/header pair is stubbed per test to drive the negotiation.
  */
-describe("writing direction", () => {
-  it("maps Arabic to rtl and English to ltr", () => {
-    expect(directionFor("ar")).toBe("rtl");
-    expect(directionFor("en")).toBe("ltr");
-  });
+const cookieStore = { value: undefined as string | undefined };
+const headerStore = { acceptLanguage: null as string | null };
 
-  it("covers every supported locale", () => {
-    for (const locale of LOCALES) {
-      expect(["ltr", "rtl"]).toContain(directionFor(locale));
-    }
-  });
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) =>
+      name === "ragab-locale" && cookieStore.value !== undefined
+        ? { name, value: cookieStore.value }
+        : undefined,
+  }),
+  headers: async () => ({
+    get: (name: string) =>
+      name.toLowerCase() === "accept-language" ? headerStore.acceptLanguage : null,
+  }),
+}));
 
-  it("recognises supported locales and rejects others", () => {
-    expect(isLocale("en")).toBe(true);
-    expect(isLocale("ar")).toBe(true);
-    expect(isLocale("fr")).toBe(false);
-    expect(isLocale(undefined)).toBe(false);
-  });
+import { INTL_TAG, directionFor } from "@/lib/i18n/locale";
 
-  it("defaults to English until the Story 1.4 selector lands", () => {
-    expect(resolveLocale()).toBe(DEFAULT_LOCALE);
-    expect(DEFAULT_LOCALE).toBe("en");
-  });
-});
+interface HtmlProps {
+  lang: string;
+  dir: string;
+  className: string;
+  children: React.ReactElement<{ children: React.ReactElement<{ locale: string }> }>;
+}
 
-describe("RootLayout binds dir and lang from the locale", () => {
-  it("renders <html> with both attributes bound to the resolved locale", async () => {
-    const { default: RootLayout } = await import("@/app/layout");
+async function renderLayout() {
+  const { default: RootLayout } = await import("@/app/layout");
+  return (await RootLayout({ children: null })) as React.ReactElement<HtmlProps>;
+}
 
-    const tree = RootLayout({ children: null }) as React.ReactElement<{
-      lang: string;
-      dir: string;
-      className: string;
-    }>;
+describe("RootLayout is the one place direction is decided", () => {
+  it("renders <html> with dir and lang bound to the resolved locale", async () => {
+    cookieStore.value = undefined;
+    headerStore.acceptLanguage = null;
+
+    const tree = await renderLayout();
 
     expect(tree.type).toBe("html");
-    expect(tree.props.lang).toBe(resolveLocale());
-    expect(tree.props.dir).toBe(directionFor(resolveLocale()));
+    expect(tree.props.lang).toBe("en");
+    expect(tree.props.dir).toBe("ltr");
+  });
+
+  it("flips to rtl and lang=ar when the persisted preference is Arabic", async () => {
+    cookieStore.value = "ar";
+
+    const tree = await renderLayout();
+
+    expect(tree.props.lang).toBe("ar");
+    expect(tree.props.dir).toBe("rtl");
+    expect(tree.props.dir).toBe(directionFor("ar"));
+  });
+
+  it("keeps lang as the bare BCP-47 base tag, not the Intl extension", async () => {
+    cookieStore.value = "ar";
+
+    const tree = await renderLayout();
+
+    // Assistive technology expects "ar"; the -u- extension goes to Intl only.
+    expect(tree.props.lang).toBe("ar");
+    expect(tree.props.lang).not.toContain("-u-");
+  });
+
+  it("hands next-intl the pinned Intl tag, so Arabic gets Gregorian and Western digits", async () => {
+    cookieStore.value = "ar";
+
+    const tree = await renderLayout();
+    const body = tree.props.children;
+    const provider = body.props.children;
+
+    expect(provider.props.locale).toBe(INTL_TAG.ar);
+    expect(provider.props.locale).toBe("ar-u-ca-gregory-nu-latn");
   });
 
   it("applies both self-hosted font variables, so Arabic has a matched face", async () => {
-    const { default: RootLayout } = await import("@/app/layout");
+    cookieStore.value = undefined;
 
-    const tree = RootLayout({ children: null }) as React.ReactElement<{ className: string }>;
+    const tree = await renderLayout();
 
-    // next/font/local is mocked away in tests; assert both variables are wired.
-    expect(tree.props.className.split(" ").filter(Boolean).length).toBe(2);
+    expect(tree.props.className.split(" ").filter(Boolean)).toHaveLength(2);
   });
 
   it("registers no external font loader", async () => {
     const { readFileSync } = await import("node:fs");
-    const layout = readFileSync("app/layout.tsx", "utf8");
-    const fonts = readFileSync("app/fonts.ts", "utf8");
-    const config = readFileSync("next.config.ts", "utf8");
 
     // The intake forbids an external font CDN in the request path. `shadcn init`
     // adds a next/font/google loader here, so this asserts it stays removed.
-    for (const source of [layout, fonts, config]) {
-      expect(source).not.toMatch(/from\s+["']next\/font\/google["']/);
+    for (const file of ["app/layout.tsx", "app/fonts.ts", "next.config.ts"]) {
+      expect(readFileSync(file, "utf8")).not.toMatch(/from\s+["']next\/font\/google["']/);
     }
   });
 });

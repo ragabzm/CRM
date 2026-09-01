@@ -92,6 +92,46 @@ const eslintConfig = defineConfig([
     },
   },
 
+  {
+    /*
+     * RULE 4 — no hard-coded user-facing text. A literal that ships is a string
+     * Arabic readers will never see translated, and it is invisible in review
+     * because it looks like ordinary markup.
+     */
+    files: ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}", "**/__tests__/**", "**/*.stories.tsx"],
+    rules: {
+      "design-system/no-literal-jsx-strings": "error",
+    },
+  },
+
+  {
+    /*
+     * RULE 5 — one formatting layer. lib/format/ is exempt because it IS the
+     * layer; everywhere else, a direct Intl call is a surface that can silently
+     * disagree with the rest of the product in a language most reviewers do not
+     * read.
+     */
+    files: ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}"],
+    ignores: ["lib/format/**", "**/*.test.{ts,tsx}", "**/__tests__/**"],
+    rules: {
+      "design-system/no-direct-intl-formatting": "error",
+    },
+  },
+
+  {
+    /*
+     * RULE 6 — exactly three breakpoints. Each band is a posture (a thumb, a
+     * finger, a pointer); a fourth ad-hoc breakpoint is a layout designed for
+     * nobody. Applies to lib/ and app/ too, not only components/.
+     */
+    files: ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}", "**/__tests__/**"],
+    rules: {
+      "design-system/no-adhoc-breakpoint": "error",
+    },
+  },
+
   globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts"]),
 ]);
 

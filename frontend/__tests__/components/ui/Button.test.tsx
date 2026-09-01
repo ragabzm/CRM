@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@/__tests__/helpers/intl";
 import { describe, expect, it } from "vitest";
 
 import { Button, type ButtonVariant } from "@/components/ui/button";
@@ -69,5 +69,34 @@ describe("Button variants survive greyscale", () => {
     const { container } = render(<Button variant="primary">Act</Button>);
 
     expect(container.querySelector("button")!.className).not.toMatch(/#[0-9a-fA-F]{3,8}|rgb|oklch/);
+  });
+});
+
+describe("focus indicator comes from the token", () => {
+  it("does not suppress the outline the base layer draws", () => {
+    const { container } = render(<Button variant="primary">Act</Button>);
+
+    // A blanket `outline-none` would beat the :focus-visible rule in @layer
+    // base, because utilities are emitted after it — and the focus indicator
+    // would silently vanish.
+    const classes = container.querySelector("button")!.className;
+    expect(classes).not.toMatch(/(^|\s)outline-none(\s|$)/);
+    expect(classes).not.toMatch(/(^|\s)outline-hidden(\s|$)/);
+  });
+
+  it("declares no bespoke focus ring of its own", () => {
+    const { container } = render(<Button variant="primary">Act</Button>);
+
+    // One token, one rule, one appearance across every primitive.
+    expect(container.querySelector("button")!.className).not.toMatch(/focus-visible:ring/);
+  });
+
+  it("is focusable by keyboard", async () => {
+    render(<Button variant="primary">Act</Button>);
+
+    const button = screen.getByRole("button", { name: /act/i });
+    button.focus();
+
+    expect(button).toHaveFocus();
   });
 });

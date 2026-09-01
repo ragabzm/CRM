@@ -19,7 +19,7 @@ export default defineConfig({
     // legitimately take longer than the 5s default.
     testTimeout: 20_000,
     hookTimeout: 120_000,
-    setupFiles: ["./__tests__/setup.ts"],
+    setupFiles: ["./__tests__/setup.ts", "./__tests__/a11y/setup.ts"],
     include: ["__tests__/**/*.test.ts", "__tests__/**/*.test.tsx"],
     coverage: {
       provider: "v8",

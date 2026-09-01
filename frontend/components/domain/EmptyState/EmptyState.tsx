@@ -1,4 +1,5 @@
 import { Inbox } from "lucide-react";
+import { useTranslations } from "next-intl";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -11,7 +12,7 @@ export interface EmptyStateProps {
   /** Ways to loosen the query. All secondary, all reversible. */
   actions?: React.ReactNode;
   /**
-   * A real count, printed. Zero is an answer, and saying "0 of 1,284" tells the
+   * A real count, printed. Zero is an answer, and saying"0 of 1,284"tells the
    * reader the query ran and came back empty.
    *
    * This is the deliberate opposite of ForbiddenState, which must print no
@@ -28,12 +29,12 @@ export interface EmptyStateProps {
  * Board R-6 draws this beside ForbiddenState and lists nine differences between
  * them — none of which is colour. The ones that live in this component:
  *
- *   1 Layout   centred in the content area, symmetrical, on the vertical axis
- *   2 Mark     an OUTLINED tray on a sunken surface with a hairline border
- *   3 Number   a real count, printed
- *   4 Heading  about the selection
- *   6 Actions  several, secondary, instant, reversible
- *   7/8        no reference code, nothing logged
+ * 1 Layout centred in the content area, symmetrical, on the vertical axis
+ * 2 Mark an OUTLINED tray on a sunken surface with a hairline border
+ * 3 Number a real count, printed
+ * 4 Heading  about the selection
+ * 6 Actions  several, secondary, instant, reversible
+ * 7/8 no reference code, nothing logged
  *
  * Centred composition is the first thing read, before any word or icon: centred
  * reads as *a space*, where the edge-anchored ForbiddenState reads as *a notice*.
@@ -46,11 +47,13 @@ export function EmptyState({
   icon,
   className,
 }: EmptyStateProps) {
+  const t = useTranslations("states");
+
   return (
     <section
       data-slot="empty-state"
       data-state-kind="empty"
-      aria-label="No results"
+      aria-label={t("noResults")}
       className={cn(
         // 1 · Layout — centred and symmetrical.
         "flex flex-col items-center justify-center gap-3 px-6 py-12 text-center",
@@ -79,7 +82,9 @@ export function EmptyState({
       {description && <p className="max-w-prose text-sm text-fg-muted">{description}</p>}
 
       {/* 6 · Actions — several, all reversible. */}
-      {actions && <div className="mt-1 flex flex-wrap items-center justify-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="mt-1 flex flex-wrap items-center justify-center gap-2">{actions}</div>
+      )}
     </section>
   );
 }

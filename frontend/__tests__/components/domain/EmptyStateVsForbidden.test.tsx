@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render } from "@/__tests__/helpers/intl";
 import { describe, expect, it } from "vitest";
 
 import { EmptyState } from "@/components/domain/EmptyState/EmptyState";

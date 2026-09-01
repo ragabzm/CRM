@@ -1,3 +1,5 @@
+export { BidiValue } from "./BidiValue/BidiValue";
+export type { BidiValueProps } from "./BidiValue/BidiValue";
 export { DataTable } from "./DataTable/DataTable";
 export * from "./DataTable/DataTable.types";
 export { EmptyState } from "./EmptyState/EmptyState";

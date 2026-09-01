@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, ChevronsUpDown, Search, SlidersHorizontal, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -20,9 +21,6 @@ import { ariaSortFor, nextSortState, sortAnnouncement } from "./DataTable.aria";
 import type { ActiveFilters, ColumnDef, DataTableProps } from "./DataTable.types";
 import { useRetainFocusAcrossPages } from "./useRetainFocusAcrossPages";
 import { useRovingFocus } from "./useRovingFocus";
-
-/** Why the identity column cannot be hidden, said once. */
-const IDENTITY_LOCK_REASON = "This column identifies the row and cannot be hidden.";
 
 /** Stable target for aria-describedby on the locked toggle. */
 const IDENTITY_LOCK_REASON_ID = "identity-column-lock-reason";
@@ -46,6 +44,7 @@ export function DataTable<Row>({
   rows,
   getRowId,
   caption,
+  mode = "fold",
   sort = null,
   onSortChange,
   filters = [],
@@ -60,12 +59,54 @@ export function DataTable<Row>({
   onPageChange,
   emptyState,
 }: DataTableProps<Row>) {
+  const t = useTranslations("dataTable");
+  const tCommon = useTranslations("common");
   const [announcement, setAnnouncement] = React.useState("");
 
   const visibleColumns = React.useMemo(
     () => columns.filter((column) => column.identity || !hiddenColumns.includes(column.id)),
     [columns, hiddenColumns],
   );
+
+  /** Columns that fold away below the desktop band, in declaration order. */
+  const foldedColumns = React.useMemo(
+    () => (mode === "fold" ? visibleColumns.filter((column) => column.secondary) : []),
+    [mode, visibleColumns],
+  );
+
+  /*
+   * Dev-time misuse guards. These are contract violations that produce a table
+   * which looks fine in the reviewer's browser and fails at a band nobody
+   * opened, so they are surfaced loudly during development rather than left to
+   * be discovered on a phone.
+   */
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+
+    const pinned = columns.filter((column) => column.pinned);
+
+    if (mode === "scroll" && pinned.length === 0) {
+      console.error(
+        '[DataTable] mode="scroll"without a pinned column. The pinned identity ' +
+          "column is what stops the horizontal scroll from losing the reader — " +
+          "mark one column with `pinned: true`.",
+      );
+    }
+
+    if (mode === "fold" && pinned.length > 0) {
+      console.warn(
+        '[DataTable] `pinned` is ignored in mode="fold"; fold and scroll are ' +
+          'exclusive mechanisms. Remove `pinned` or switch to mode="scroll".',
+      );
+    }
+
+    if (mode === "scroll" && columns.some((column) => column.secondary)) {
+      console.warn(
+        '[DataTable] `secondary` is ignored in mode="scroll"; a comparative ' +
+          "table keeps every column and scrolls instead of folding.",
+      );
+    }
+  }, [mode, columns]);
 
   const { active, containerRef, onKeyDown, cellProps, focusCell } = useRovingFocus({
     rowCount: rows.length,
@@ -123,8 +164,8 @@ export function DataTable<Row>({
           <Input
             type="search"
             value={search}
-            aria-label="Search"
-            placeholder="Search"
+            aria-label={t("search")}
+            placeholder={t("search")}
             className="ps-8"
             onChange={(event) => onSearchChange?.(event.target.value)}
           />
@@ -138,7 +179,7 @@ export function DataTable<Row>({
               onChange={(event) => setFilter(filter.id, event.target.value)}
               className="h-8 rounded-md border border-border-default bg-surface-raised px-2 text-sm text-fg-default"
             >
-              <option value="">All</option>
+              <option value="">{tCommon("all")}</option>
               {filter.options.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -151,70 +192,70 @@ export function DataTable<Row>({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="secondary" size="md" icon={<SlidersHorizontal aria-hidden="true" />}>
-              Columns
+              {t("columns")}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-52">
             {/*
-              Its own provider: a Layer-B component must render correctly
-              wherever it is dropped, not only inside a tree that happens to
-              have installed one. Radix tolerates nesting, so the app-level
-              provider in RootLayout still governs elsewhere.
+ Its own provider: a Layer-B component must render correctly
+ wherever it is dropped, not only inside a tree that happens to
+ have installed one. Radix tolerates nesting, so the app-level
+ provider in RootLayout still governs elsewhere.
             */}
             <TooltipProvider>
-            <DropdownMenuLabel>Visible columns</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {columns.map((column) => {
-              const checked = column.identity || !hiddenColumns.includes(column.id);
+              <DropdownMenuLabel>{t("visibleColumns")}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {columns.map((column) => {
+                const checked = column.identity || !hiddenColumns.includes(column.id);
 
-              /*
-               * The identity column's toggle is RENDERED AND DISABLED, never
-               * omitted. "Locked, not absent": a missing control makes the
-               * reader hunt for it; a disabled one with a reason teaches the
-               * rule.
-               */
-              const control = (
-                <div
-                  key={column.id}
-                  className={cn(
-                    "flex items-center gap-2 rounded-md px-1.5 py-1 text-sm",
-                    column.identity ? "opacity-70" : "hover:bg-surface-hover",
-                  )}
-                >
-                  <Checkbox
-                    id={`column-toggle-${column.id}`}
-                    checked={checked}
-                    disabled={column.identity ?? false}
-                    aria-disabled={column.identity ? true : undefined}
-                    /*
-                     * Points at the always-rendered sr-only description, NOT at
-                     * the tooltip: tooltip content only exists in the DOM while
-                     * it is open, so a keyboard user focusing the disabled
-                     * toggle would otherwise be told nothing about why it is
-                     * locked.
-                     */
-                    aria-describedby={column.identity ? IDENTITY_LOCK_REASON_ID : undefined}
-                    onCheckedChange={() => toggleColumn(column)}
-                  />
-                  <label htmlFor={`column-toggle-${column.id}`} className="flex-1">
-                    {column.header}
-                  </label>
-                </div>
-              );
+                /*
+                 * The identity column's toggle is RENDERED AND DISABLED, never
+                 * omitted. "Locked, not absent": a missing control makes the
+                 * reader hunt for it; a disabled one with a reason teaches the
+                 * rule.
+                 */
+                const control = (
+                  <div
+                    key={column.id}
+                    className={cn(
+                      "flex items-center gap-2 rounded-md px-1.5 py-1 text-sm",
+                      column.identity ? "opacity-70" : "hover:bg-surface-hover",
+                    )}
+                  >
+                    <Checkbox
+                      id={`column-toggle-${column.id}`}
+                      checked={checked}
+                      disabled={column.identity ?? false}
+                      aria-disabled={column.identity ? true : undefined}
+                      /*
+                       * Points at the always-rendered sr-only description, NOT at
+                       * the tooltip: tooltip content only exists in the DOM while
+                       * it is open, so a keyboard user focusing the disabled
+                       * toggle would otherwise be told nothing about why it is
+                       * locked.
+                       */
+                      aria-describedby={column.identity ? IDENTITY_LOCK_REASON_ID : undefined}
+                      onCheckedChange={() => toggleColumn(column)}
+                    />
+                    <label htmlFor={`column-toggle-${column.id}`} className="flex-1">
+                      {column.header}
+                    </label>
+                  </div>
+                );
 
-              if (!column.identity) return control;
+                if (!column.identity) return control;
 
-              return (
-                <Tooltip key={column.id}>
-                  <TooltipTrigger asChild>{control}</TooltipTrigger>
-                  <TooltipContent>{IDENTITY_LOCK_REASON}</TooltipContent>
-                </Tooltip>
-              );
-            })}
-            {/* Also readable by assistive tech without opening the tooltip. */}
-            <span className="sr-only" id={IDENTITY_LOCK_REASON_ID}>
-              {IDENTITY_LOCK_REASON}
-            </span>
+                return (
+                  <Tooltip key={column.id}>
+                    <TooltipTrigger asChild>{control}</TooltipTrigger>
+                    <TooltipContent>{t("identityLocked")}</TooltipContent>
+                  </Tooltip>
+                );
+              })}
+              {/* Also readable by assistive tech without opening the tooltip. */}
+              <span className="sr-only" id={IDENTITY_LOCK_REASON_ID}>
+                {t("identityLocked")}
+              </span>
             </TooltipProvider>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -222,7 +263,7 @@ export function DataTable<Row>({
 
       {/* ---------- active filter chips ---------- */}
       {activeFilterEntries.length > 0 && (
-        <ul className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
+        <ul className="flex flex-wrap items-center gap-1.5" aria-label={t("activeFilters")}>
           {activeFilterEntries.map(([filterId, value]) => {
             const filter = filters.find((candidate) => candidate.id === filterId);
             const option = filter?.options.find((candidate) => candidate.value === value);
@@ -234,7 +275,7 @@ export function DataTable<Row>({
                   <span>{option?.label ?? value}</span>
                   <button
                     type="button"
-                    aria-label={`Remove filter ${filter?.label ?? filterId}`}
+                    aria-label={t("removeFilter", { label: filter?.label ?? filterId })}
                     className="rounded-full p-0.5 text-fg-muted hover:bg-surface-active hover:text-fg-default"
                     onClick={() => setFilter(filterId, "")}
                   >
@@ -248,12 +289,23 @@ export function DataTable<Row>({
       )}
 
       {/* ---------- the table ---------- */}
-      <div className="overflow-x-auto rounded-md border border-border-default bg-surface-raised">
-        <table
-          ref={containerRef}
-          onKeyDown={onKeyDown}
-          className="w-full border-collapse text-sm"
-        >
+      <div
+        /*
+         * In scroll mode this is the scroll container, and it has to be a
+         * labelled, focusable region: a scrollable area that cannot be reached
+         * or announced is unusable by keyboard and invisible to a screen reader.
+         * In fold mode nothing scrolls horizontally, so it is a plain box.
+         */
+        {...(mode === "scroll"
+          ? { role: "region" as const, "aria-label": caption, tabIndex: 0 }
+          : {})}
+        data-collapse-mode={mode}
+        className={cn(
+          "rounded-md border border-border-default bg-surface-raised",
+          mode === "scroll" ? "overflow-x-auto overscroll-x-contain" : "overflow-x-hidden",
+        )}
+      >
+        <table ref={containerRef} onKeyDown={onKeyDown} className="w-full border-collapse text-sm">
           <caption className="sr-only">{caption}</caption>
           <thead>
             <tr className="border-b border-border-default">
@@ -267,11 +319,17 @@ export function DataTable<Row>({
                     aria-sort={column.sortable ? sortState : undefined}
                     data-column-id={column.id}
                     data-secondary={column.secondary ? "true" : undefined}
+                    data-pinned={mode === "scroll" && column.pinned ? "true" : undefined}
                     className={cn(
                       "h-(--row-height) whitespace-nowrap px-3 text-start align-middle text-xs font-semibold text-fg-muted",
-                      // Secondary columns collapse into the row expander below
-                      // the breakpoint instead of forcing a horizontal scroll.
-                      column.secondary && "hidden md:table-cell",
+                      // Folds away below desktop; its value moves to the row's
+                      // meta line, never disappears.
+                      mode === "fold" && column.secondary && "hidden desktop:table-cell",
+                      // Logical inset-inline-start, so the identity column pins
+                      // to the reading edge in Arabic as well as English.
+                      mode === "scroll" &&
+                        column.pinned &&
+                        "sticky start-0 z-20 bg-surface-raised shadow-[1px_0_0_var(--border-subtle)]",
                       column.type === "number" && "text-end",
                     )}
                   >
@@ -310,14 +368,44 @@ export function DataTable<Row>({
                     <td
                       key={column.id}
                       data-column-type={column.type ?? "text"}
+                      data-pinned={mode === "scroll" && column.pinned ? "true" : undefined}
                       className={cn(
                         "h-(--row-height) px-3 align-middle text-fg-default",
-                        column.secondary && "hidden md:table-cell",
+                        mode === "fold" && column.secondary && "hidden desktop:table-cell",
+                        mode === "scroll" &&
+                          column.pinned &&
+                          "sticky start-0 z-10 bg-surface-raised shadow-[1px_0_0_var(--border-subtle)]",
                         column.type === "number" && "text-end",
                       )}
                       {...cellProps(rowIndex, columnIndex)}
                     >
                       {column.cell(row)}
+
+                      {/*
+ The fold's other half. Every column hidden above is
+ reprinted here, labelled, below the desktop band — the
+ value is MOVED, never dropped. It rides in the first
+ visible cell so the row stays one <tr> and the table
+ keeps real row/column semantics.
+                      */}
+                      {columnIndex === 0 && foldedColumns.length > 0 && (
+                        <dl
+                          data-slot="row-meta"
+                          className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-fg-muted desktop:hidden"
+                        >
+                          {foldedColumns.map((folded) => (
+                            <div key={folded.id} className="flex items-center gap-1">
+                              <dt className="sr-only">{folded.header}</dt>
+                              <dd
+                                data-column-id={folded.id}
+                                data-column-type={folded.type ?? "text"}
+                              >
+                                {folded.cell(row)}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -331,8 +419,12 @@ export function DataTable<Row>({
       {pageCount > 1 && (
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm text-fg-muted">
-            Page <span data-numeric="true">{page}</span> of{" "}
-            <span data-numeric="true">{pageCount}</span>
+            {t.rich("pageOf", {
+              page,
+              pageCount,
+              // Counts are formatted numbers on a numeric surface, not prose.
+              num: (chunks) => <span data-numeric="true">{chunks}</span>,
+            })}
           </p>
           <div className="flex items-center gap-1.5">
             <Button
@@ -341,7 +433,7 @@ export function DataTable<Row>({
               disabled={page <= 1}
               onClick={() => onPageChange?.(page - 1)}
             >
-              Previous
+              {t("previous")}
             </Button>
             <Button
               variant="secondary"
@@ -349,7 +441,7 @@ export function DataTable<Row>({
               disabled={page >= pageCount}
               onClick={() => onPageChange?.(page + 1)}
             >
-              Next
+              {t("next")}
             </Button>
           </div>
         </div>

@@ -142,6 +142,31 @@
   --color-chart-axis: #d2d6df;
   --color-chart-flat: #5d6474;
 
+  /* ---------- Responsive bands ---------- */
+  /*
+   * THE ONLY THREE BREAKPOINTS IN THE PRODUCT.
+   *
+   *   mobile   0 – 767px    base. One pane. A thumb.
+   *   tablet   768 – 1023px One pane plus a drawer. A finger.
+   *   desktop  1024px +     Two and three panes. A pointer and a keyboard.
+   *
+   * PROVENANCE: board R-0 of the normative mockup at
+   * .squad/stories/inti/495/attachments/screen-responsive.html, which states
+   * these values and lists the devices that land in each band — notably
+   * "iPad Air landscape, half-screen laptop 1024–1180 → Desktop". The story
+   * plan proposed 1280px for the desktop edge; that would put a half-screen
+   * laptop in the tablet band, contradicting the design's own device table, so
+   * the mockup's 1024px is used. See frontend/README.md.
+   *
+   * `--breakpoint-*: initial` deletes Tailwind's default sm/md/lg/xl/2xl, so a
+   * bare `md:` does not silently resolve to a real media query — it becomes an
+   * unknown class that generates nothing. The lint rule catches it at author
+   * time; this makes it inert even if the rule is disabled.
+   */
+  --breakpoint-*: initial;
+  --breakpoint-tablet: 768px;
+  --breakpoint-desktop: 1024px;
+
   /* ---------- Radius ---------- */
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -234,9 +259,23 @@
     --accent-subtle-hover: var(--color-accent-subtle-hover);
     --accent-border: var(--color-accent-border);
 
-    /* Focus */
-    --focus-ring-color: rgba(90, 79, 224, 0.3);
-    --focus-ring: 0 0 0 3px var(--focus-ring-color);
+    /*
+     * Focus — the accessibility floor.
+     *
+     * An outline, not a box-shadow. Windows High Contrast Mode discards
+     * box-shadows entirely, so a shadow-based ring is invisible to exactly the
+     * users who most need it. `outline` is preserved and forced to the system
+     * highlight colour instead.
+     *
+     * The colour is the solid accent rather than the 30%-alpha halo the ring
+     * used: a 2px line at 30% opacity does not reach 3:1 against the surface.
+     */
+    --focus-ring-color: var(--color-accent);
+    --focus-ring-width: 2px;
+    --focus-ring-offset: 2px;
+    --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
+    /* Retained for the soft halo some primitives layer behind the outline. */
+    --focus-ring-halo: rgba(90, 79, 224, 0.3);
 
     /* State */
     --state-success: var(--color-success-fg);

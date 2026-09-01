@@ -1,0 +1,52 @@
+{
+  "shell": {
+    "brand": "Ragab CRM",
+    "nav": {
+      "label": "Main",
+      "home": "Home",
+      "tickets": "Tickets",
+      "customers": "Customers",
+      "administration": "Administration"
+    },
+    "actions": {
+      "toggleLanguage": "العربية",
+      "openNotifications": "Notifications",
+      "openUserMenu": "Account",
+      "signOut": "Sign out",
+      "profile": "Profile",
+      "openNavigation": "Open navigation"
+    },
+    "notifications": {
+      "heading": "Notifications",
+      "empty": "No notifications."
+    }
+  },
+  "home": {
+    "title": "Home",
+    "placeholder": "Your assigned work will appear here."
+  },
+  "errors": {
+    "missingTranslation": "Missing translation: {key}",
+    "localeSwitchFailed": "Could not change the language. Please try again."
+  },
+  "common": {
+    "close": "Close",
+    "all": "All"
+  },
+  "dataTable": {
+    "search": "Search",
+    "columns": "Columns",
+    "visibleColumns": "Visible columns",
+    "identityLocked": "This column identifies the row and cannot be hidden.",
+    "removeFilter": "Remove filter {label}",
+    "activeFilters": "Active filters",
+    "pageOf": "Page <num>{page}</num> of <num>{pageCount}</num>",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "states": {
+    "noResults": "No results",
+    "accessDenied": "Access denied",
+    "notDisclosed": "not disclosed"
+  }
+}

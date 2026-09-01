@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@/__tests__/helpers/intl";
 import { describe, expect, it } from "vitest";
 
 import { ForbiddenState } from "@/components/domain/ForbiddenState/ForbiddenState";
@@ -100,12 +100,22 @@ describe("ForbiddenState prints no numeral", () => {
   });
 
   it("offers no way to pass a count", () => {
-    // Compile-time guarantee, asserted here so the intent is visible in tests
-    // too: adding a `count` prop would fail typecheck.
-    const props = Object.keys(
-      ForbiddenState({ headline: "x" }).props as Record<string, unknown>,
+    const { container } = render(
+      <ForbiddenState
+        headline="Restricted"
+        withheldLabel="tickets"
+        /*
+         * ForbiddenState deliberately has no `count` prop and must not grow
+         * one. If it ever does, this becomes an unused @ts-expect-error and
+         * `tsc --noEmit` fails — so the guarantee is checked at compile time
+         * rather than only by review.
+         */
+        // @ts-expect-error - see above
+        count={0}
+      />,
     );
 
-    expect(props).not.toContain("count");
+    // Belt and braces: even forced through, no numeral reaches the screen.
+    expect(visibleText(container)).not.toMatch(ANY_NUMERAL);
   });
 });

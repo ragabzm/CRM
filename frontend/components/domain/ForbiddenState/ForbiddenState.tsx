@@ -1,4 +1,5 @@
 import { Lock } from "lucide-react";
+import { useTranslations } from "next-intl";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -23,7 +24,7 @@ export interface ForbiddenStateProps {
   secondaryAction?: React.ReactNode;
   /**
    * Support handle, e.g. "ERR-SCOPE-403 · ref 7K2-4801". Board R-6 requires it:
-   * a code turns "it says I can't" into a conversation an administrator can
+   * a code turns"it says I can't"into a conversation an administrator can
    * actually resolve.
    *
    * It renders OUTSIDE the no-numeral region, because the digits in an error
@@ -45,7 +46,7 @@ export interface ForbiddenStateProps {
  * leaked that the count is small AND told a lie — how many tickets the reader
  * is not scoped to see is itself information they are not scoped to see.
  *
- * If a future caller "just needs" a count here, that is a signal they want
+ * If a future caller"just needs"a count here, that is a signal they want
  * EmptyState, not a signal to add the prop.
  */
 
@@ -55,18 +56,18 @@ export interface ForbiddenStateProps {
  * Board R-6 draws this beside EmptyState and lists nine differences between
  * them — not one of which is colour. The ones that live in this component:
  *
- *   1 Layout   flush to the inline-start edge, asymmetric, with a solid rule
- *              down its leading edge. Edge-anchored reads as *a notice*, where
- *              EmptyState's centred composition reads as *a space*.
- *   2 Mark     a FILLED DARK badge carrying a closed padlock in white — solid
- *              against EmptyState's outline, dark against its light. Visible at
- *              a distance, in greyscale, and out of focus.
- *   3 Number   an em dash, in mono, labelled "not disclosed".
- *   4 Heading  about the reader.
- *   5 Body     names the scope boundary and who holds it.
- *   6 Actions  ONE primary action that involves another person, plus a way back.
- *   7 Reference a quotable support code.
- *   8 Audit    a logged line, shown, with the reassurance that it is routine.
+ * 1 Layout flush to the inline-start edge, asymmetric, with a solid rule
+ * down its leading edge. Edge-anchored reads as *a notice*, where
+ * EmptyState's centred composition reads as *a space*.
+ * 2 Mark a FILLED DARK badge carrying a closed padlock in white — solid
+ * against EmptyState's outline, dark against its light. Visible at
+ * a distance, in greyscale, and out of focus.
+ * 3 Number an em dash, in mono, labelled"not disclosed".
+ * 4 Heading  about the reader.
+ * 5 Body names the scope boundary and who holds it.
+ * 6 Actions  ONE primary action that involves another person, plus a way back.
+ * 7 Reference a quotable support code.
+ * 8 Audit a logged line, shown, with the reassurance that it is routine.
  */
 export function ForbiddenState({
   headline,
@@ -78,11 +79,13 @@ export function ForbiddenState({
   auditNote,
   className,
 }: ForbiddenStateProps) {
+  const t = useTranslations("states");
+
   return (
     <section
       data-slot="forbidden-state"
       data-state-kind="forbidden"
-      aria-label="Access denied"
+      aria-label={t("accessDenied")}
       className={cn(
         // 1 · Layout — edge-anchored and asymmetric, with a leading rule.
         "flex flex-col items-start gap-3 border-s-4 border-fg-default bg-surface-sunken px-6 py-8 text-start",
@@ -104,7 +107,7 @@ export function ForbiddenState({
             &mdash;
           </span>
           {withheldLabel && <span className="text-fg-muted">{withheldLabel}</span>}
-          <span className="text-fg-muted">&middot; not disclosed</span>
+          <span className="text-fg-muted">&middot; {t("notDisclosed")}</span>
         </p>
 
         {/* 4 · Heading — about the reader. */}
@@ -123,8 +126,8 @@ export function ForbiddenState({
       </div>
 
       {/*
-        7 · Reference and 8 · Audit sit OUTSIDE the no-numeral region: an error
-        code and a timestamp are a support handle, not a count. See `reference`.
+ 7 · Reference and 8 · Audit sit OUTSIDE the no-numeral region: an error
+ code and a timestamp are a support handle, not a count. See `reference`.
       */}
       {(reference || auditNote) && (
         <div className="flex flex-col gap-1 border-t border-border-default pt-3 text-xs text-fg-subtle">

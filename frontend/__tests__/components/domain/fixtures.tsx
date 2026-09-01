@@ -45,3 +45,20 @@ export const FILTERS: FilterDef[] = [
 ];
 
 export const getRowId = (row: TicketRow) => row.id;
+
+/**
+ * A comparative table: the reader is reading DOWN columns, not scanning for a
+ * row to open. Board R-1 says these scroll with a pinned identity column rather
+ * than folding.
+ */
+export const AUDIT_COLUMNS: ColumnDef<TicketRow>[] = [
+  {
+    id: "reference",
+    header: "Reference",
+    identity: true,
+    pinned: true,
+    cell: (row) => row.reference,
+  },
+  { id: "subject", header: "Subject", cell: (row) => row.subject },
+  { id: "age", header: "Age", type: "number", cell: (row) => row.age },
+];

@@ -27,14 +27,46 @@ export const plexSans = localFont({
  */
 export const plexSansArabic = localFont({
   src: [
-    { path: "../public/fonts/ibm-plex/IBMPlexSansArabic-400.woff2", weight: "400", style: "normal" },
-    { path: "../public/fonts/ibm-plex/IBMPlexSansArabic-latin-400.woff2", weight: "400", style: "normal" },
-    { path: "../public/fonts/ibm-plex/IBMPlexSansArabic-500.woff2", weight: "500", style: "normal" },
-    { path: "../public/fonts/ibm-plex/IBMPlexSansArabic-latin-500.woff2", weight: "500", style: "normal" },
-    { path: "../public/fonts/ibm-plex/IBMPlexSansArabic-600.woff2", weight: "600", style: "normal" },
-    { path: "../public/fonts/ibm-plex/IBMPlexSansArabic-latin-600.woff2", weight: "600", style: "normal" },
-    { path: "../public/fonts/ibm-plex/IBMPlexSansArabic-700.woff2", weight: "700", style: "normal" },
-    { path: "../public/fonts/ibm-plex/IBMPlexSansArabic-latin-700.woff2", weight: "700", style: "normal" },
+    {
+      path: "../public/fonts/ibm-plex/IBMPlexSansArabic-400.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/ibm-plex/IBMPlexSansArabic-latin-400.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/ibm-plex/IBMPlexSansArabic-500.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/ibm-plex/IBMPlexSansArabic-latin-500.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/ibm-plex/IBMPlexSansArabic-600.woff2",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/ibm-plex/IBMPlexSansArabic-latin-600.woff2",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/ibm-plex/IBMPlexSansArabic-700.woff2",
+      weight: "700",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/ibm-plex/IBMPlexSansArabic-latin-700.woff2",
+      weight: "700",
+      style: "normal",
+    },
   ],
   variable: "--font-plex-sans-arabic",
   display: "swap",

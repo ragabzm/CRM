@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  BANDS,
+  BAND_NAMES,
   PRIMITIVE_PREFIXES,
   SEMANTIC_TOKENS,
   semanticVar,
@@ -89,5 +91,55 @@ describe("token layer structure", () => {
     expect(declared.has("--radius-pill")).toBe(true);
     expect(declared.has("--shadow-e-dialog")).toBe(true);
     expect(declared.has("--spacing-11")).toBe(true);
+  });
+});
+
+describe("responsive bands", () => {
+  it("has exactly three", () => {
+    // Three postures: a thumb, a finger, a pointer. A fourth breakpoint is a
+    // layout designed for nobody.
+    expect(Object.keys(BANDS)).toHaveLength(3);
+    expect(BAND_NAMES).toEqual(["mobile", "tablet", "desktop"]);
+  });
+
+  it("matches the values declared in CSS", () => {
+    expect(tokensCss).toContain("--breakpoint-tablet: 768px");
+    expect(tokensCss).toContain("--breakpoint-desktop: 1024px");
+    expect(BANDS.tablet).toBe(768);
+    expect(BANDS.desktop).toBe(1024);
+  });
+
+  it("starts the mobile band at zero, so it is the base and needs no query", () => {
+    expect(BANDS.mobile).toBe(0);
+  });
+
+  it("ascends", () => {
+    expect(BANDS.mobile).toBeLessThan(BANDS.tablet);
+    expect(BANDS.tablet).toBeLessThan(BANDS.desktop);
+  });
+
+  it("deletes Tailwind's default screens, so a bare md: generates nothing", () => {
+    // Belt and braces behind the lint rule: even with the rule disabled, a bare
+    // breakpoint is an unknown class rather than a working one.
+    expect(tokensCss).toContain("--breakpoint-*: initial");
+  });
+});
+
+describe("focus indicator", () => {
+  it("is an outline, not a box-shadow", () => {
+    // Windows High Contrast Mode discards box-shadows, making a shadow-based
+    // ring invisible to exactly the users who most need it.
+    expect(tokensCss).toMatch(/--focus-ring:\s*var\(--focus-ring-width\) solid/);
+    expect(tokensCss).not.toMatch(/--focus-ring:\s*0 0 0/);
+  });
+
+  it("declares a width and an offset", () => {
+    expect(declared.has("--focus-ring-width")).toBe(true);
+    expect(declared.has("--focus-ring-offset")).toBe(true);
+  });
+
+  it("uses a solid colour, not a translucent halo", () => {
+    // A 2px line at 30% opacity does not reach 3:1 against the surface.
+    expect(tokensCss).toContain("--focus-ring-color: var(--color-accent)");
   });
 });

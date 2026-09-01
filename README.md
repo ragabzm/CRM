@@ -85,7 +85,7 @@ Two workflows, each triggered only by changes to its own directory:
 | Workflow | Jobs |
 | --- | --- |
 | `.github/workflows/backend.yml` | install · test · module boundaries + tier ordering · openapi contract (publishes `openapi.yaml`) · no cross-import · build image |
-| `.github/workflows/frontend.yml` | next version pin · typecheck · lint · test · no cross-import · design tokens · build · generated client is not stale · build image |
+| `.github/workflows/frontend.yml` | next version pin · typecheck · lint · test · no cross-import · design tokens · **accessibility (axe)** · build · generated client is not stale · build image |
 
 Images are tagged by git SHA; rollback is redeploying the previous SHA.
 
@@ -112,6 +112,38 @@ run is bidi-isolated so a date range does not reverse inside Arabic prose.
 
 See `frontend/README.md` for the full contract, including why the dark theme is
 deliberately unpopulated.
+
+## Bilingual shell
+
+English is the default; Arabic is a per-user preference persisted in the
+`ragab-locale` cookie and applied on every later session. Switching flips
+`<html dir>` to `rtl` and the whole chrome mirrors — from one attribute, with no
+second stylesheet and no mirroring code.
+
+Every user-facing string lives in `frontend/messages/{en,ar}.json`; every date
+and number goes through `frontend/lib/format/`. Both are lint-enforced, and the
+Arabic locale is pinned to `ar-u-ca-gregory-nu-latn` so dates stay Gregorian and
+digits stay Western `0-9` on every runtime.
+
+Backend `backend/lang/{en,ar}/` holds server-rendered artefacts only — emails and
+persisted notifications. No key is duplicated across that boundary.
+
+See `frontend/README.md` for the full contract.
+
+## Responsive and accessible by default
+
+Three responsive bands — `mobile` (0–767), `tablet` (768–1023), `desktop`
+(1024+) — are the only breakpoints in the product; bare Tailwind screens are
+lint errors and are deleted from the theme so they cannot silently work.
+
+Tables give up horizontal room in one of two documented ways: **fold** for lists
+you scan, **scroll with a pinned identity column** for tables you compare.
+Neither ever drops a value.
+
+Axe runs in CI against every page and component fixture in both writing
+directions and fails the build on any WCAG 2.1 AA violation.
+
+See `frontend/README.md`.
 
 ## Modules and tiers
 

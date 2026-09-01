@@ -35,10 +35,24 @@ export interface ColumnDef<Row> {
    */
   identity?: boolean;
   /**
-   * Secondary columns collapse into a per-row expander below the breakpoint
-   * instead of forcing a horizontal scroll.
+   * Marks a column as foldable: below the desktop band its cell is hidden and
+   * its value moves into the row's meta line.
+   *
+   * A column WITHOUT this flag never folds at any band. That is how the design
+   * expresses "the SLA never folds" — it is the reason the list is sorted the
+   * way it is, so it holds its own column even where Priority and Assignee lose
+   * theirs.
    */
   secondary?: boolean;
+
+  /**
+   * For collapse="scroll" tables: the identity column that stays pinned to the
+   * inline-start edge while the rest of the table scrolls under it.
+   *
+   * Ignored in fold mode — the two mechanisms are exclusive, and mixing them is
+   * a dev-time warning.
+   */
+  pinned?: boolean;
 }
 
 export interface FilterOption {
@@ -55,8 +69,37 @@ export interface FilterDef {
 /** Active filters as `{ [filterId]: selectedValue }`. */
 export type ActiveFilters = Record<string, string>;
 
+/**
+ * How the table gives up horizontal room.
+ *
+ * The choice is about what the reader is doing, not about how many columns
+ * there are:
+ *
+ *   "fold"   — the row is an object you are going to OPEN. Ticket list, customer
+ *              list, article list. The reader is scanning for the next one, not
+ *              reading down a column comparing values, so hiding a column and
+ *              moving its value into the row costs nothing and keeps twelve
+ *              scannable rows on screen.
+ *
+ *   "scroll" — the columns are a series you are going to COMPARE. Reports, the
+ *              SLA compliance table, the audit log. Re-flowing a twelve-column
+ *              report into twelve stacked label/value pairs destroys the only
+ *              thing a report is for; the pinned identity column is what stops
+ *              the scroll from losing you.
+ *
+ * Neither mode ever drops a value. See board R-1 of the mockup at
+ * .squad/stories/inti/495/attachments/screen-responsive.html.
+ */
+export type CollapseMode = "fold" | "scroll";
+
 export interface DataTableProps<Row> {
   columns: ColumnDef<Row>[];
+
+  /**
+   * Defaults to "fold", which is the scanned-list behaviour every list surface
+   * wants. Choose "scroll" only for a comparative table.
+   */
+  mode?: CollapseMode;
   rows: Row[];
   /** Stable identity for a row, used for keys and focus retention. */
   getRowId: (row: Row) => string;

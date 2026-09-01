@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { RadioGroup as RadioGroupPrimitive } from "radix-ui"
+import * as React from "react";
+import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 function RadioGroup({
   className,
@@ -15,7 +15,7 @@ function RadioGroup({
       className={cn("grid w-full gap-2", className)}
       {...props}
     />
-  )
+  );
 }
 
 function RadioGroupItem({
@@ -26,8 +26,8 @@ function RadioGroupItem({
     <RadioGroupPrimitive.Item
       data-slot="radio-group-item"
       className={cn(
-        "group/radio-group-item peer relative flex aspect-square size-4 shrink-0 rounded-full border border-border-default outline-none group-has-[:focus-visible]/field-label:ring-0 group-has-[:focus-visible]/field-label:not-data-checked:border-border-default after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-accent-border focus-visible:ring-3 focus-visible:ring-accent-border/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-state-danger aria-invalid:ring-3 aria-invalid:ring-state-danger/20 aria-invalid:aria-checked:border-accent-default dark:bg-surface-base/30 dark:aria-invalid:border-state-danger/50 dark:aria-invalid:ring-state-danger/40 data-checked:border-accent-default data-checked:bg-accent-default data-checked:text-accent-fg group-has-[:focus-visible]/field-label:data-checked:border-accent-default dark:data-checked:bg-accent-default",
-        className
+        "group/radio-group-item peer relative flex aspect-square size-4 shrink-0 rounded-full border border-border-default  group-has-[:focus-visible]/field-label:ring-0 group-has-[:focus-visible]/field-label:not-data-checked:border-border-default after:absolute after:-inset-x-3 after:-inset-y-2 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-state-danger aria-invalid:ring-3 aria-invalid:ring-state-danger/20 aria-invalid:aria-checked:border-accent-default dark:bg-surface-base/30 dark:aria-invalid:border-state-danger/50 dark:aria-invalid:ring-state-danger/40 data-checked:border-accent-default data-checked:bg-accent-default data-checked:text-accent-fg group-has-[:focus-visible]/field-label:data-checked:border-accent-default dark:data-checked:bg-accent-default",
+        className,
       )}
       {...props}
     >
@@ -38,7 +38,7 @@ function RadioGroupItem({
         <span className="absolute top-1/2 start-1/2 size-2 -translate-x-1/2 rtl:translate-x-1/2 -translate-y-1/2 rounded-full bg-accent-fg" />
       </RadioGroupPrimitive.Indicator>
     </RadioGroupPrimitive.Item>
-  )
+  );
 }
 
-export { RadioGroup, RadioGroupItem }
+export { RadioGroup, RadioGroupItem };

@@ -1,3 +1,12 @@
+# Native postinstall scripts, decided explicitly so `pnpm install` is
+# deterministic here and in CI rather than prompting.
+#
+# All false: none of these are needed. @parcel/watcher and @swc/core arrive as
+# optional deps of next-intl's toolchain and are only used by watch/compile paths
+# we do not take; sharp is Next's optional image optimiser, and this story ships
+# no raster image pipeline. Flip one to true the day something actually needs it.
 allowBuilds:
+  '@parcel/watcher': false
+  '@swc/core': false
   sharp: false
   unrs-resolver: false
