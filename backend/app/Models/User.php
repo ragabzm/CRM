@@ -9,14 +9,22 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 use App\Modules\Security\Notifications\StaffPasswordReset;
 
-#[Fillable(['name', 'email', 'password', 'preferred_locale'])]
+#[Fillable(['name', 'email', 'password', 'preferred_locale', 'department_id', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
+/*
+ * TODO(Story 2.x): move this model into App\Modules\Security\Domain. It stays
+ * in app/Models for now because Sanctum's guard configuration and Laravel's own
+ * scaffolding reference it here, and relocating it is a change with its own
+ * blast radius.
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -28,6 +36,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -53,6 +62,18 @@ class User extends Authenticatable
      * The notification builds the link against the FRONTEND url: the reset form
      * is a Next.js route, and the API has no page to land on.
      */
+    /**
+     * Whether this account may still act.
+     *
+     * Null-coalesced to true so the model behaves correctly against a database
+     * where the is_active migration has not been applied — the columns in this
+     * story are additive and can land in either order.
+     */
+    public function isActive(): bool
+    {
+        return (bool) ($this->getAttributeValue('is_active') ?? true);
+    }
+
     public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
     {
         $this->notify(new StaffPasswordReset($token));

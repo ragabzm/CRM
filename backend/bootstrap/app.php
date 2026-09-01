@@ -1,6 +1,8 @@
 <?php
 
 use App\Modules\Platform\Http\Middleware\AssignRequestId;
+use App\Modules\Security\Http\Middleware\EnsureActiveUser;
+use App\Modules\Security\Http\Middleware\RequireCapability;
 use App\Modules\Platform\Http\Middleware\IdempotencyKey;
 use App\Modules\Platform\Http\ProblemDetailsHandler;
 use Illuminate\Foundation\Application;
@@ -29,6 +31,47 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->prependToGroup('api', AssignRequestId::class);
         $middleware->appendToGroup('api', IdempotencyKey::class);
+
+        /*
+         * Runs on every API request, after authentication has resolved a user.
+         * Deactivation must bite on the NEXT request, not whenever the session
+         * happens to expire.
+         */
+        $middleware->appendToGroup('api', EnsureActiveUser::class);
+
+        // `can.capability:user.manage` on a route. Named to read as a sentence
+        // and to not collide with Laravel's own `can:` gate middleware.
+        $middleware->alias(['can.capability' => RequireCapability::class]);
+
+        /*
+         * Order: authenticate, check the account is live, authorize, and only
+         * THEN do idempotency bookkeeping.
+         *
+         * Group middleware normally runs before route middleware, which put
+         * IdempotencyKey ahead of the capability check — so a caller who was
+         * never allowed to make the request was told "missing Idempotency-Key"
+         * instead of "forbidden". A misleading error, and it had the idempotency
+         * middleware reserving a key for work that was about to be refused.
+         *
+         * The framework defaults are restated because `priority()` replaces the
+         * list wholesale; ours are appended at the end, nearest the controller.
+         */
+        $middleware->priority([
+            \Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests::class,
+            \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+            \Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests::class,
+            \Illuminate\Routing\Middleware\ThrottleRequests::class,
+            \Illuminate\Routing\Middleware\ThrottleRequestsWithRedis::class,
+            \Illuminate\Contracts\Session\Middleware\AuthenticatesSessions::class,
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \Illuminate\Auth\Middleware\Authorize::class,
+            EnsureActiveUser::class,
+            RequireCapability::class,
+            IdempotencyKey::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

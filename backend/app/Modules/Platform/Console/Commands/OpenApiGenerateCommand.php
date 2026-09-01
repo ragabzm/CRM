@@ -8,6 +8,9 @@ use App\Modules\Platform\Support\OpenApiContract;
 use Dedoc\Scramble\Generator;
 use Dedoc\Scramble\Scramble;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\Yaml\Yaml;
 
 /**
@@ -35,11 +38,48 @@ final class OpenApiGenerateCommand extends Command
     }
 
     /**
+     * Points the app at a throwaway in-memory schema for the duration of
+     * generation.
+     *
+     * Scramble reads a model's columns to describe a response, which needs a
+     * reachable database. Without this, generating the contract would depend on
+     * whichever database the developer or the CI runner happens to have — and
+     * the document is supposed to be a function of the ROUTES, not of anyone's
+     * environment. An in-memory SQLite built from this repository's own
+     * migrations gives every machine the same answer and needs no service.
+     */
+    private static function withEphemeralSchema(): void
+    {
+        Config::set('database.default', 'openapi_schema');
+        Config::set('database.connections.openapi_schema', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+            'foreign_key_constraints' => true,
+        ]);
+
+        /*
+         * The cache store too. Its default driver is `database`, and the
+         * permission registrar flushes its cache during boot — which would send
+         * generation back to the very database this method exists to avoid.
+         */
+        Config::set('cache.default', 'array');
+        Config::set('session.driver', 'array');
+        Config::set('queue.default', 'sync');
+
+        DB::purge('openapi_schema');
+
+        Artisan::call('migrate', ['--force' => true, '--database' => 'openapi_schema']);
+    }
+
+    /**
      * Shared with OpenApiCheckCommand so "generate" and "check" can never
      * disagree about formatting.
      */
     public static function render(Generator $generator): string
     {
+        self::withEphemeralSchema();
+
         $spec = $generator->generate(Scramble::getGeneratorConfig('default'))->spec();
 
         return Yaml::dump(

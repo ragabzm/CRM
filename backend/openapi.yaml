@@ -8,6 +8,134 @@ servers:
     url: /api/v1
     description: 'Relative to the deployment host, e.g. http://localhost:8000 locally.'
 paths:
+  /audit:
+    get:
+      operationId: audit.index
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: string
+                    minItems: 0
+                    maxItems: 0
+                    additionalItems: false
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/settings/{key}':
+    put:
+      operationId: settings.update
+      parameters:
+        -
+          name: key
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    type: string
+                required:
+                  - key
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/tickets/{ticket}/reassign':
+    post:
+      operationId: tickets.reassign
+      parameters:
+        -
+          name: ticket
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ticket:
+                    type: string
+                required:
+                  - ticket
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /auth/login:
     post:
       operationId: auth.login
@@ -143,6 +271,235 @@ paths:
           $ref: '#/components/responses/AuthenticationException'
         default:
           description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /departments:
+    get:
+      operationId: departments.index
+      tags:
+        - Departments
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        is_active:
+                          type: boolean
+                      required:
+                        - id
+                        - name
+                        - is_active
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      operationId: departments.store
+      tags:
+        - Departments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreDepartmentRequest'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  is_active:
+                    type: boolean
+                required:
+                  - id
+                  - name
+                  - is_active
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  '/departments/{department}':
+    patch:
+      operationId: departments.update
+      summary: Rename
+      tags:
+        - Departments
+      parameters:
+        -
+          name: department
+          in: path
+          required: true
+          description: 'The department ID'
+          schema:
+            type: integer
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDepartmentRequest'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  is_active:
+                    type: boolean
+                required:
+                  - id
+                  - name
+                  - is_active
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/departments/{department}/deactivate':
+    post:
+      operationId: departments.deactivate
+      summary: 'Deactivate — refused while active tickets remain'
+      tags:
+        - Departments
+      parameters:
+        -
+          name: department
+          in: path
+          required: true
+          description: 'The department ID'
+          schema:
+            type: integer
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  is_active:
+                    type: boolean
+                required:
+                  - id
+                  - name
+                  - is_active
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
           content:
             application/problem+json:
               schema:
@@ -399,6 +756,338 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /users:
+    get:
+      operationId: users.index
+      tags:
+        - Users
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        email:
+                          type: string
+                        role:
+                          type:
+                            - string
+                            - 'null'
+                        department_id:
+                          type:
+                            - integer
+                            - 'null'
+                        is_active:
+                          type: boolean
+                      required:
+                        - id
+                        - name
+                        - email
+                        - role
+                        - department_id
+                        - is_active
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      operationId: users.store
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreUserRequest'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  role:
+                    type:
+                      - string
+                      - 'null'
+                  department_id:
+                    type:
+                      - integer
+                      - 'null'
+                  is_active:
+                    type: boolean
+                required:
+                  - id
+                  - name
+                  - email
+                  - role
+                  - department_id
+                  - is_active
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  '/users/{user}':
+    get:
+      operationId: users.show
+      tags:
+        - Users
+      parameters:
+        -
+          name: user
+          in: path
+          required: true
+          description: 'The user ID'
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  role:
+                    type:
+                      - string
+                      - 'null'
+                  department_id:
+                    type:
+                      - integer
+                      - 'null'
+                  is_active:
+                    type: boolean
+                required:
+                  - id
+                  - name
+                  - email
+                  - role
+                  - department_id
+                  - is_active
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      operationId: users.update
+      tags:
+        - Users
+      parameters:
+        -
+          name: user
+          in: path
+          required: true
+          description: 'The user ID'
+          schema:
+            type: integer
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  role:
+                    type:
+                      - string
+                      - 'null'
+                  department_id:
+                    type:
+                      - integer
+                      - 'null'
+                  is_active:
+                    type: boolean
+                required:
+                  - id
+                  - name
+                  - email
+                  - role
+                  - department_id
+                  - is_active
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/users/{user}/deactivate':
+    post:
+      operationId: users.deactivate
+      summary: 'Deactivate, never delete'
+      tags:
+        - Users
+      parameters:
+        -
+          name: user
+          in: path
+          required: true
+          description: 'The user ID'
+          schema:
+            type: integer
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  role:
+                    type:
+                      - string
+                      - 'null'
+                  department_id:
+                    type:
+                      - integer
+                      - 'null'
+                  is_active:
+                    type: boolean
+                required:
+                  - id
+                  - name
+                  - email
+                  - role
+                  - department_id
+                  - is_active
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
 components:
   schemas:
     ChangePasswordRequest:
@@ -461,6 +1150,67 @@ components:
         - password
         - password_confirmation
       title: ResetPasswordRequest
+    StoreDepartmentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "max:120 counts CHARACTERS, not bytes, so an Arabic department\nname is not silently shorter than an English one."
+          minLength: 1.0
+          maxLength: 120.0
+      required:
+        - name
+      title: StoreDepartmentRequest
+    StoreUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1.0
+          maxLength: 120.0
+        email:
+          type: string
+          format: email
+          maxLength: 255.0
+        role:
+          type: string
+          enum:
+            - administrator
+            - supervisor
+            - agent
+            - customer
+        department_id:
+          type:
+            - integer
+            - 'null'
+        is_active:
+          type: boolean
+        password:
+          type:
+            - string
+            - 'null'
+          description: "Optional: omitted means the account is created without a usable\npassword and the person sets one through the reset flow, which is\nbetter than an administrator inventing and transmitting one."
+        password_confirmation:
+          type:
+            - string
+            - 'null'
+      required:
+        - name
+        - email
+        - role
+      title: StoreUserRequest
+    UpdateDepartmentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1.0
+          maxLength: 120.0
+        is_active:
+          type: boolean
+      required:
+        - name
+      title: UpdateDepartmentRequest
     UpdateProfileRequest:
       type: object
       properties:
@@ -475,6 +1225,31 @@ components:
             - en
             - ar
       title: UpdateProfileRequest
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1.0
+          maxLength: 120.0
+        email:
+          type: string
+          format: email
+          maxLength: 255.0
+        role:
+          type: string
+          enum:
+            - administrator
+            - supervisor
+            - agent
+            - customer
+        department_id:
+          type:
+            - integer
+            - 'null'
+        is_active:
+          type: boolean
+      title: UpdateUserRequest
     Problem:
       type: object
       title: Problem
@@ -567,6 +1342,18 @@ components:
               - message
     AuthorizationException:
       description: 'Authorization error'
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                description: 'Error overview.'
+            required:
+              - message
+    ModelNotFoundException:
+      description: 'Not found'
       content:
         application/json:
           schema:

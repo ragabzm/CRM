@@ -53,12 +53,41 @@ final class AuthController extends Controller
             );
         }
 
+        /** @var User $user */
+        $user = Auth::guard('web')->user();
+
+        /*
+         * Credentials were right, but the account is switched off.
+         *
+         * Refused HERE rather than left to EnsureActiveUser on the next
+         * request: otherwise a deactivated account is handed a real session
+         * cookie it can never use, which looks to the person like an
+         * intermittent fault rather than a decision someone made.
+         *
+         * Naming the reason is safe — the caller has already proved they hold
+         * the credentials, so this discloses nothing they did not know.
+         */
+        if (! $user->isActive()) {
+            Auth::guard('web')->logout();
+
+            event(StaffAuthAttempted::failure(
+                $user->email,
+                $request->ip(),
+                $request->userAgent(),
+            ));
+
+            throw ProblemException::make(
+                'security.account_deactivated',
+                'Account deactivated',
+                401,
+                __('authorization.deactivated'),
+                ['contact' => 'administrator'],
+            );
+        }
+
         // A new session id after privilege change, so a fixated session id
         // captured before sign-in is worthless afterwards.
         $request->session()->regenerate();
-
-        /** @var User $user */
-        $user = Auth::guard('web')->user();
 
         event(StaffAuthAttempted::success(
             $user->email,

@@ -162,6 +162,28 @@ unsent composer draft survives.
 
 See `backend/README.md` for the endpoint table and the reasoning.
 
+## Authorization
+
+Four seeded roles — Administrator, Supervisor, Agent, Customer — with a fixed
+capability matrix in `resource.action` form. No role builder, no endpoint that
+writes roles: the seeder is the only writer, so the model is one reviewable file
+identical in every environment.
+
+Every non-public endpoint carries an explicit capability and refuses with
+`403 application/problem+json` naming what was refused and who to ask. Hiding a
+control in the UI is a suggestion; the middleware is the refusal.
+
+The row-level ticket rule lives in exactly one place
+(`TicketVisibility`) and is never a global Eloquent scope — an architecture test
+fails the build if one appears. Department is a grouping and a filter, not a
+security boundary.
+
+Users and departments are deactivated, never deleted, so historical attribution
+survives; deactivating a department that still holds active tickets is refused
+with a count and a link, not confirmed away.
+
+See `backend/README.md` for the matrix and the reasoning.
+
 ## Modules and tiers
 
 Seven modules under `backend/app/Modules/`, each with `Domain/ Http/ Policies/
@@ -190,3 +212,17 @@ As of Story 1.1 the seven modules are empty scaffolds apart from Platform.
 | Next.js | 16.3.3 | The security release that superseded 16.3.2. Never 16.3.2 — enforced by `frontend/scripts/check-next-version.mjs`. |
 | React | 19.2.x | 19.2.8 |
 | TypeScript | 5.x, `strict` | Plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. |
+
+
+┌───────────────┬──────────────────────────────────────┐
+│               │                                      │
+├───────────────┼──────────────────────────────────────┤
+│ الواجهة       │ http://localhost:3000                │
+├───────────────┼──────────────────────────────────────┤
+│ تسجيل الدخول  │ http://localhost:3000/sign-in        │
+├───────────────┼──────────────────────────────────────┤
+│ الملف الشخصي  │ http://localhost:3000/profile        │
+├───────────────┼──────────────────────────────────────┤
+│ الـ API       │ http://127.0.0.1:8000/api/v1/healthz │
+├───────────────┼──────────────────────────────────────┤
+│ بيانات الدخول │ admin@ragab.test / Correct-Horse-9   │

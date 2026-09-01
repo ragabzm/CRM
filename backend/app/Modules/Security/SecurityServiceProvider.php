@@ -6,11 +6,17 @@ namespace App\Modules\Security;
 
 use App\Modules\Platform\Http\ProblemDetails;
 use App\Modules\Platform\Http\ProblemDetailsHandler;
+use App\Modules\Security\Contracts\DepartmentUsageProbe;
+use App\Modules\Security\Contracts\NoDepartmentUsage;
+use App\Modules\Security\Domain\Capabilities;
+use App\Modules\Security\Domain\Roles;
 use App\Modules\Security\Events\StaffAuthAttempted;
 use App\Modules\Security\Listeners\LogStaffAuthAttempt;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\ServiceProvider;
@@ -23,7 +29,13 @@ final class SecurityServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        /*
+         * The default answer to "is anything using this department?" is "no".
+         * The Tickets module rebinds this with a real query when it is present;
+         * without a default, Security could not deactivate a department — or be
+         * tested — before Tickets exists.
+         */
+        $this->app->bind(DepartmentUsageProbe::class, NoDepartmentUsage::class);
     }
 
     public function boot(): void
@@ -32,6 +44,7 @@ final class SecurityServiceProvider extends ServiceProvider
 
         $this->registerRateLimiters();
         $this->registerSessionExpiryProblem();
+        $this->registerCapabilityGates();
 
         Event::listen(StaffAuthAttempted::class, LogStaffAuthAttempt::class);
     }
@@ -110,6 +123,42 @@ final class SecurityServiceProvider extends ServiceProvider
                 });
             },
         );
+    }
+
+    /**
+     * Makes every capability answerable through Gate as well as through the
+     * permission table, so `authorize()`, `@can` and `can:` middleware all
+     * agree on one answer.
+     */
+    private function registerCapabilityGates(): void
+    {
+        /*
+         * Administrator holds everything IMPLICITLY rather than by being
+         * granted each permission row.
+         *
+         * The difference matters: a capability added in a later story is one an
+         * administrator already has, with no seeder re-run and no window where
+         * the person responsible for fixing permissions is the one locked out.
+         *
+         * Returning null (not false) for everyone else hands the decision back
+         * to the normal gate chain instead of short-circuiting it.
+         */
+        Gate::before(function (?Authenticatable $user, string $ability): ?bool {
+            if ($user === null) {
+                return null;
+            }
+
+            return method_exists($user, 'hasRole') && $user->hasRole(Roles::ADMINISTRATOR)
+                ? true
+                : null;
+        });
+
+        foreach (Capabilities::all() as $capability) {
+            Gate::define($capability, function (Authenticatable $user) use ($capability): bool {
+                return method_exists($user, 'hasPermissionTo')
+                    && $user->hasPermissionTo($capability, 'web');
+            });
+        }
     }
 
     private function throttleKey(Request $request): string

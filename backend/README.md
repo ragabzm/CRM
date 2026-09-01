@@ -156,6 +156,96 @@ a future write cannot join it silently.
   carries no credential of any kind. A listener writes to the `audit` channel —
   `TODO(Story 2.4)` replaces the listener, not the event.
 
+## Authorization
+
+Four roles, seeded once, with a fixed capability matrix. There is no role
+builder and no endpoint that writes roles or permissions — `RolesAndPermissionsSeeder`
+is the only writer, so the whole authorization model is one reviewable file that
+is identical in every environment.
+
+### The matrix
+
+| Capability | Administrator | Supervisor | Agent | Customer |
+|---|:-:|:-:|:-:|:-:|
+| `user.manage` | ✅ | | | |
+| `department.manage` | ✅ | | | |
+| `role.read` | ✅ | ✅ | | |
+| `audit.read` | ✅ | | | |
+| `setting.manage` | ✅ | | | |
+| `ticket.read` | ✅ | ✅ | ✅ | ✅ |
+| `ticket.create` | ✅ | ✅ | ✅ | ✅ |
+| `ticket.update` | ✅ | ✅ | ✅ | |
+| `ticket.reassign` | ✅ | ✅ | | |
+| `ticket.close` | ✅ | ✅ | ✅ | |
+| `customer.read` | ✅ | ✅ | ✅ | |
+| `customer.manage` | ✅ | ✅ | | |
+
+Capabilities are `resource.action`, **never** with a `.scope` suffix. Scope is a
+row-level question and belongs in a query — baking it into a permission name
+produces a combinatorial explosion nobody can audit and hides the row rule where
+no test looks.
+
+**Administrator holds everything implicitly** through a `Gate::before`, and has
+zero rows in `role_has_permissions`. A capability added in a later story is one
+they already have — no seeder re-run, and no window where the person who fixes
+permissions is the one locked out.
+
+### Refusals
+
+`can.capability:<name>` on the route. A refusal is `403 application/problem+json`
+naming **what** was refused and **who** to ask:
+
+```json
+{ "code": "security.forbidden", "title": "Forbidden",
+  "detail": "You do not have permission to ticket.reassign. Ask your administrator.",
+  "capability": "ticket.reassign", "contact": "administrator" }
+```
+
+Hiding a control in the UI is a suggestion; the middleware is the refusal, and it
+runs whether or not a UI was involved. A route naming a capability that does not
+exist throws immediately rather than failing closed and looking like working
+security until an administrator is locked out — `CapabilitiesInSyncTest` catches
+it earlier still.
+
+Middleware order is authenticate → account-is-live → authorize → idempotency, so
+a caller who was never allowed to make the request is told *forbidden* rather
+than *missing Idempotency-Key*.
+
+### Row-level visibility
+
+`App\Modules\Tickets\Domain\Query\TicketVisibility` is the **only** place the
+rule lives: Agent sees own + unassigned, Supervisor and Administrator see all,
+Customer sees only their own, anyone else sees nothing.
+
+Deliberately **not** a global Eloquent scope. A global scope applies invisibly —
+it silently filters exports, reports and jobs that legitimately need every row,
+and `withoutGlobalScope` removes the rule entirely rather than adjusting it. An
+explicit call is greppable. `NoGlobalScopesTest` fails the build if one appears.
+
+**Department is a grouping and a filter, not a boundary.** A ticket surfacing
+outside the caller's department is not a leak.
+
+### Users and departments
+
+- Both are **deactivated, never deleted**. A deleted user orphans every
+  historical attribution pointing at them; a deleted department orphans the
+  department of everyone who ever belonged to it.
+- Deactivating a user drops their tokens *and* their session rows, and
+  `EnsureActiveUser` refuses on the next request regardless — a session this
+  process did not delete must not survive. Sign-in itself is refused too, so a
+  disabled account never receives a cookie it can never use.
+- Deactivating a department holding active tickets is **refused with a count and
+  a path**, not confirmed away. A confirmation dialog would let someone strand
+  real work with one click and no way to find it again.
+
+### Why the usage probe points the way it does
+
+`DepartmentsController` needs to know whether tickets still reference a
+department. Security is T1 and Tickets is T3, and dependencies may only run
+downward — so Security declares `Contracts\DepartmentUsageProbe` and Tickets
+implements it. The story plan proposed the reverse (a contract published from
+Tickets, injected into Security), which deptrac rejects.
+
 ## Errors
 
 Every 4xx/5xx response is an RFC 9457 problem document produced by
