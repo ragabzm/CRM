@@ -17,6 +17,7 @@ Entry point for the **inti** feature. Stories execute in order by their `NN` pre
 | 08 | `08-story-499.md` | 2.4 The audit log | 499 | — |
 | 09 | `09-story-500.md` | 3.1 Customer record — create, search, edit, deactivate, with duplicate detection | 500 | — |
 | 10 | `10-story-501.md` | 3.2 Notes and the attachment subsystem | 501 | — |
+| 11 | `11-story-502.md` | 3.3 Customer interaction timeline | 502 | — |
 
 ## Dependency notes
 

@@ -48,5 +48,57 @@
     "noResults": "No results",
     "accessDenied": "Access denied",
     "notDisclosed": "not disclosed"
+  },
+  "auth": {
+    "signIn": {
+      "title": "Sign in",
+      "subtitle": "Ragab CRM staff",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "forgot": "Forgot your password?",
+      "errorInvalid": "Those details do not match an account.",
+      "errorLocked": "Too many attempts. Try again shortly.",
+      "errorGeneric": "Sign-in failed. Please try again."
+    },
+    "forgot": {
+      "title": "Reset your password",
+      "intro": "Enter your email and we will send you a reset link.",
+      "email": "Email",
+      "submit": "Send reset link",
+      "submitted": "If that address belongs to an account, we have sent a reset link.",
+      "backToSignIn": "Back to sign in"
+    },
+    "reset": {
+      "title": "Choose a new password",
+      "password": "New password",
+      "confirm": "Confirm new password",
+      "submit": "Set password",
+      "success": "Your password has been changed. You can sign in now.",
+      "tokenInvalid": "This reset link is no longer valid. Request a new one.",
+      "linkMissing": "This link is incomplete. Request a new reset email."
+    }
+  },
+  "profile": {
+    "title": "Your profile",
+    "name": "Name",
+    "email": "Email",
+    "emailHint": "Contact an administrator to change your sign-in address.",
+    "language": "Language",
+    "languageEnglish": "English",
+    "languageArabic": "العربية",
+    "save": "Save changes",
+    "saved": "Your profile has been saved.",
+    "passwordHeading": "Change password",
+    "passwordCurrent": "Current password",
+    "passwordNew": "New password",
+    "passwordConfirm": "Confirm new password",
+    "passwordSubmit": "Change password",
+    "passwordSaved": "Your password has been changed.",
+    "error": "That could not be saved. Please check the form."
+  },
+  "session": {
+    "expired": "Your session has ended. Please sign in again."
   }
 }

@@ -38,9 +38,28 @@ return [
     */
 
     'guards' => [
+        /*
+         * TWO IDENTITY SPACES, TWO GUARDS, TWO COOKIES.
+         *
+         * Staff and portal customers are separate populations with separate
+         * tables — there is no `is_staff` column and no shared table with a
+         * discriminator. A credential that authenticates against one provider is
+         * meaningless to the other, because the other simply cannot see the row.
+         *
+         * That is the whole reason for the split: a discriminator column makes
+         * "am I staff?" a value someone can get wrong, while two tables make the
+         * question unanswerable in the wrong direction.
+         *
+         * Enforced by tests/Feature/Security/GuardIsolationTest.php.
+         */
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
+        ],
+
+        'portal' => [
+            'driver' => 'session',
+            'provider' => 'portal_accounts',
         ],
     ],
 
@@ -65,6 +84,16 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+
+        /*
+         * Referenced by class-string rather than imported: config/ is outside
+         * app/Modules, so this is the one place the two identity spaces meet
+         * without either module depending on the other.
+         */
+        'portal_accounts' => [
+            'driver' => 'eloquent',
+            'model' => \App\Modules\Portal\Domain\PortalAccount::class,
         ],
 
         // 'users' => [
@@ -99,6 +128,52 @@ return [
             'expire' => 60,
             'throttle' => 60,
         ],
+
+        'portal_accounts' => [
+            'provider' => 'portal_accounts',
+            'table' => 'portal_password_reset_tokens',
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Password Policy
+    |--------------------------------------------------------------------------
+    |
+    | Read by App\Modules\Security\Rules\PasswordPolicy. Every flow that sets a
+    | password — reset, change — goes through that one rule, so the policy is a
+    | configuration value rather than a number repeated across form requests.
+    |
+    | Length does more for strength than any single character class, which is why
+    | the default is 12 with symbols optional: a symbol requirement mostly buys
+    | a trailing "!" and a password nobody can type on a phone.
+    |
+    */
+
+    'password_policy' => [
+        'min_length' => (int) env('AUTH_PASSWORD_MIN_LENGTH', 12),
+        'require_upper' => (bool) env('AUTH_PASSWORD_REQUIRE_UPPER', true),
+        'require_lower' => (bool) env('AUTH_PASSWORD_REQUIRE_LOWER', true),
+        'require_digit' => (bool) env('AUTH_PASSWORD_REQUIRE_DIGIT', true),
+        'require_symbol' => (bool) env('AUTH_PASSWORD_REQUIRE_SYMBOL', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Staff Session
+    |--------------------------------------------------------------------------
+    |
+    | Exposed through GET /api/auth/session so the frontend can warn before a
+    | session lapses rather than discovering it on the next request. Mirrors
+    | SESSION_LIFETIME; kept as its own key so the staff timeout can diverge from
+    | the framework default without touching session.php.
+    |
+    */
+
+    'staff' => [
+        'inactivity_minutes' => (int) env('STAFF_INACTIVITY_MINUTES', env('SESSION_LIFETIME', 120)),
     ],
 
     /*

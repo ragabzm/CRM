@@ -19,6 +19,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // Order is load-bearing. AssignRequestId must run first so that every
         // log line and every problem document — including ones produced while
         // the idempotency middleware is deciding — carries the correlation id.
+        /*
+         * Sanctum SPA cookie mode. Prepends EnsureFrontendRequestsAreStateful to
+         * the api group, so requests from SANCTUM_STATEFUL_DOMAINS carry the
+         * session cookie and CSRF token instead of a bearer token — which is what
+         * keeps every credential out of reach of client JavaScript.
+         */
+        $middleware->statefulApi();
+
         $middleware->prependToGroup('api', AssignRequestId::class);
         $middleware->appendToGroup('api', IdempotencyKey::class);
     })

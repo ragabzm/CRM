@@ -39,5 +39,9 @@
         <!-- The json channel writes to stdout; keep it out of the test report.
              LoggingTest targets the channel explicitly instead. -->
         <env name="LOG_CHANNEL" value="single"/>
+        <!-- The audit channel writes to stdout by design; point it at a file in
+             tests so audit records do not interleave with the test report.
+             LogsAuditTrail asserts against this stream where it matters. -->
+        <env name="LOG_AUDIT_STREAM" value="php://memory"/>
     </php>
 </phpunit>

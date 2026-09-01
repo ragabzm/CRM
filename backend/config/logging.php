@@ -55,6 +55,27 @@ return [
     'channels' => [
 
         /*
+         * The audit trail: who did what, and when.
+         *
+         * A separate channel from the application log because the two have
+         * different readers and different retention. An operator greps the app
+         * log while debugging; an audit record is evidence, and must not be lost
+         * in a log-level change made to quieten something unrelated. Level is
+         * fixed at info rather than following LOG_LEVEL for the same reason.
+         *
+         * TODO(Story 2.4): the audit log becomes a queryable store; this channel
+         * is the interim sink.
+         */
+        'audit' => [
+            'driver' => 'monolog',
+            'level' => 'info',
+            'handler' => StreamHandler::class,
+            'handler_with' => ['stream' => env('LOG_AUDIT_STREAM', 'php://stdout')],
+            'formatter' => JsonLogFormatter::class,
+            'processors' => [JsonContextProcessor::class],
+        ],
+
+        /*
          * The channel every deployed process uses. One JSON object per line on
          * stdout, carrying request_id / actor_type / actor_id / module /
          * ticket_id as top-level keys so a log shipper can index them without

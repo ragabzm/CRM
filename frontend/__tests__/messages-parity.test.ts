@@ -73,15 +73,34 @@ describe("message catalogues stay in step", () => {
   });
 
   it("actually translates the Arabic catalogue", () => {
+    /*
+     * Endonyms are deliberately identical in both catalogues: a language picker
+     * names each language in its OWN language, so "English" stays "English" for
+     * an Arabic reader and "العربية" stays "العربية" for an English one. That is
+     * the whole point of an endonym — translating them makes the control harder
+     * to use, not easier.
+     *
+     * Listed explicitly so a genuinely untranslated string cannot hide here.
+     */
+    const ENDONYMS = [
+      "shell.actions.toggleLanguage",
+      "profile.languageEnglish",
+      "profile.languageArabic",
+    ];
+
     const untranslated = enKeys.filter((key) => {
+      if (ENDONYMS.includes(key)) return false;
+
       const read = (tree: Tree) =>
         key.split(".").reduce<string | Tree>((node, part) => (node as Tree)[part]!, tree) as string;
       return read(en as Tree) === read(ar as Tree);
     });
 
-    // Only the deliberate exceptions: the toggle endonyms differ by design, and
-    // "Ragab CRM" would be the same word either way — but nothing else should
-    // be byte-identical across languages.
     expect(untranslated).toEqual([]);
+  });
+
+  it("names each language in its own language", () => {
+    expect(en.profile.languageEnglish).toBe(ar.profile.languageEnglish);
+    expect(en.profile.languageArabic).toBe(ar.profile.languageArabic);
   });
 });

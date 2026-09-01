@@ -31,9 +31,30 @@ use Throwable;
  */
 final class ProblemDetailsHandler
 {
+    /**
+     * Module-supplied mappers, tried before the built-in table.
+     *
+     * The extension point exists so a higher tier can name its own conditions
+     * without this class — which is T0 — importing that module's vocabulary.
+     * Security uses it to narrow a generic 401 into "your session ended".
+     *
+     * @var list<callable(Throwable, Request): ?ProblemDetails>
+     */
+    private array $mappers = [];
+
     public function __construct(
         private readonly RequestContext $context,
     ) {}
+
+    /**
+     * @param  callable(Throwable, Request): ?ProblemDetails  $mapper
+     */
+    public function extend(callable $mapper): void
+    {
+        // Later registrations win, so a module can refine a mapping another
+        // module already made.
+        array_unshift($this->mappers, $mapper);
+    }
 
     /**
      * Returns null for requests that should keep Laravel's HTML error pages
@@ -45,7 +66,7 @@ final class ProblemDetailsHandler
             return null;
         }
 
-        return $this->toResponse($this->problemFor($e), $request);
+        return $this->toResponse($this->problemFor($e, $request), $request);
     }
 
     public function toResponse(ProblemDetails $problem, Request $request): JsonResponse
@@ -83,8 +104,16 @@ final class ProblemDetailsHandler
      * generic HttpExceptionInterface arm catches everything Symfony throws that
      * we have not named explicitly.
      */
-    private function problemFor(Throwable $e): ProblemDetails
+    private function problemFor(Throwable $e, Request $request): ProblemDetails
     {
+        foreach ($this->mappers as $mapper) {
+            $problem = $mapper($e, $request);
+
+            if ($problem instanceof ProblemDetails) {
+                return $problem;
+            }
+        }
+
         return match (true) {
             $e instanceof ProblemException => $e->problem,
 
@@ -96,6 +125,12 @@ final class ProblemDetailsHandler
                 ['errors' => $e->errors()],
             ),
 
+            /*
+             * Stays generic on purpose. Platform is T0 and must not know a
+             * higher tier's vocabulary — the Security module narrows this to
+             * `security.session_expired` on its own authenticated routes, via
+             * SessionExpiryProblem.
+             */
             $e instanceof AuthenticationException => new ProblemDetails(
                 'platform.unauthorized',
                 'Authentication required.',

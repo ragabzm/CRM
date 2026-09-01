@@ -21,6 +21,16 @@ final class OpenApiContract
     private const WRITE_METHODS = ['post', 'put', 'patch', 'delete'];
 
     /**
+     * Paths whose writes are exempt from the Idempotency-Key requirement.
+     *
+     * Session operations create no record, so there is nothing for a retry to
+     * duplicate — and a replayed sign-in response cannot carry a Set-Cookie,
+     * which would make the replay actively wrong. The routes opt out with
+     * withoutMiddleware(); this keeps the document honest about that.
+     */
+    private const IDEMPOTENCY_EXEMPT_PREFIXES = ['/auth/', '/profile'];
+
+    /**
      * @param  array<string, mixed>  $spec
      * @return array<string, mixed>
      */
@@ -46,7 +56,10 @@ final class OpenApiContract
                 // problem document, whatever its status.
                 $operation['responses']['default'] = self::problemResponse('An RFC 9457 problem document.');
 
-                if (in_array(strtolower((string) $method), self::WRITE_METHODS, true)) {
+                if (
+                    in_array(strtolower((string) $method), self::WRITE_METHODS, true)
+                    && ! self::isIdempotencyExempt((string) $path)
+                ) {
                     $operation = self::withIdempotency($operation);
                 }
 
@@ -83,6 +96,17 @@ final class OpenApiContract
         ]];
 
         return $spec;
+    }
+
+    private static function isIdempotencyExempt(string $path): bool
+    {
+        foreach (self::IDEMPOTENCY_EXEMPT_PREFIXES as $prefix) {
+            if (str_starts_with($path, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -12,6 +12,12 @@ export const REQUEST_ID_HEADER = "X-Request-Id";
 /** Methods the API treats as writes and therefore requires a key for. */
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+/** Problem code the API uses when a session has lapsed. */
+export const SESSION_EXPIRED_CODE = "security.session_expired";
+
+/** Fired when the API reports the session has ended. */
+export const SESSION_EXPIRED_EVENT = "auth:session-expired";
+
 export interface ApiClientOptions {
   /** Base URL including the version segment, e.g. https://api.example.com/api/v1 */
   baseUrl?: string;

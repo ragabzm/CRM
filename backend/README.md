@@ -86,6 +86,76 @@ fixture (`tests/Fixtures/ArchViolations/`). Without that, a misconfigured rule
 that silently passed everything would be indistinguishable from a healthy
 codebase.
 
+## Authentication
+
+Sanctum in **SPA cookie mode**. No token is ever issued: the session lives in an
+http-only cookie the browser attaches by itself and JavaScript cannot read, so
+"no credential is ever handled by client JavaScript" holds by construction
+rather than by discipline.
+
+### Two identity spaces
+
+| | Staff | Portal customers |
+| --- | --- | --- |
+| Guard | `web` | `portal` |
+| Table | `users` | `portal_accounts` |
+| Reset tokens | `password_reset_tokens` | `portal_password_reset_tokens` |
+| Model | `App\Models\User` | `App\Modules\Portal\Domain\PortalAccount` |
+
+There is **no `is_staff` column** and no shared table with a discriminator. A
+flag is a value someone can set wrong; two tables make the question unanswerable
+in the wrong direction — the portal guard queries `portal_accounts` and cannot
+see a staff row at all. The same address may exist in both spaces with different
+passwords, and neither works in the other.
+
+The two modules never import each other. They meet only in `config/auth.php`, by
+class-string, which is outside `app/Modules`. Enforced by
+`tests/Feature/Security/GuardIsolationTest.php` and
+`tests/Architecture/IdentitySpaceIsolationTest.php`.
+
+### Endpoints
+
+| Route | Notes |
+| --- | --- |
+| `POST /api/v1/auth/login` | `throttle:login` — 5/min per email+ip |
+| `POST /api/v1/auth/logout` | Invalidates the session and re-issues a CSRF token |
+| `GET /api/v1/auth/me` | The signed-in staff member |
+| `GET /api/v1/auth/session` | `inactivity_minutes` so the client can warn before a lapse |
+| `POST /api/v1/auth/password/forgot` | Always `202` — see below |
+| `POST /api/v1/auth/password/reset` | Separate, more generous limit |
+| `GET`/`PATCH /api/v1/profile` | Name and language |
+| `POST /api/v1/profile/password` | Requires the current password |
+
+These POSTs are **exempt from `Idempotency-Key`** (`withoutMiddleware`). That
+middleware stops a retried *write* creating a second record; a session operation
+creates none, and a replayed sign-in cannot carry a `Set-Cookie`, which would
+make the replay actively wrong. `OpenApiContractTest` pins the exemption list so
+a future write cannot join it silently.
+
+### Decisions worth knowing
+
+- **No enumeration.** Wrong password and unknown account return an identical
+  body; forgot-password always returns `202`, even when throttled. Otherwise
+  either endpoint becomes a way to test a list of addresses and learn who works
+  here.
+- **The policy governs setting a password, not using one.** Sign-in does not
+  validate against `password_policy`: doing so would reveal the shape of a valid
+  password and lock out anyone whose password predates a policy change.
+- **Limits are keyed on email AND ip.** IP alone lets one attacker behind a NAT
+  lock out an office; email alone lets a distributed attacker lock a named person
+  out of their own account.
+- **Requesting and redeeming a reset have separate budgets.** Sharing one
+  3-per-10-minutes budget locks a user out of finishing their own reset after two
+  mistyped passwords.
+- **Session expiry is `security.session_expired`, not a bare 401.** The client
+  must tell "your session ended, come back here" apart from "you were never
+  signed in". Platform stays generic (`platform.unauthorized`); Security narrows
+  it through `ProblemDetailsHandler::extend()`, so T0 never names a higher tier's
+  vocabulary.
+- **Sign-in success and failure both dispatch `StaffAuthAttempted`**, which
+  carries no credential of any kind. A listener writes to the `audit` channel —
+  `TODO(Story 2.4)` replaces the listener, not the event.
+
 ## Errors
 
 Every 4xx/5xx response is an RFC 9457 problem document produced by

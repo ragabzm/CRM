@@ -8,6 +8,145 @@ servers:
     url: /api/v1
     description: 'Relative to the deployment host, e.g. http://localhost:8000 locally.'
 paths:
+  /auth/login:
+    post:
+      operationId: auth.login
+      summary: 'Sign in'
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  preferred_locale:
+                    type: string
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                required:
+                  - id
+                  - name
+                  - email
+                  - preferred_locale
+                  - roles
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /auth/session:
+    get:
+      operationId: auth.session
+      summary: "Session timing, so the frontend can warn before a session lapses rather\nthan discovering it on the next request"
+      tags:
+        - Auth
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inactivity_minutes:
+                    type: integer
+                  authenticated:
+                    type: boolean
+                required:
+                  - inactivity_minutes
+                  - authenticated
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /auth/logout:
+    post:
+      operationId: auth.logout
+      summary: 'Sign out and destroy the session'
+      tags:
+        - Auth
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /auth/me:
+    get:
+      operationId: auth.me
+      summary: 'The signed-in staff member'
+      tags:
+        - Auth
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  preferred_locale:
+                    type: string
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                required:
+                  - id
+                  - name
+                  - email
+                  - preferred_locale
+                  - roles
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /healthz:
     get:
       operationId: platform.healthz
@@ -83,8 +222,259 @@ paths:
           schema:
             type: string
             maxLength: 40
+  /auth/password/forgot:
+    post:
+      operationId: auth.password.forgot
+      summary: 'Request a reset link'
+      tags:
+        - PasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /auth/password/reset:
+    post:
+      operationId: auth.password.reset
+      summary: 'Redeem a reset token'
+      tags:
+        - PasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /profile:
+    get:
+      operationId: profile.show
+      tags:
+        - Profile
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  preferred_locale:
+                    type: string
+                required:
+                  - id
+                  - name
+                  - email
+                  - preferred_locale
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      operationId: profile.update
+      summary: 'Update name and language'
+      tags:
+        - Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  preferred_locale:
+                    type: string
+                required:
+                  - id
+                  - name
+                  - email
+                  - preferred_locale
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '403':
+          $ref: '#/components/responses/AuthorizationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /profile/password:
+    post:
+      operationId: profile.password
+      summary: 'Change password'
+      tags:
+        - Profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '403':
+          $ref: '#/components/responses/AuthorizationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
 components:
   schemas:
+    ChangePasswordRequest:
+      type: object
+      properties:
+        current_password:
+          type: string
+          description: "Proves the person at the keyboard is the account holder, not\nsomeone who found an unlocked screen."
+        password:
+          type: string
+        password_confirmation:
+          type: string
+      required:
+        - current_password
+        - password
+        - password_confirmation
+      title: ChangePasswordRequest
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255.0
+      required:
+        - email
+      title: ForgotPasswordRequest
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: "Deliberately NOT validated against the password policy. The policy\ngoverns passwords being SET; applying it here would tell an\nattacker the shape of a valid password before they ever guess one,\nand would lock out any account whose password predates a policy\nchange."
+          maxLength: 255.0
+        password:
+          type: string
+        remember:
+          type: boolean
+      required:
+        - email
+        - password
+      title: LoginRequest
+    ResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+        email:
+          type: string
+          format: email
+          maxLength: 255.0
+        password:
+          type: string
+        password_confirmation:
+          type: string
+      required:
+        - token
+        - email
+        - password
+        - password_confirmation
+      title: ResetPasswordRequest
+    UpdateProfileRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1.0
+          maxLength: 120.0
+        preferred_locale:
+          type: string
+          description: "The two locales the product ships. An unknown value is a 422\nrather than a silent fallback, so a typo surfaces at the source."
+          enum:
+            - en
+            - ar
+      title: UpdateProfileRequest
     Problem:
       type: object
       title: Problem
@@ -142,3 +532,48 @@ components:
         - instance
         - code
         - trace_id
+  responses:
+    ValidationException:
+      description: 'Validation error'
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                description: 'Errors overview.'
+              errors:
+                type: object
+                description: 'A detailed description of each field that failed validation.'
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+            required:
+              - message
+              - errors
+    AuthenticationException:
+      description: Unauthenticated
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                description: 'Error overview.'
+            required:
+              - message
+    AuthorizationException:
+      description: 'Authorization error'
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                description: 'Error overview.'
+            required:
+              - message

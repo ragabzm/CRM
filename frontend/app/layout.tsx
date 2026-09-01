@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IntlProvider } from "@/components/i18n/IntlProvider";
+import { SessionExpiryListener } from "@/components/auth/SessionExpiryListener";
 import { AppShell } from "@/components/shell/AppShell";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { INTL_TAG, directionFor, resolveLocale } from "@/lib/i18n/locale";
@@ -49,6 +50,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           timeZone="Asia/Riyadh"
         >
           <TooltipProvider>
+            {/* Redirects a lapsed session to sign-in WITHOUT clearing storage —
+                see the note in SessionExpiryListener about composer drafts. */}
+            <SessionExpiryListener />
             <AppShell>{children}</AppShell>
           </TooltipProvider>
         </IntlProvider>

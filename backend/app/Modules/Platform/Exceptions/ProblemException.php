@@ -28,8 +28,14 @@ final class ProblemException extends RuntimeException
     /**
      * @param  array<string, mixed>  $extensions
      */
-    public static function make(string $code, string $title, int $status, ?string $detail = null, array $extensions = []): self
-    {
-        return new self(new ProblemDetails($code, $title, $status, $detail, $extensions));
+    public static function make(
+        string $code,
+        string $title,
+        int $status,
+        ?string $detail = null,
+        array $extensions = [],
+        ?Throwable $previous = null,
+    ): self {
+        return new self(new ProblemDetails($code, $title, $status, $detail, $extensions), $previous);
     }
 }

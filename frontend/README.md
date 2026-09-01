@@ -270,6 +270,31 @@ produce violations, so a misconfigured axe cannot pass everything silently.
 phone, breaks the camera affordance, and has to reimplement keyboard and
 screen-reader behaviour the native control already has.
 
+## Authentication
+
+`lib/auth/api.ts` wraps the staff auth endpoints. Every call sends
+`credentials: "include"`, primes the CSRF cookie first for writes, and echoes
+`XSRF-TOKEN` in the header Laravel expects.
+
+**Nothing is stored.** No token is requested or returned, and neither
+`localStorage` nor `sessionStorage` is written — a test asserts
+`Storage.prototype.setItem` is never called during sign-in.
+
+`SessionExpiryListener` redirects a lapsed session to
+`/sign-in?redirect=<current path>` and deliberately **clears nothing**: Story
+4.4's composer keeps unsent text under `composer-draft:<ticketId>`, and a session
+ending is the product's problem, not the reader's. There is nothing to clear for
+security either — cookie mode puts no credential in web storage.
+
+The `?redirect=` value is attacker-controllable, so it is validated to an
+in-app path: `//evil.example` starts with a slash and would otherwise navigate
+off-site, which on a sign-in page is a phishing primitive.
+
+Screens compose Layer-B form components (`FormField`, `FormAlert`,
+`SubmitButton`) rather than raw primitives — `FormField` owns the id/`htmlFor`/
+`aria-describedby`/`aria-invalid` wiring that every hand-assembled form gets
+subtly wrong.
+
 ## Version pins
 
 Node 24 LTS, Next.js **16.3.3**, React 19.2.x, TypeScript 5.x with `strict`,

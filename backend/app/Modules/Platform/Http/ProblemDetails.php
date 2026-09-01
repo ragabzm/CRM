@@ -44,6 +44,16 @@ final class ProblemDetails
     ];
 
     /**
+     * Codes owned by the Security module. Listed here so the shape of the
+     * vocabulary stays visible in one place; the module raises them itself.
+     */
+    public const SECURITY_CODES = [
+        'security.invalid_credentials',
+        'security.session_expired',
+        'security.reset_token_invalid',
+    ];
+
+    /**
      * @param  array<string, mixed>  $extensions  Extra RFC 9457 members (e.g. `errors` for a 422).
      */
     public function __construct(

@@ -145,6 +145,23 @@ directions and fails the build on any WCAG 2.1 AA violation.
 
 See `frontend/README.md`.
 
+## Authentication
+
+Sanctum in SPA cookie mode: the session is an http-only cookie, no token is ever
+issued, and nothing is written to `localStorage` or `sessionStorage`.
+
+Staff and portal customers are **two identity spaces** — two tables, two guards,
+two reset-token tables, no `is_staff` column. A credential valid in one is
+invisible to the other. Passwords are bcrypt-hashed, never returned by any
+endpoint and never logged; reset links are single-use, expiring, and hashed at
+rest.
+
+Session expiry returns `401 security.session_expired`, and the frontend
+redirects to `/sign-in?redirect=…` **without clearing web storage**, so an
+unsent composer draft survives.
+
+See `backend/README.md` for the endpoint table and the reasoning.
+
 ## Modules and tiers
 
 Seven modules under `backend/app/Modules/`, each with `Domain/ Http/ Policies/
