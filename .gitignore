@@ -1,0 +1,56 @@
+# Managed by squad-kit — do not edit this block
+.squad/secrets.yaml
+.squad/stories/**/attachments/
+.squad/.trash/
+.squad/.last-run.json
+.squad/.last-copy-prompt.md
+.squad/runs/
+# End squad-kit block
+
+# --- OS / editor ------------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# --- backend (PHP / Laravel) ------------------------------------------------
+backend/vendor/
+backend/.env
+backend/.env.backup
+backend/.env.production
+backend/storage/*.key
+backend/storage/logs/*
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/testing/*
+backend/storage/framework/views/*
+backend/bootstrap/cache/*.php
+backend/database/*.sqlite
+backend/.phpunit.result.cache
+backend/.phpunit.cache/
+backend/auth.json
+backend/_ide_helper.php
+backend/.deptrac.cache
+backend/deptrac.baseline.yaml
+
+# Generated during the CI drift check; the committed contract is
+# backend/openapi.yaml.
+backend/openapi.generated.yaml
+
+# --- frontend (Node / Next.js) ----------------------------------------------
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/coverage/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+frontend/next-env.d.ts
+frontend/*.tsbuildinfo
+frontend/.vercel
+
+# The backend publishes openapi.yaml as a CI artifact and the frontend job
+# downloads it here. The committed copy of the contract lives in backend/.
+frontend/openapi.yaml

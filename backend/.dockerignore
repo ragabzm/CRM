@@ -1,0 +1,15 @@
+# The image builds its own vendor/ and must never inherit a host-built one.
+vendor/
+node_modules/
+.env
+.env.*
+!.env.example
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+database/*.sqlite
+.phpunit.cache
+.phpunit.result.cache
+tests/
+.git/

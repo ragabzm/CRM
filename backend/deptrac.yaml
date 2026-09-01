@@ -1,0 +1,70 @@
+# Module boundaries and tier ordering.
+#
+# One layer per module so that same-tier dependencies are visible: a per-tier
+# layering would let Sla depend on Email (deptrac permits intra-layer edges by
+# default), and the three T4 modules must not call each other.
+#
+# The allowed lists below are exactly "every module in a strictly lower tier",
+# derived from app/Modules/module-tiers.php.
+deptrac:
+  paths:
+    - ./app/Modules
+
+  layers:
+    - name: T0_Platform
+      collectors:
+        - type: directory
+          value: app/Modules/Platform/.*
+    - name: T1_Security
+      collectors:
+        - type: directory
+          value: app/Modules/Security/.*
+    - name: T2_Customers
+      collectors:
+        - type: directory
+          value: app/Modules/Customers/.*
+    - name: T3_Tickets
+      collectors:
+        - type: directory
+          value: app/Modules/Tickets/.*
+    - name: T4_Sla
+      collectors:
+        - type: directory
+          value: app/Modules/Sla/.*
+    - name: T4_Email
+      collectors:
+        - type: directory
+          value: app/Modules/Email/.*
+    - name: T4_Portal
+      collectors:
+        - type: directory
+          value: app/Modules/Portal/.*
+
+    # Everything the modules are allowed to reach that is not itself a module.
+    # Declaring these explicitly is what makes --fail-on-uncovered meaningful:
+    # an unlisted dependency becomes a build failure rather than a silent
+    # "uncovered" line nobody reads.
+    - name: Vendor
+      collectors:
+        - type: classNameRegex
+          value: '#^(Illuminate|Symfony|Laravel|Monolog|Psr|Dedoc|Carbon|Ramsey|Brick|Nesbot)\\.*#'
+    - name: AppShared
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\(?!Modules\\).*#'
+    - name: PhpInternal
+      collectors:
+        - type: php_internal
+          value: '.*'
+
+  ruleset:
+    T4_Sla: [T3_Tickets, T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
+    T4_Email: [T3_Tickets, T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
+    T4_Portal: [T3_Tickets, T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
+    T3_Tickets: [T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
+    T2_Customers: [T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
+    T1_Security: [T0_Platform, Vendor, AppShared, PhpInternal]
+    T0_Platform: [Vendor, AppShared, PhpInternal]
+    Vendor: ~
+    AppShared: ~
+    PhpInternal: ~

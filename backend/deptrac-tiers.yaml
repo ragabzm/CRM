@@ -1,0 +1,58 @@
+# Tier ordering, checked at tier granularity.
+#
+# Coarser than deptrac.yaml on purpose: this config answers "does anything reach
+# up the stack" independently of how the modules are grouped, so a future module
+# added to a tier is covered the moment it is listed here. Same-tier edges are
+# deliberately NOT policed here — deptrac.yaml owns that rule.
+deptrac:
+  paths:
+    - ./app/Modules
+
+  layers:
+    - name: T0
+      collectors:
+        - type: directory
+          value: app/Modules/Platform/.*
+    - name: T1
+      collectors:
+        - type: directory
+          value: app/Modules/Security/.*
+    - name: T2
+      collectors:
+        - type: directory
+          value: app/Modules/Customers/.*
+    - name: T3
+      collectors:
+        - type: directory
+          value: app/Modules/Tickets/.*
+    - name: T4
+      collectors:
+        - type: directory
+          value: app/Modules/(Sla|Email|Portal)/.*
+
+    # Everything the modules are allowed to reach that is not itself a module.
+    # Declaring these explicitly is what makes --fail-on-uncovered meaningful:
+    # an unlisted dependency becomes a build failure rather than a silent
+    # "uncovered" line nobody reads.
+    - name: Vendor
+      collectors:
+        - type: classNameRegex
+          value: '#^(Illuminate|Symfony|Laravel|Monolog|Psr|Dedoc|Carbon|Ramsey|Brick|Nesbot)\\.*#'
+    - name: AppShared
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\(?!Modules\\).*#'
+    - name: PhpInternal
+      collectors:
+        - type: php_internal
+          value: '.*'
+
+  ruleset:
+    T4: [T3, T2, T1, T0, Vendor, AppShared, PhpInternal]
+    T3: [T2, T1, T0, Vendor, AppShared, PhpInternal]
+    T2: [T1, T0, Vendor, AppShared, PhpInternal]
+    T1: [T0, Vendor, AppShared, PhpInternal]
+    T0: [Vendor, AppShared, PhpInternal]
+    Vendor: ~
+    AppShared: ~
+    PhpInternal: ~

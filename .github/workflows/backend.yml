@@ -1,0 +1,127 @@
+# Backend pipeline. Triggers only on backend/** so the two applications really
+# are independently releasable — a frontend-only change does not rebuild or
+# gate the API.
+name: backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+
+defaults:
+  run:
+    working-directory: backend
+
+env:
+  # PHP 8.5 is the target. Raise this once the runners and the local toolchain
+  # are on 8.5 — see the note at the top of backend/README.md.
+  PHP_VERSION: "8.4"
+
+jobs:
+  setup:
+    name: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: pdo_pgsql, pgsql, intl, bcmath, pcntl
+          coverage: none
+      - uses: ramsey/composer-install@v3
+        with:
+          working-directory: backend
+      - run: composer validate --strict --no-check-publish
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: pdo_pgsql, pgsql, intl, bcmath, pcntl
+          coverage: none
+      - uses: ramsey/composer-install@v3
+        with:
+          working-directory: backend
+      # The suite runs on in-memory SQLite (see phpunit.xml); no database
+      # service is needed here.
+      - run: php artisan test
+
+  arch:
+    name: module boundaries and tier ordering
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+      - uses: ramsey/composer-install@v3
+        with:
+          working-directory: backend
+      - name: deptrac (per-module graph)
+        run: vendor/bin/deptrac analyse --config-file=deptrac.yaml --no-progress --fail-on-uncovered
+      - name: deptrac (tier ordering)
+        run: vendor/bin/deptrac analyse --config-file=deptrac-tiers.yaml --no-progress --fail-on-uncovered
+
+  openapi:
+    name: openapi contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+      - uses: ramsey/composer-install@v3
+        with:
+          working-directory: backend
+      - name: Fail if openapi.yaml is stale
+        run: |
+          if ! php artisan openapi:check; then
+            echo "::error::backend/openapi.yaml no longer matches the routes."
+            echo "::notice::Fix: run 'composer openapi:generate' in backend/ and commit openapi.yaml."
+            exit 1
+          fi
+      # Published so the frontend pipeline can consume the contract without
+      # checking out the backend source.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: backend/openapi.yaml
+          if-no-files-found: error
+
+  no-cross-import:
+    name: no cross-import
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+      - run: php scripts/check-no-cross-import.php
+
+  build-image:
+    name: build image
+    runs-on: ubuntu-latest
+    needs: [test, arch, openapi, no-cross-import]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          tags: backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

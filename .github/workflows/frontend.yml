@@ -1,0 +1,103 @@
+# Frontend pipeline. Triggers only on frontend/** — a backend-only change does
+# not rebuild the UI.
+#
+# Note what this workflow never does: check out or build the backend. It reads
+# the contract (backend/openapi.yaml, downloaded as an artifact or read from the
+# committed copy) and nothing else.
+name: frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
+
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  checks:
+    name: ${{ matrix.check.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - name: next version pin
+            run: node scripts/check-next-version.mjs
+          - name: typecheck
+            run: pnpm tsc --noEmit
+          - name: lint
+            run: pnpm eslint .
+          - name: test
+            run: pnpm test
+          - name: no cross-import
+            run: node scripts/check-no-cross-import.mjs
+          # Story 1.2: belt-and-braces over the ESLint token rule, because that
+          # rule can be switched off with an inline directive and a colour
+          # literal on main is a value nobody can retheme.
+          - name: design tokens
+            run: node scripts/check-tokens.mjs
+          - name: build
+            run: pnpm build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Node 24 LTS, as the story requires.
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: ${{ matrix.check.run }}
+
+  api-check:
+    name: generated client is not stale
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+
+      # The contract is committed at backend/openapi.yaml, and the backend
+      # pipeline fails if it is stale — so this job reads it straight from the
+      # checkout rather than plumbing an artifact between two workflows.
+      #
+      # scripts/api-client.mjs prefers frontend/openapi.yaml when present and
+      # falls back to ../backend/openapi.yaml. That ordering is what would let
+      # this job consume the backend workflow's `openapi` artifact unchanged if
+      # the two applications are ever split into separate repositories.
+      - name: Fail if lib/api/schema.ts is stale
+        run: |
+          if ! node scripts/api-client.mjs check; then
+            echo "::error::frontend/lib/api/schema.ts no longer matches backend/openapi.yaml."
+            echo "::notice::Fix: run 'pnpm run api:generate' in frontend/ and commit lib/api/schema.ts."
+            exit 1
+          fi
+
+  build-image:
+    name: build image
+    runs-on: ubuntu-latest
+    needs: [checks, api-check]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: false
+          tags: frontend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

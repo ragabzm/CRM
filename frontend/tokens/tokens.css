@@ -1,0 +1,383 @@
+/*
+ * The token layer. Single source of every design value in the product.
+ *
+ * PROVENANCE: every primitive value below is copied verbatim from the `:root`
+ * block of the normative mockup at
+ *   .squad/stories/inti/493/attachments/screen-reports.html
+ * which is the design authority this story was built against. DESIGN.md was not
+ * present in the repository when this landed; if it arrives and any value here
+ * disagrees with it, DESIGN.md wins and this file is the only place that has to
+ * change — components reference the semantic aliases, never these primitives.
+ *
+ * TWO TIERS, and the distinction is load-bearing:
+ *   @theme            primitives. Tailwind generates utilities from these.
+ *                     Components must NEVER reference them (no `bg-n-800`).
+ *   :root semantics   the only names a component may use (`bg-surface-raised`).
+ *
+ * The ban is enforced by eslint.config.mjs and scripts/check-tokens.mjs, not by
+ * review discipline — a primitive referenced from a component is a build error.
+ */
+
+@theme {
+  /* ---------- Neutrals ---------- */
+  --color-n-0: #ffffff;
+  --color-n-25: #fcfcfd;
+  --color-n-50: #f7f8fa;
+  --color-n-100: #f1f2f5;
+  --color-n-150: #e9ebf0;
+  --color-n-200: #e3e5eb;
+  --color-n-300: #d2d6df;
+  --color-n-400: #a5abb8;
+  --color-n-500: #7c8496;
+  --color-n-600: #5d6474;
+  --color-n-700: #464c5a;
+  --color-n-800: #2e3340;
+  --color-n-900: #1b1f2a;
+  --color-n-950: #101320;
+
+  /* ---------- Iris. Chrome only. Never a data colour. ---------- */
+  --color-accent: #5a4fe0;
+  --color-accent-hover: #4e43d3;
+  --color-accent-active: #4238bc;
+  --color-accent-fg: #ffffff;
+  --color-accent-text: #4338c4;
+  --color-accent-subtle: #f1effd;
+  --color-accent-subtle-hover: #e7e4fb;
+  --color-accent-border: #cbc5f7;
+
+  /* ---------- Ticket status ---------- */
+  --color-status-new-fg: #1560c4;
+  --color-status-new-bg: #e9f1fc;
+  --color-status-new-bd: #cbdff7;
+  --color-status-open-fg: #0e6e5e;
+  --color-status-open-bg: #e6f4f1;
+  --color-status-open-bd: #c2e3dc;
+  --color-status-pending-fg: #8a5300;
+  --color-status-pending-bg: #fbf1e3;
+  --color-status-pending-bd: #f0dcbd;
+  --color-status-resolved-fg: #4c5568;
+  --color-status-resolved-bg: #eff1f5;
+  --color-status-resolved-bd: #dee2e9;
+  --color-status-closed-fg: #5f6778;
+  --color-status-closed-bg: #f3f4f7;
+  --color-status-closed-bd: #e4e7ed;
+  --color-status-cancelled-fg: #8a4a52;
+  --color-status-cancelled-bg: #f7edee;
+  --color-status-cancelled-bd: #ead6d8;
+
+  /* ---------- The traffic light. Reserved for SLA. ---------- */
+  --color-sla-on-track-fg: #0b7150;
+  --color-sla-on-track-bg: #e7f4ee;
+  --color-sla-on-track-bd: #c4e4d6;
+  --color-sla-at-risk-fg: #9a5300;
+  --color-sla-at-risk-bg: #fcf2e4;
+  --color-sla-at-risk-bd: #f2ddbc;
+  --color-sla-breached-fg: #b4291f;
+  --color-sla-breached-bg: #fbebe9;
+  --color-sla-breached-bd: #f3cfcb;
+  --color-sla-met-fg: #5f6778;
+  --color-sla-met-bg: #f1f3f6;
+  --color-sla-met-bd: #e1e5ec;
+  --color-sla-paused-fg: #5f6778;
+  --color-sla-paused-bg: #f1f3f6;
+  --color-sla-paused-bd: #e1e5ec;
+  --color-sla-na-fg: #838b9b;
+  --color-sla-na-bg: #f7f8fa;
+  --color-sla-na-bd: #e3e5eb;
+  --color-sla-track: #e7e9ef;
+
+  /* ---------- Priority ---------- */
+  --color-priority-low: #9aa1ae;
+  --color-priority-normal: #6b7383;
+  --color-priority-high: #2e3340;
+  --color-priority-urgent: #b4291f;
+  --color-priority-urgent-bg: #fbebe9;
+  --color-priority-bar-empty: #dde0e7;
+
+  /* ---------- Channel ---------- */
+  --color-channel-email: #3e6bd1;
+  --color-channel-whatsapp: #1d9a5f;
+  --color-channel-sms: #7b61c9;
+  --color-channel-livechat: #0d8aa3;
+  --color-channel-webform: #5f6b7c;
+
+  /* ---------- Semantic feedback ---------- */
+  --color-success-fg: #0b7150;
+  --color-success-bg: #e7f4ee;
+  --color-success-bd: #c4e4d6;
+  --color-warning-fg: #9a5300;
+  --color-warning-bg: #fcf2e4;
+  --color-warning-bd: #f2ddbc;
+  --color-danger-fg: #b4291f;
+  --color-danger-bg: #fbebe9;
+  --color-danger-bd: #f3cfcb;
+  --color-info-fg: #1560c4;
+  --color-info-bg: #e9f1fc;
+  --color-info-bd: #cbdff7;
+
+  /* ---------- AI surfaces ---------- */
+  --color-ai-surface: #f7f6fc;
+  --color-ai-surface-strong: #f1eff9;
+  --color-ai-border: #e2def0;
+  --color-ai-fg: #5b5183;
+  --color-ai-glyph: #7264ae;
+
+  /* ---------- C1 categorical. Three slots, fixed order, never cycled. ---------- */
+  --color-cat-1: #26518f;
+  --color-cat-2: #4fb4ce;
+  --color-cat-3: #b25fa8;
+  --color-cat-1-wash: #eaf0f8;
+  --color-cat-2-wash: #eaf6fa;
+  --color-cat-3-wash: #f7edf5;
+
+  /* ---------- C2 ordinal. One hue, light to dark, ends on cat-1. ---------- */
+  --color-ord-1: #9fb3d3;
+  --color-ord-2: #8199c3;
+  --color-ord-3: #6480ae;
+  --color-ord-4: #48679a;
+  --color-ord-5: #26518f;
+
+  /* ---------- C3 chart chrome ---------- */
+  --color-chart-grid: #eff0f4;
+  --color-chart-axis: #d2d6df;
+  --color-chart-flat: #5d6474;
+
+  /* ---------- Radius ---------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+
+  /* ---------- Spacing. The mockup's --s-1..--s-11 scale. ---------- */
+  --spacing-1: 2px;
+  --spacing-2: 4px;
+  --spacing-3: 6px;
+  --spacing-4: 8px;
+  --spacing-5: 12px;
+  --spacing-6: 16px;
+  --spacing-7: 20px;
+  --spacing-8: 24px;
+  --spacing-9: 32px;
+  --spacing-10: 40px;
+  --spacing-11: 48px;
+
+  /* ---------- Elevation ---------- */
+  --shadow-e0: none;
+  --shadow-e-menu: 0 1px 2px rgba(16, 19, 32, 0.05), 0 4px 12px rgba(16, 19, 32, 0.09);
+  --shadow-e-dialog: 0 2px 6px rgba(16, 19, 32, 0.05), 0 14px 36px rgba(16, 19, 32, 0.13);
+  --shadow-e-palette: 0 4px 10px rgba(16, 19, 32, 0.06), 0 26px 64px rgba(16, 19, 32, 0.2);
+
+  /* ---------- Type ---------- */
+  --font-sans: "IBM Plex Sans", "IBM Plex Sans Arabic", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-arabic: "IBM Plex Sans Arabic", "IBM Plex Sans", "Noto Sans Arabic", "Segoe UI", Tahoma,
+    Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 22px;
+
+  /* ---------- Measure ---------- */
+  --size-row: 44px;
+  --size-rail: 368px;
+
+  /* ---------- Motion ---------- */
+  --duration-base: 130ms;
+}
+
+@layer theme {
+  /*
+   * SEMANTIC ALIASES — the only tokens a component may reference.
+   *
+   * A component that reads --color-n-800 has hard-coded a decision it does not
+   * own; one that reads --surface-raised inherits every future retheme for free.
+   */
+  :root {
+    /* Surfaces */
+    --surface-base: var(--color-n-0);
+    --surface-subtle: var(--color-n-25);
+    --surface-app: var(--color-n-50);
+    --surface-raised: var(--color-n-0);
+    --surface-sunken: var(--color-n-100);
+    --surface-hover: #f4f5f8;
+    --surface-active: #edeff3;
+    --surface-inverse: var(--color-n-800);
+    --scrim: rgba(16, 19, 32, 0.32);
+
+    /* Borders */
+    --border-subtle: #eff0f4;
+    --border-default: var(--color-n-200);
+    --border-strong: var(--color-n-300);
+    --border-inverse: var(--color-n-800);
+
+    /* Foreground */
+    --fg-default: var(--color-n-900);
+    --fg-muted: var(--color-n-600);
+    --fg-subtle: #838b9b;
+    --fg-placeholder: var(--color-n-400);
+    --fg-inverse: var(--color-n-0);
+
+    /* Accent (chrome only) */
+    --accent-default: var(--color-accent);
+    --accent-hover: var(--color-accent-hover);
+    --accent-active: var(--color-accent-active);
+    --accent-fg: var(--color-accent-fg);
+    --accent-text: var(--color-accent-text);
+    --accent-subtle: var(--color-accent-subtle);
+    --accent-subtle-hover: var(--color-accent-subtle-hover);
+    --accent-border: var(--color-accent-border);
+
+    /* Focus */
+    --focus-ring-color: rgba(90, 79, 224, 0.3);
+    --focus-ring: 0 0 0 3px var(--focus-ring-color);
+
+    /* State */
+    --state-success: var(--color-success-fg);
+    --state-success-bg: var(--color-success-bg);
+    --state-success-border: var(--color-success-bd);
+    --state-warning: var(--color-warning-fg);
+    --state-warning-bg: var(--color-warning-bg);
+    --state-warning-border: var(--color-warning-bd);
+    --state-danger: var(--color-danger-fg);
+    --state-danger-bg: var(--color-danger-bg);
+    --state-danger-border: var(--color-danger-bd);
+    --state-info: var(--color-info-fg);
+    --state-info-bg: var(--color-info-bg);
+    --state-info-border: var(--color-info-bd);
+
+    /* Elevation */
+    --elevation-none: var(--shadow-e0);
+    --elevation-menu: var(--shadow-e-menu);
+    --elevation-dialog: var(--shadow-e-dialog);
+    --elevation-palette: var(--shadow-e-palette);
+
+    /* Measure */
+    --row-height: var(--size-row);
+    --rail-width: var(--size-rail);
+    --motion-duration: var(--duration-base);
+  }
+
+  /*
+   * SHADCN COMPATIBILITY.
+   *
+   * `shadcn init` writes its own neutral palette in oklch. That palette is a
+   * visual theme, and this product's design is not it — the story is explicit
+   * that shadcn is a component foundation, never a theme. So every name shadcn's
+   * generated primitives reach for is re-pointed at OUR tokens here, and its
+   * palette is deleted from globals.css.
+   *
+   * The restyled primitives use our semantic utilities directly
+   * (`bg-surface-raised`, `text-fg-muted`). This block is the safety net for
+   * anything inside a Radix primitive that was not restyled by hand: it lands on
+   * a design token instead of shadcn grey. Nothing here introduces a new value.
+   */
+  :root {
+    --background: var(--surface-base);
+    --foreground: var(--fg-default);
+    --card: var(--surface-raised);
+    --card-foreground: var(--fg-default);
+    --popover: var(--surface-raised);
+    --popover-foreground: var(--fg-default);
+    --primary: var(--accent-default);
+    --primary-foreground: var(--accent-fg);
+    --secondary: var(--surface-sunken);
+    --secondary-foreground: var(--fg-default);
+    --muted: var(--surface-sunken);
+    --muted-foreground: var(--fg-muted);
+    --accent-foreground: var(--fg-default);
+    --destructive: var(--state-danger);
+    --destructive-foreground: var(--fg-inverse);
+    --border: var(--border-default);
+    --input: var(--border-default);
+    --ring: var(--focus-ring-color);
+    --radius: var(--radius-md);
+  }
+
+  /*
+   * DARK THEME — deliberately unpopulated.
+   *
+   * The mockup this story was built against defines no dark palette, and
+   * DESIGN.md (the token authority) was not available. Inventing dark values
+   * here would put a fabricated palette behind a real API, which is worse than
+   * having none: consumers would build against it and inherit the invention.
+   *
+   * The hook is declared so nothing has to be re-plumbed later. Every semantic
+   * alias above needs an override here.
+   *
+   * TODO(Story 1.2 follow-up): populate from DESIGN.md when it lands.
+   */
+  [data-theme="dark"] {
+    color-scheme: dark;
+  }
+}
+
+/*
+ * SEMANTIC UTILITIES.
+ *
+ * `@theme inline` is what lets a component write `bg-surface-raised` while the
+ * emitted CSS stays `background-color: var(--surface-raised)`. That indirection
+ * is the point: a theme override on :root or [data-theme] is picked up at
+ * runtime. A plain `@theme` block would inline the resolved value at build time
+ * and freeze the light palette into every utility.
+ */
+@theme inline {
+  /* Surfaces */
+  --color-surface-base: var(--surface-base);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-app: var(--surface-app);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-surface-inverse: var(--surface-inverse);
+  --color-scrim: var(--scrim);
+
+  /* Borders */
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+  --color-border-inverse: var(--border-inverse);
+
+  /* Foreground */
+  --color-fg-default: var(--fg-default);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-placeholder: var(--fg-placeholder);
+  --color-fg-inverse: var(--fg-inverse);
+
+  /* Accent */
+  --color-accent-default: var(--accent-default);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-active: var(--accent-active);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-text: var(--accent-text);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-subtle-hover: var(--accent-subtle-hover);
+  --color-accent-border: var(--accent-border);
+
+  /* State */
+  --color-state-success: var(--state-success);
+  --color-state-success-bg: var(--state-success-bg);
+  --color-state-success-border: var(--state-success-border);
+  --color-state-warning: var(--state-warning);
+  --color-state-warning-bg: var(--state-warning-bg);
+  --color-state-warning-border: var(--state-warning-border);
+  --color-state-danger: var(--state-danger);
+  --color-state-danger-bg: var(--state-danger-bg);
+  --color-state-danger-border: var(--state-danger-border);
+  --color-state-info: var(--state-info);
+  --color-state-info-bg: var(--state-info-bg);
+  --color-state-info-border: var(--state-info-border);
+
+  /* Elevation */
+  --shadow-menu: var(--elevation-menu);
+  --shadow-dialog: var(--elevation-dialog);
+  --shadow-palette: var(--elevation-palette);
+}

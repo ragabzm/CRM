@@ -1,0 +1,88 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+/*
+ * shadcn's stylesheet supplies mechanical utilities and custom variants its
+ * generated primitives rely on (scroll-fade, shimmer, data-slot variants).
+ * Its *palette* is deliberately NOT imported: `shadcn init` writes a neutral
+ * oklch theme, and tokens/tokens.css re-points every name it uses at our design
+ * tokens instead. shadcn is a component foundation here, never a visual theme.
+ */
+@import "shadcn/tailwind.css";
+@import "../tokens/tokens.css";
+
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--surface-app);
+    color: var(--fg-default);
+    font-family: var(--font-sans);
+    font-size: var(--text-md);
+    line-height: 1.55;
+    letter-spacing: -0.011em;
+    font-variant-numeric: lining-nums;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /*
+   * When the document is Arabic, lead with the Arabic face. Plex Sans Arabic
+   * carries its own matched Latin and figure set, so a ticket reference inside
+   * Arabic prose is drawn by the same face as the prose around it rather than
+   * falling back to a differently-proportioned design.
+   */
+  :root:lang(ar) body,
+  [dir="rtl"] body {
+    font-family: var(--font-arabic);
+  }
+
+  /*
+   * L-08 BIDI ISOLATION.
+   *
+   * Every Western-digit run — a range, a date, a duration, a ticket reference —
+   * is isolated and forced LTR so it keeps its internal order inside Arabic
+   * prose. Without this, "1-31" renders as "31-1" and a date range silently
+   * reverses. It belongs in one place rather than on every screen.
+   */
+  .num,
+  .tref,
+  .mono,
+  [data-numeric="true"],
+  td[data-column-type="number"] {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  /*
+   * Tabular figures on every numeric surface: columns, timers, counts and
+   * identifiers. Proportional digits make a column of numbers ragged and make a
+   * live timer jitter on every tick.
+   */
+  .num,
+  .tref,
+  [data-numeric="true"],
+  td[data-column-type="number"] {
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Focus is drawn per-component with --focus-ring, never by the UA default. */
+  :focus {
+    outline: none;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}

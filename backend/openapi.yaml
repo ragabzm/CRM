@@ -1,0 +1,144 @@
+openapi: 3.1.0
+info:
+  title: 'Ragab CRM API'
+  version: 1.0.0
+  description: 'Ragab CRM API. Errors are RFC 9457 application/problem+json documents whose `code` member is a stable `module.condition` identifier. Write endpoints require an Idempotency-Key header (ULID or UUID).'
+servers:
+  -
+    url: /api/v1
+    description: 'Relative to the deployment host, e.g. http://localhost:8000 locally.'
+paths:
+  /healthz:
+    get:
+      operationId: platform.healthz
+      description: "Returns 200 as long as the web process can serve a request. It does not\ntouch the database on purpose: this answers \"is this process up\", not\n\"is the whole stack healthy\"."
+      summary: 'Liveness probe'
+      tags:
+        - Health
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /healthz-echo:
+    post:
+      operationId: platform.healthz-echo
+      description: "TEMPORARY (Story 1.1 only): the acceptance criteria require a write\nendpoint to prove Idempotency-Key replay against, and no real one exists\nyet. Remove this once Story 1.2+ introduces genuine writes."
+      summary: 'Echoes the posted payload back'
+      tags:
+        - Health
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  echo:
+                    type: object
+                    additionalProperties: {}
+                required:
+                  - status
+                  - echo
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+components:
+  schemas:
+    Problem:
+      type: object
+      title: Problem
+      description: 'RFC 9457 problem details. Every 4xx and 5xx response in this API has this shape.'
+      properties:
+        type:
+          type: string
+          format: uri
+          description: 'A URI identifying the problem type. Always the base URI plus `code`.'
+        title:
+          type: string
+          description: 'A short, human-readable summary.'
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type:
+            - string
+            - 'null'
+          description: 'A human-readable explanation specific to this occurrence.'
+        instance:
+          type: string
+          description: 'The request URI this problem occurred on.'
+        code:
+          type: string
+          pattern: '^[a-z0-9_]+\.[a-z0-9_]+$'
+          description: 'Stable machine identifier shaped `module.condition`. Branch on this, never on `title`.'
+          examples:
+            - platform.internal_error
+            - platform.validation_failed
+            - platform.unauthorized
+            - platform.forbidden
+            - platform.not_found
+            - platform.method_not_allowed
+            - platform.conflict
+            - platform.too_many_requests
+            - platform.request_failed
+            - platform.idempotency_conflict
+            - platform.idempotency_in_flight
+        trace_id:
+          type: string
+          description: 'Correlation id for this request; matches the X-Request-Id response header and the request_id in the logs.'
+        errors:
+          type: object
+          description: 'Present on validation failures: field name to list of messages.'
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+        - type
+        - title
+        - status
+        - instance
+        - code
+        - trace_id
