@@ -426,5 +426,53 @@
       "title": "لا تملك صلاحية الوصول إلى هذه الملفات",
       "body": "تظهر المرفقات للموظفين الذين يمكنهم رؤية هذا السجل."
     }
+  },
+  "tickets": {
+    "staleVersion": {
+      "message": "تم تعديل هذه التذكرة من قِبل شخص آخر.",
+      "detail": "أعد التحميل لعرض النسخة الحالية قبل حفظ تعديلك.",
+      "reload": "إعادة التحميل"
+    },
+    "new": {
+      "title": "تذكرة جديدة",
+      "subject": "الموضوع",
+      "subjectHint": "هذا ما يراه الجميع في قائمة العمل.",
+      "description": "ما الذي حدث",
+      "customer": "العميل",
+      "customerPlaceholder": "ابحث بالاسم أو البريد أو الهاتف",
+      "category": "التصنيف",
+      "noCategory": "بلا تصنيف",
+      "priority": "الأولوية",
+      "department": "القسم",
+      "noDepartment": "بلا قسم",
+      "submit": "إنشاء التذكرة",
+      "submitting": "جارٍ الإنشاء…",
+      "cancel": "إلغاء",
+      "subjectRequired": "أدخل موضوعًا للتذكرة.",
+      "descriptionRequired": "اشرح ما الذي حدث.",
+      "customerRequired": "اختر عميلًا.",
+      "error": "تعذر إنشاء التذكرة."
+    },
+    "priority": {
+      "low": "منخفضة",
+      "normal": "عادية",
+      "high": "مرتفعة",
+      "urgent": "عاجلة"
+    },
+    "status": {
+      "open": "مفتوحة",
+      "pending": "قيد الانتظار",
+      "resolved": "تم حلها",
+      "closed": "مغلقة",
+      "reopened": "أُعيد فتحها"
+    },
+    "show": {
+      "reference": "الرقم المرجعي",
+      "status": "الحالة",
+      "priority": "الأولوية",
+      "customer": "العميل",
+      "notFound": "هذه التذكرة غير موجودة.",
+      "loadError": "تعذر تحميل التذكرة."
+    }
   }
 }

@@ -480,6 +480,95 @@ better than the loose primitives it replaced:
 - `AuditEntryDetail` and `AuditFilterBar` keep the audit screen composing domain
   components only.
 
+## Notes and attachments
+
+Both mount on the customer profile as Layer-B lanes, so the ticket story can
+reuse them unchanged.
+
+### Notes
+
+Edit is offered only to the author; delete to the author or anyone who can
+moderate. Both are only ever OFFERS — the server decides the same way whatever
+these components render, and a refusal comes back with the server's own reason.
+
+When there is nothing to offer, the row shows no overflow trigger at all. An
+empty menu is a control that teaches nothing.
+
+Deleting names the author in the confirmation and says the note cannot be
+recovered. An edited note carries an "(edited)" marker, so a reader knows the
+text is not what was originally written — which is the whole reason edits are
+the author's alone.
+
+### Attachments
+
+Three states, each with a glyph as well as colour so it survives greyscale:
+
+- **Pending scan** — shown, not hidden. Hiding a file until its scan finishes
+  makes an upload look like it silently failed. The download control is
+  disabled and `aria-describedby` explains why; a greyed-out button with no
+  explanation is a dead end.
+- **Clean** — a plain `<a download>`. The endpoint answers 302 to a short-lived
+  signed URL, and letting the browser follow it keeps the bytes out of
+  JavaScript entirely.
+- **Scan failed** — the reason is shown and there is no download control at all.
+
+The lane **never renders a file's contents** — no `<img>`, no `<iframe>`, no
+`<object>`, not even for a clean image. Displaying uploaded content inline from
+a trusted origin is a stored XSS that no virus scanner would flag. A test
+asserts those elements are absent from the DOM.
+
+Polling runs only while something is pending and stops the moment nothing is. A
+timer that keeps running on a quiet page is a battery bug.
+
+The upload is multipart with **no `Content-Type` header of our own**: only the
+browser knows the boundary it generated, and setting the header by hand produces
+a body the server cannot parse.
+
+## Tickets
+
+### The stale-version race, handled once
+
+`lib/api/request.ts` recognises a `409 tickets.stale_version` and throws
+`TicketStaleVersionError` with the ticket id, the current version and all five
+contended values already parsed. Here rather than per screen: every ticket write
+can lose this race, and a per-screen check is one the next screen forgets.
+
+`ApiError` lives in `lib/api/errors.ts` rather than `request.ts` because
+`TicketStaleVersionError` extends it — a class cannot extend something declared
+in a module that imports it back. `request.ts` re-exports it so existing imports
+keep working.
+
+The error is only thrown when the body actually carries what recovery needs. A
+409 whose payload cannot be read is still an error; pretending it is this one
+would leave a screen offering to reload from fields that are not there.
+
+### One button, not a merge dialog
+
+`StaleVersionBanner` says what happened and offers Reload. The alternative — a
+diff with per-field merge choices — asks someone to adjudicate a conflict they
+have no context for, while a customer waits. Reloading and redoing the edit takes
+seconds and is always correct.
+
+It is `role="alert"`, not a polite status: the reader is about to save over
+someone else's change and that cannot wait for a pause in the screen reader's
+queue.
+
+### The New Ticket form
+
+The idempotency key is captured **once on mount**, not per submit. A double
+click, a flaky connection or an impatient retry then replays the original
+response instead of opening a second ticket for one problem — the failure an
+agent creates and a supervisor has to clean up. A test presses Create twice and
+asserts both requests carry the same key.
+
+Customer search is debounced at 250 ms. Searching per keystroke sends a request
+per character and the answers arrive out of order — the last to land wins, which
+is not the last one asked for. The match list is derived from the search box
+being non-empty rather than cleared in an effect.
+
+Opened from a customer's profile, the picker is not rendered at all: the customer
+is already decided, and asking again invites picking the wrong one.
+
 ## Version pins
 
 Node 24 LTS, Next.js **16.3.3**, React 19.2.x, TypeScript 5.x with `strict`,

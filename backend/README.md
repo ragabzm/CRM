@@ -647,6 +647,158 @@ Editing and deleting are about **authorship**, not role:
 An edited note is flagged, so a reader knows the text is not what was originally
 written.
 
+## Tickets
+
+### One write path
+
+Nothing outside `App\Modules\Tickets` writes a `tickets` or `ticket_events`
+row, and `tests/Architecture/OnlyTicketsModuleMutatesTicketsTest.php` fails the
+build if anything tries. Every mutation goes through a command in
+`Domain/Commands`, because the version guard, the lifecycle table and the event
+append all live there — a write from elsewhere skips all three, and the damage
+is invisible: a ticket whose status changed with no event, or whose version
+never moved, looks perfectly normal until someone tries to reconstruct what
+happened to it.
+
+`Ticket` has `$guarded = ['*']`. Nothing is mass-assignable, ever; the commands
+`forceFill` deliberately. A fillable list would be a second, quieter write path.
+
+### The Actor is a parameter, never ambient
+
+Every command takes `Actor $actor` first, and
+`tests/Architecture/CommandsDoNotReadAmbientAuthTest.php` fails on `auth(`,
+`request(`, `session(` or `Auth::` anywhere under `Domain/`. A command that read
+ambient state would work from a controller and fail everywhere else — the
+auto-close job, a console command, a queue worker — and the failure would not
+appear until one of them ran in production at 3am.
+
+`ActorResolver` is the one place the guard is read. Three subtypes: `StaffActor`,
+`PortalActor`, and `SystemActor`, which carries a required **reason**. "The
+system closed it" explains nothing; `scheduler:auto_close` names the job to go
+and look at.
+
+### The version guard
+
+Two agents open one ticket. One resolves it; the other, on a screen loaded a
+minute earlier, raises the priority. Without the guard the second write silently
+reverts the first, and nobody finds out until the customer asks why their
+resolved ticket is open again.
+
+`VersionGuard::CONTENDED` is deliberately **five properties**: `status`,
+`priority`, `category_id`, `assignee_id`, `department_id`. Appending a message or
+an attachment is **not** guarded — two people writing different messages have not
+conflicted, they have both said something, and both should be kept. Widening the
+guard to every column would make a message append fail whenever anyone else
+touched the ticket, which is the normal case on a busy ticket and would train
+people to retry blindly. A test pins the list so a future author cannot
+"helpfully" widen it.
+
+The 409 carries `current_version` **and all five current values**. The client's
+next move is always "show me what it says now", and making them fetch again
+costs a round trip plus a window in which it changes a third time.
+
+The row is locked (`lockForUpdate`) for the whole transaction. Without the lock
+two requests both read version 3, both pass the guard, and both write — the
+exact race the version column exists to stop.
+
+### One event per changed attribute
+
+"Priority changed" and "assignee changed" are two facts a reader filters on
+separately; one combined row would be unfilterable. Resolve and reopen name
+themselves (`ticket.resolved`, `ticket.reopened`) rather than appearing as
+generic status changes, so "everything resolved this week" is a filter rather
+than a scan.
+
+`version_after` is recorded on every event, so replaying the history reproduces
+the version sequence exactly — which is what makes a disputed change
+reconstructable.
+
+### The lifecycle
+
+Enforced on `TicketStatus`, not in a controller, because "may a closed ticket be
+reopened?" is a question about the domain. `closed` is the one terminal state:
+a closed ticket that could be edited would mean an agreed outcome could be
+quietly changed months later, and the answer to "we need to look at this again"
+is a new ticket that references the old one. The refusal says so, and lists
+where the ticket *can* go.
+
+Setting a status to what it already is succeeds — otherwise a retried request
+would fail, which is the opposite of what a retry should do.
+
+### References
+
+`TKT-000123`, from a Postgres sequence. `nextval` is atomic and needs no
+application lock; `MAX(reference)+1` would let two agents pressing Create at the
+same moment both mint the same number. The sequence is deliberately
+non-transactional, so a rolled-back create leaves a gap — invisible to everyone,
+and far cheaper than serialising every ticket creation behind a lock.
+
+SQLite has no sequences and the test suite runs on it, so a `MAX()`-based
+allocator is bound there. The binding is by **driver**, which keeps the unsafe
+implementation unreachable in production.
+
+### Replying is append-only
+
+`ticket_messages` and `AppendMessage` take **no version** and bump none. Two
+colleagues writing different replies have not conflicted — they have both said
+something, and both belong in the thread. Requiring a version here would make a
+reply fail whenever someone else happened to change the priority a moment
+earlier, which on a busy ticket is most of the time, and would train people to
+retry blindly.
+
+Appending writes no `ticket_events` row either: the thread *is* the record of
+what was said, and a parallel event would be the same fact stored twice.
+
+`customer_id` is denormalised onto the message from its ticket, so a customer's
+whole interaction history is one indexed read rather than a join through every
+ticket they have ever had.
+
+### The portal path
+
+`POST /api/v1/portal/tickets` on the `portal` guard, running the same
+`CreateTicket` command — so the reference, the event and the version behave
+identically and nothing about a portal ticket is second-class.
+
+What differs is decided by the server, never by the request:
+
+- **The customer comes from the account.** A `customer_id` in the body is
+  ignored. Honouring it would let any portal user open — and then read back — a
+  ticket against anybody else's record.
+- **The channel is fixed to `portal`.** A submission claiming `agent` would
+  misreport where the work came from.
+- **Priority, assignee and department are not accepted at all.** Every customer
+  would mark their own ticket urgent, and the field would stop meaning anything.
+
+An account with no linked customer is refused with
+`tickets.portal_account_unlinked` rather than defaulted to anything — guessing
+would attach a stranger's message to somebody's record. `ActorResolver` has a
+separate `portalFromRequest()` because a request can legitimately carry both
+cookies, and letting guard precedence decide would attribute an action to the
+wrong identity.
+
+See `.squad/gaps/12-503.md`: nothing yet *creates* the portal-account-to-customer
+link.
+
+### Deviations from the plan
+
+- **No second `ticket_categories` table.** Story 2.3 already shipped one with a
+  bilingual name and an admin console. Its key is a bigint, so `category_id` is a
+  `foreignId` rather than the ULID the plan assumed. One categories table with
+  one admin surface beats two that drift.
+- **No new `tickets.*` capabilities.** `ticket.read`, `ticket.create`,
+  `ticket.update`, `ticket.reassign` and `ticket.close` already existed and fit;
+  the plan said to add new ones only if none did. Each verb carries the
+  capability matching what it actually does rather than one blanket
+  `tickets.write`, since reassigning is a supervisor's job and creating is an
+  agent's.
+- **`Priority` is reused, not duplicated.** Story 2.3's enum is published through
+  `/admin/priorities`; a second `TicketPriority` would be two enums for one
+  concept.
+- **`TicketVisibilityTest` now runs against the real table.** It built a
+  throwaway one because the rule shipped before the schema did; testing it
+  against a table with different columns from the real one would be testing a
+  fiction.
+
 ## Errors
 
 Every 4xx/5xx response is an RFC 9457 problem document produced by

@@ -426,5 +426,53 @@
       "title": "You do not have access to these files",
       "body": "Attachments are visible to staff who can see this record."
     }
+  },
+  "tickets": {
+    "staleVersion": {
+      "message": "This ticket was changed by someone else.",
+      "detail": "Reload to see the current version before saving your change.",
+      "reload": "Reload"
+    },
+    "new": {
+      "title": "New ticket",
+      "subject": "Subject",
+      "subjectHint": "What everyone sees in the queue.",
+      "description": "What happened",
+      "customer": "Customer",
+      "customerPlaceholder": "Search by name, email or phone",
+      "category": "Category",
+      "noCategory": "No category",
+      "priority": "Priority",
+      "department": "Department",
+      "noDepartment": "No department",
+      "submit": "Create ticket",
+      "submitting": "Creating…",
+      "cancel": "Cancel",
+      "subjectRequired": "Give the ticket a subject.",
+      "descriptionRequired": "Describe what happened.",
+      "customerRequired": "Choose a customer.",
+      "error": "The ticket could not be created."
+    },
+    "priority": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "status": {
+      "open": "Open",
+      "pending": "Pending",
+      "resolved": "Resolved",
+      "closed": "Closed",
+      "reopened": "Reopened"
+    },
+    "show": {
+      "reference": "Reference",
+      "status": "Status",
+      "priority": "Priority",
+      "customer": "Customer",
+      "notFound": "That ticket does not exist.",
+      "loadError": "The ticket could not be loaded."
+    }
   }
 }

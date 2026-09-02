@@ -25,7 +25,7 @@
 
 set -uo pipefail
 
-REPO_ROOT="$(pwd)"
+REPO_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 STATE_DIR="${REPO_ROOT}/.squad/state"
 LOG_FILE="${REPO_ROOT}/.claude/hooks/.state/track-story.log"
 
@@ -50,22 +50,59 @@ PY
 STATE_FILE="${STATE_DIR}/current_story-${SESSION_ID}.json"
 
 # Extract the raw prompt text and look for a .squad/plans/**/*.md reference.
-PLAN_PATH="$(python3 - "$INPUT_JSON" <<'PY'
-import json, re, sys
+PLAN_PATH="$(python3 - "$INPUT_JSON" "$REPO_ROOT" <<'PY'
+import glob, json, os, re, sys
 
 try:
     data = json.loads(sys.argv[1] or "{}")
 except Exception:
     data = {}
 
+repo_root = sys.argv[2]
 prompt = data.get("prompt", "") or ""
+plans_root = os.path.join(repo_root, ".squad", "plans")
 
-# Matches things like:
-#   .squad/plans/foundation/04-story-451.md
-#   squad/plans/foundation/04-story-451.md  (no leading dot)
+
+def resolve(pattern):
+    """Return the first matching plan path, repo-relative, or None."""
+    hits = sorted(glob.glob(os.path.join(plans_root, "*", pattern)))
+    if not hits:
+        hits = sorted(glob.glob(os.path.join(plans_root, pattern)))
+    if hits:
+        return os.path.relpath(hits[0], repo_root)
+    return None
+
+
+# 1. An explicit path anywhere in the prompt:
+#      .squad/plans/inti/10-story-501.md
 m = re.search(r"(\.squad/plans/[^\s\"']+\.md)", prompt)
-if m:
+if m and os.path.isfile(os.path.join(repo_root, m.group(1))):
     print(m.group(1))
+    sys.exit(0)
+
+# 2. A bare plan filename:
+#      10-story-501.md      "نفّذ 10-story-501.md"
+m = re.search(r"\b(\d{1,3}-story-[A-Za-z0-9_-]+\.md)\b", prompt)
+if m:
+    hit = resolve(m.group(1))
+    if hit:
+        print(hit)
+        sys.exit(0)
+
+# 3. A tracker id referred to by name, in English or Arabic:
+#      "story 501", "story-501", "#501", "ستوري 501", "استوري ٥٠١"
+ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+m = re.search(
+    r"(?:story|stori|ستوري|استوري|الستوري|#)[\s\-_:]*([0-9\u0660-\u0669]{2,5})",
+    prompt,
+    re.IGNORECASE,
+)
+if m:
+    story_id = m.group(1).translate(ARABIC_DIGITS)
+    hit = resolve("*-story-%s.md" % story_id)
+    if hit:
+        print(hit)
+        sys.exit(0)
 PY
 )"
 

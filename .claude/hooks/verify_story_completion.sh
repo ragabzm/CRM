@@ -31,7 +31,7 @@
 
 set -uo pipefail
 
-REPO_ROOT="$(pwd)"
+REPO_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 STATE_DIR="${REPO_ROOT}/.claude/hooks/.state"
 STOP_ITER_DIR="${STATE_DIR}/stop-iterations"
 LOG_FILE="${STATE_DIR}/stop-hook.log"
@@ -173,7 +173,7 @@ PY
 # --- 5. Build the block reason ----------------------------------------------
 GAPS_TARGET=".squad/gaps/${PLAN_NUMBER}-${STORY_ID}.md"
 
-REASON=$(cat <<EOF
+read -r -d '' REASON <<EOF
 Story ${STORY_ID} (plan: ${PLAN_PATH}) is not actually finished — ${UNCHECKED_COUNT} item(s)
 under "## Done Criteria" are still unchecked:
 
@@ -193,6 +193,5 @@ Rules for finishing this turn:
    [x]. If the plan itself says "STOP HERE, wait for confirmation" and all
    boxes are checked, that stop is fine.
 EOF
-)
 
 block_stop "${REASON}"

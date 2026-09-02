@@ -226,3 +226,11 @@ As of Story 1.1 the seven modules are empty scaffolds apart from Platform.
 │ الـ API       │ http://127.0.0.1:8000/api/v1/healthz │
 ├───────────────┼──────────────────────────────────────┤
 │ بيانات الدخول │ admin@ragab.test / Correct-Horse-9   │
+
+
+php artisan test          458 passed / 1696 assertions
+php artisan openapi:check openapi.yaml is up to date
+deptrac (layers)          0 violations / 544 allowed
+deptrac (tiers)           0 violations / 544 allowed
+no-cross-import           clean
+vitest                    49 files / 579 passed

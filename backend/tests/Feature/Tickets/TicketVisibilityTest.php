@@ -8,35 +8,55 @@ use App\Models\User;
 use App\Modules\Security\Domain\Roles;
 use App\Modules\Tickets\Domain\Query\TicketVisibility;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use App\Modules\Customers\Domain\Customer;
+use App\Modules\Security\Domain\Department;
+use App\Modules\Tickets\Domain\Ticket;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
  * The row-level rule, tested against a real query.
  *
- * A fake tickets table is created here rather than waiting for Story 4.1: the
- * rule is the deliverable, and asserting it by inspecting SQL strings would
- * pass for a query that returns the wrong rows.
+ * Runs against the REAL tickets table. It used to build a throwaway one,
+ * because the rule shipped before the schema did; now that Story 4.1 has
+ * landed, testing the rule against a table with different columns from the
+ * real one would be testing a fiction.
  */
 final class TicketVisibilityTest extends TestCase
 {
     use RefreshDatabase;
+
+    /** Keeps references unique and ordered without a sequence. */
+    private static int $sequence = 0;
+
+    private int $departmentId;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->seed(RolesAndPermissionsSeeder::class);
 
-        Schema::create('tickets', function ($table): void {
-            $table->id();
-            $table->string('subject');
-            $table->foreignId('assignee_id')->nullable();
-            $table->foreignId('customer_id')->nullable();
-            $table->string('status')->default('open');
-            $table->foreignId('department_id')->nullable();
-        });
+        $this->departmentId = (int) Department::firstOrCreate(
+            ['name' => 'Billing'],
+            ['is_active' => true],
+        )->getKey();
+    }
+
+    /** A customer row, since tickets now carry a real foreign key. */
+    private function customer(): string
+    {
+        $customer = new Customer([
+            'reference' => Customer::mintReference(),
+            'full_name' => 'Someone',
+            'department_id' => $this->departmentId,
+            'state' => 'active',
+        ]);
+        $customer->setAttribute('id', (string) Str::ulid());
+        $customer->save();
+
+        return (string) $customer->getKey();
     }
 
     private function actor(string $role, array $attributes = []): User
@@ -47,23 +67,43 @@ final class TicketVisibilityTest extends TestCase
         return $user->refresh();
     }
 
-    private function ticket(array $attributes): int
+    private function ticket(array $attributes): string
     {
-        return TicketStub::query()->create($attributes + ['subject' => 'Subject'])->id;
+        $ticket = new Ticket;
+
+        $ticket->forceFill([
+            'reference' => 'TKT-'.str_pad((string) ++self::$sequence, 6, '0', STR_PAD_LEFT),
+            'subject' => 'Subject',
+            'description' => 'Body',
+            'customer_id' => $attributes['customer_id'] ?? $this->customer(),
+            'channel' => 'agent',
+            'status' => $attributes['status'] ?? 'open',
+            'priority' => 'normal',
+            'assignee_id' => $attributes['assignee_id'] ?? null,
+            'department_id' => $attributes['department_id'] ?? null,
+            'creator_type' => 'staff',
+            'creator_id' => '1',
+            'version' => 1,
+        ])->save();
+
+        return (string) $ticket->getKey();
     }
 
-    /** @return list<int> */
+    /** @return list<string> */
     private function visibleTo(\Illuminate\Contracts\Auth\Authenticatable $actor): array
     {
-        return TicketVisibility::scopeForActor(TicketStub::query(), $actor)
-            ->orderBy('id')
+        return TicketVisibility::scopeForActor(Ticket::query(), $actor)
+            ->orderBy('reference')
             ->pluck('id')
+            ->map(static fn ($id): string => (string) $id)
             ->all();
     }
 
     public function test_an_administrator_sees_every_ticket(): void
     {
-        $mine = $this->ticket(['assignee_id' => 999]);
+        $someone = User::factory()->create();
+
+        $mine = $this->ticket(['assignee_id' => $someone->getKey()]);
         $unassigned = $this->ticket(['assignee_id' => null]);
 
         $this->assertSame([$mine, $unassigned], $this->visibleTo($this->actor(Roles::ADMINISTRATOR)));
@@ -72,7 +112,7 @@ final class TicketVisibilityTest extends TestCase
     public function test_a_supervisor_sees_every_ticket(): void
     {
         // Supervision that cannot see the queue is not supervision.
-        $a = $this->ticket(['assignee_id' => 999]);
+        $a = $this->ticket(['assignee_id' => User::factory()->create()->getKey()]);
         $b = $this->ticket(['assignee_id' => null]);
 
         $this->assertSame([$a, $b], $this->visibleTo($this->actor(Roles::SUPERVISOR)));
@@ -84,7 +124,7 @@ final class TicketVisibilityTest extends TestCase
 
         $own = $this->ticket(['assignee_id' => $agent->id]);
         $unassigned = $this->ticket(['assignee_id' => null]);
-        $someoneElses = $this->ticket(['assignee_id' => $agent->id + 500]);
+        $someoneElses = $this->ticket(['assignee_id' => User::factory()->create()->getKey()]);
 
         $visible = $this->visibleTo($agent);
 
@@ -105,19 +145,19 @@ final class TicketVisibilityTest extends TestCase
         // The OR is wrapped, so it cannot escape and pull closed tickets back
         // into a query that already excluded them.
         $visible = TicketVisibility::scopeForActor(
-            TicketStub::query()->where('status', 'open'),
+            Ticket::query()->where('status', 'open'),
             $agent,
-        )->pluck('id')->all();
+        )->pluck('id')->map(static fn ($id): string => (string) $id)->all();
 
         $this->assertSame([$mineOpen], $visible);
     }
 
     public function test_a_customer_sees_only_their_own(): void
     {
-        $customer = new CustomerActor(7);
-
-        $theirs = $this->ticket(['customer_id' => 7]);
-        $other = $this->ticket(['customer_id' => 8]);
+        $mine = $this->customer();
+        $theirs = $this->ticket(['customer_id' => $mine]);
+        $other = $this->ticket(['customer_id' => $this->customer()]);
+        $customer = new CustomerActor($mine);
         $unassigned = $this->ticket(['assignee_id' => null]);
 
         $visible = $this->visibleTo($customer);
@@ -130,8 +170,8 @@ final class TicketVisibilityTest extends TestCase
     public function test_a_customer_with_no_linked_record_sees_nothing(): void
     {
         $customer = new CustomerActor(null);
-        $this->ticket(['customer_id' => null]);
-        $this->ticket(['customer_id' => 7]);
+        $this->ticket([]);
+        $this->ticket([]);
 
         // `where(column, null)` would match every row with a null customer_id —
         // the classic fail-open.
@@ -152,7 +192,7 @@ final class TicketVisibilityTest extends TestCase
     {
         $agent = $this->actor(Roles::AGENT, ['department_id' => null]);
 
-        $otherDepartment = $this->ticket(['assignee_id' => $agent->id, 'department_id' => 42]);
+        $otherDepartment = $this->ticket(['assignee_id' => $agent->id, 'department_id' => $this->departmentId]);
 
         // Department is a grouping and a filter. A ticket surfacing outside the
         // caller's department is not a leak — treating it as one turns a filter
@@ -169,14 +209,13 @@ final class TicketVisibilityTest extends TestCase
  * their own guard. This stub carries the shape TicketVisibility reads so the
  * customer branch is genuinely exercised.
  *
- * TODO(Story 4.1 / portal): decide which identity actually holds the `customer`
- * role at runtime. Portal accounts use the `portal` guard and currently carry no
- * roles at all, so today this branch is specified and tested but unreachable in
- * production — worth settling before the ticket list ships.
+ * Still unresolved after Story 4.1: portal accounts use the `portal` guard and
+ * carry no roles, so this branch is specified and tested but not yet reachable
+ * in production. The portal ticket list is where it has to be settled.
  */
 final class CustomerActor implements \Illuminate\Contracts\Auth\Authenticatable
 {
-    public function __construct(private readonly ?int $customerId) {}
+    public function __construct(private readonly ?string $customerId) {}
 
     public function hasRole(string $role): bool
     {

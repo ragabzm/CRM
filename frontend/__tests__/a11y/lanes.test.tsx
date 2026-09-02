@@ -14,6 +14,8 @@ import type { Attachment } from "@/lib/api/attachments";
 import type { CustomerNote } from "@/lib/api/notes";
 import type { Locale } from "@/lib/i18n/locale";
 
+import { StaleVersionBanner } from "@/components/domain/StaleVersionBanner/StaleVersionBanner";
+
 import { axe } from "./axe";
 
 const OWNER = "01AAAAAAAAAAAAAAAAAAAAAAAA";
@@ -109,6 +111,12 @@ describe.each(DIRECTIONS)("record lanes · dir=$dir", ({ dir, locale }) => {
     );
 
     await findByText("Called about the invoice.");
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("the stale version banner has no violations", async () => {
+    const { container } = renderIn(<StaleVersionBanner onReload={vi.fn()} />, dir, locale);
 
     expect(await axe(container)).toHaveNoViolations();
   });

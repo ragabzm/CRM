@@ -35,6 +35,19 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table): void {
+            /*
+             * The index goes before the column it covers.
+             *
+             * Postgres drops a dependent index along with its column, so this
+             * line is invisible there. SQLite does not: it rebuilds the table
+             * and then finds `users_is_active_index` pointing at a column that
+             * is gone, which fails the rollback in the very environment the
+             * test suite runs in. Dropping it explicitly is correct on both.
+             */
+            $table->dropIndex('users_is_active_index');
+        });
+
+        Schema::table('users', function (Blueprint $table): void {
             $table->dropConstrainedForeignId('department_id');
             $table->dropColumn('is_active');
         });

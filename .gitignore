@@ -57,3 +57,7 @@ frontend/openapi.yaml
 
 # Logs from scripts/verify.sh
 .verify/
+
+# --- squad-kit runtime state (session-scoped, never shared) -----------------
+.squad/state/current_story-*.json
+.claude/hooks/.state/

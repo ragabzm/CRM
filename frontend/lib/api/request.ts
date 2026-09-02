@@ -1,6 +1,7 @@
 "use client";
 
-import { isProblem, type Problem } from "./client";
+import { isProblem } from "./client";
+import { ApiError, TicketStaleVersionError } from "./errors";
 import { ulid } from "./ulid";
 
 /**
@@ -48,17 +49,12 @@ export function xsrfToken(): string | null {
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
-/** An API response that was not a success, carrying its problem document. */
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly problem: Problem | null,
-    readonly status: number,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
+/*
+ * Re-exported so the many modules that import ApiError from here keep working.
+ * It is DECLARED in errors.ts because TicketStaleVersionError extends it, and
+ * a class cannot extend something defined in a module that imports it back.
+ */
+export { ApiError, TicketStaleVersionError } from "./errors";
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -100,6 +96,17 @@ export async function request<T>(path: string, init: RequestInitWithFetch = {}):
 
   if (!response.ok) {
     const problem = isProblem(body) ? body : null;
+
+    /*
+     * The one place a stale ticket version is recognised.
+     *
+     * Here rather than in each screen: every ticket write can lose this race,
+     * and a per-screen check is a check the next screen forgets. Callers catch
+     * TicketStaleVersionError and render the shared banner.
+     */
+    const stale = TicketStaleVersionError.from(body, response.status);
+
+    if (stale) throw stale;
 
     throw new ApiError(
       problem?.detail ?? problem?.title ?? "Request failed",

@@ -25,6 +25,9 @@ final class AuthorizationRefusalTest extends TestCase
     use InteractsWithSpaSession;
     use RefreshDatabase;
 
+    /** A well-formed ULID for a ticket that deliberately does not exist. */
+    private const SOME_ULID = '01JZZZZZZZZZZZZZZZZZZZZZZZ';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -66,8 +69,16 @@ final class AuthorizationRefusalTest extends TestCase
     {
         $this->signedInAs(Roles::AGENT);
 
+        /*
+         * The ticket need not exist: the capability gate runs before the
+         * controller, and being refused for the right reason is what is under
+         * test. A real ULID only so the route matches its own constraint.
+         */
         $this->assertRefusal(
-            $this->withIdempotencyKey()->postJson('/api/v1/tickets/1/reassign'),
+            $this->withIdempotencyKey()->postJson('/api/v1/tickets/'.self::SOME_ULID.'/assign', [
+                'version' => 1,
+                'assignee_id' => null,
+            ]),
             Capabilities::TICKET_REASSIGN,
         );
     }
@@ -123,7 +134,16 @@ final class AuthorizationRefusalTest extends TestCase
         $this->getJson('/api/v1/departments')->assertOk();
         $this->getJson('/api/v1/audit')->assertOk();
         $this->withIdempotencyKey()->putJson('/api/v1/settings/branding')->assertOk();
-        $this->withIdempotencyKey()->postJson('/api/v1/tickets/1/reassign')->assertOk();
+
+        /*
+         * Asserted as "not refused" rather than 200: this ticket does not
+         * exist, so the honest answer is 404 — which is still proof the
+         * capability gate let the administrator through.
+         */
+        $this->withIdempotencyKey()->postJson('/api/v1/tickets/'.self::SOME_ULID.'/assign', [
+            'version' => 1,
+            'assignee_id' => null,
+        ])->assertStatus(404);
     }
 
     public function test_a_refusal_carries_a_correlation_id(): void

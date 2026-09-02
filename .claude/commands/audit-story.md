@@ -1,4 +1,17 @@
-Audit the plan file at `.squad/plans/foundation/$ARGUMENTS` against what is **actually** in the codebase right now.
+---
+description: Audit a squad-kit plan's Done Criteria against the real codebase, implement what is missing, and check the boxes off.
+---
+
+Audit a squad-kit plan file against what is **actually** in the codebase right now.
+
+**Resolve the plan file first.** `$ARGUMENTS` may be a full path, a bare filename
+(`10-story-501.md`), or a tracker id (`501`). Locate the real file under `.squad/plans/`
+— do not assume a feature folder name; this project's feature slug is whatever exists
+there, and there may be more than one. If `$ARGUMENTS` is empty, read
+`.squad/state/current_story-*.json` for the story currently in flight, and ask the user
+if that is also missing.
+
+Then audit that file against the codebase.
 
 Do not trust any prior chat summary, status report, or your own memory of having built this — those may be wrong or incomplete, which is exactly why this audit exists. Every claim below must be backed by something you just checked (reading the actual file, grepping for the actual class/route/column, or running the actual test).
 

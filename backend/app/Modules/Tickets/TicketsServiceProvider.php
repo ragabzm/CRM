@@ -11,7 +11,19 @@ use App\Modules\Platform\Support\Settings\SettingsRegistry;
 use App\Modules\Security\Contracts\DepartmentUsageProbe;
 use App\Modules\Tickets\Contracts\CategoryUsageProbe;
 use App\Modules\Tickets\Domain\CategoryUsage;
+use App\Modules\Tickets\Domain\Commands\AppendMessage;
+use App\Modules\Tickets\Domain\Commands\AssignTicket;
+use App\Modules\Tickets\Domain\Commands\ChangeStatus;
+use App\Modules\Tickets\Domain\Commands\CreateTicket;
+use App\Modules\Tickets\Domain\Commands\ReopenTicket;
+use App\Modules\Tickets\Domain\Commands\ResolveTicket;
+use App\Modules\Tickets\Domain\Commands\UpdateTicketAttributes;
+use App\Modules\Tickets\Domain\Concurrency\VersionGuard;
 use App\Modules\Tickets\Domain\Query\DepartmentTicketUsage;
+use App\Modules\Tickets\Domain\Reference\PostgresTicketReferenceAllocator;
+use App\Modules\Tickets\Domain\Reference\SqliteTicketReferenceAllocator;
+use App\Modules\Tickets\Domain\Reference\TicketReferenceAllocator;
+use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -35,6 +47,38 @@ final class TicketsServiceProvider extends ServiceProvider implements RegistersS
          * answer without touching the controller that asks.
          */
         $this->app->singleton(CategoryUsageProbe::class, CategoryUsage::class);
+
+        /*
+         * The reference allocator, chosen by driver.
+         *
+         * Postgres gets an atomic sequence; SQLite — which the test suite runs
+         * on — gets a MAX()-based fallback that is only safe because those
+         * transactions are serial. Deciding here rather than inside the
+         * allocator keeps the unsafe implementation unreachable in production.
+         */
+        $this->app->singleton(TicketReferenceAllocator::class, function ($app): TicketReferenceAllocator {
+            $connection = $app->make(ConnectionInterface::class);
+
+            return $connection->getDriverName() === 'pgsql'
+                ? new PostgresTicketReferenceAllocator($connection)
+                : new SqliteTicketReferenceAllocator($connection);
+        });
+
+        $this->app->singleton(VersionGuard::class);
+
+        // Stateless, so one instance each. Every ticket mutation in the product
+        // goes through one of these.
+        foreach ([
+            AppendMessage::class,
+            CreateTicket::class,
+            UpdateTicketAttributes::class,
+            AssignTicket::class,
+            ChangeStatus::class,
+            ResolveTicket::class,
+            ReopenTicket::class,
+        ] as $command) {
+            $this->app->singleton($command);
+        }
     }
 
     public function boot(): void

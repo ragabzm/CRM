@@ -177,7 +177,9 @@ describe("the customer profile", () => {
   });
 
   it("isolates Latin values in Arabic", async () => {
-    (renderProfile(), { locale: "ar" });
+    // The options really are passed. Written as a comma expression this
+    // rendered in English and asserted nothing about Arabic at all.
+    renderProfile({ locale: "ar" });
 
     const value = await screen.findByText("+44 20 7946 0958");
 

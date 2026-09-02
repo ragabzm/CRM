@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/track_current_story.sh\"",
+            "timeout": 15,
+            "statusMessage": "Tracking current story…"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/verify_story_completion.sh\"",
+            "timeout": 30,
+            "statusMessage": "Verifying story Done Criteria…"
+          }
+        ]
+      }
+    ]
+  }
+}

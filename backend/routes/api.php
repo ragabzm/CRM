@@ -19,6 +19,9 @@ use App\Modules\Security\Http\Controllers\ProfileController;
 use App\Modules\Security\Http\Controllers\UsersController;
 use App\Modules\Tickets\Domain\Category;
 use App\Modules\Tickets\Http\Controllers\Admin\CategoriesController;
+use App\Modules\Tickets\Http\Controllers\PortalTicketsController;
+use App\Modules\Tickets\Http\Controllers\TicketMessagesController;
+use App\Modules\Tickets\Http\Controllers\TicketsController;
 use App\Modules\Tickets\Http\Controllers\Admin\PrioritiesController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Route;
@@ -138,9 +141,62 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('can.capability:'.Capabilities::SETTING_MANAGE)
             ->name('settings.update');
 
-        Route::post('/tickets/{ticket}/reassign', fn (string $ticket) => new JsonResponse(['ticket' => $ticket]))
-            ->middleware('can.capability:'.Capabilities::TICKET_REASSIGN)
-            ->name('tickets.reassign');
+        /*
+         * Tickets.
+         *
+         * Each verb carries the capability that matches what it actually does,
+         * rather than one blanket `tickets.write`: reassigning work is a
+         * supervisor's job, while creating and updating are an agent's, and a
+         * single capability would have to be the loosest of them.
+         *
+         * Every write also passes the Idempotency-Key middleware the api group
+         * applies, so a retried create cannot produce two tickets.
+         */
+        Route::prefix('tickets')->name('tickets.')->group(function (): void {
+            Route::post('/', [TicketsController::class, 'store'])
+                ->middleware('can.capability:'.Capabilities::TICKET_CREATE)
+                ->name('store');
+
+            Route::get('/{ticket}', [TicketsController::class, 'show'])
+                ->middleware('can.capability:'.Capabilities::TICKET_READ)
+                ->whereUlid('ticket')
+                ->name('show');
+
+            Route::patch('/{ticket}', [TicketsController::class, 'updateAttributes'])
+                ->middleware('can.capability:'.Capabilities::TICKET_UPDATE)
+                ->whereUlid('ticket')
+                ->name('update');
+
+            Route::post('/{ticket}/assign', [TicketsController::class, 'assign'])
+                ->middleware('can.capability:'.Capabilities::TICKET_REASSIGN)
+                ->whereUlid('ticket')
+                ->name('assign');
+
+            Route::post('/{ticket}/resolve', [TicketsController::class, 'resolveTicket'])
+                ->middleware('can.capability:'.Capabilities::TICKET_CLOSE)
+                ->whereUlid('ticket')
+                ->name('resolve');
+
+            Route::post('/{ticket}/reopen', [TicketsController::class, 'reopenTicket'])
+                ->middleware('can.capability:'.Capabilities::TICKET_UPDATE)
+                ->whereUlid('ticket')
+                ->name('reopen');
+
+            /*
+             * Replying. Note there is no `version` on this route: an append is
+             * not a change to the ticket's contended state, so two colleagues
+             * replying at once are not in conflict. See AppendMessage.
+             */
+            Route::get('/{ticket}/messages', [TicketMessagesController::class, 'index'])
+                ->middleware('can.capability:'.Capabilities::TICKET_READ)
+                ->whereUlid('ticket')
+                ->name('messages.index');
+
+            Route::post('/{ticket}/messages', [TicketMessagesController::class, 'store'])
+                ->middleware('can.capability:'.Capabilities::TICKET_UPDATE)
+                ->whereUlid('ticket')
+                ->name('messages.store');
+        });
 
         /*
          * -----------------------------------------------------------------
@@ -290,5 +346,22 @@ Route::prefix('v1')->group(function (): void {
                     ->whereUlid('id')
                     ->name('show');
             });
+    });
+
+    /*
+     * The customer-facing surface.
+     *
+     * A separate guard, not a role on the staff one: staff and portal customers
+     * are different populations in different tables, and a single guard would
+     * make "which kind of person is this?" a runtime question every endpoint had
+     * to get right.
+     *
+     * No capability middleware. A portal account holds no roles; what it may
+     * reach is decided by which routes live in this group, and each one scopes
+     * to the account's own customer.
+     */
+    Route::middleware('auth:portal')->prefix('portal')->name('portal.')->group(function (): void {
+        Route::get('/tickets', [PortalTicketsController::class, 'index'])->name('tickets.index');
+        Route::post('/tickets', [PortalTicketsController::class, 'store'])->name('tickets.store');
     });
 });
