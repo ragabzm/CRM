@@ -8,6 +8,7 @@ import { BidiValue } from "@/components/domain/BidiValue/BidiValue";
 import { CustomerFormDialog } from "@/components/domain/CustomerFormDialog/CustomerFormDialog";
 import { ActionBar } from "@/components/domain/ActionBar/ActionBar";
 import { AttachmentsLane } from "@/components/domain/AttachmentsLane/AttachmentsLane";
+import { CustomerTimeline } from "@/components/domain/CustomerTimeline/CustomerTimeline";
 import { NotesLane } from "@/components/domain/NotesLane/NotesLane";
 import { DestructiveConfirm } from "@/components/domain/DestructiveConfirm/DestructiveConfirm";
 import { EmptyState } from "@/components/domain/EmptyState/EmptyState";
@@ -22,6 +23,8 @@ export interface CustomerProfileScreenProps {
   customerId: string;
   departments: Array<{ id: number; name: string }>;
   onOpenCustomer: (id: string) => void;
+  /** Opens a ticket from the interaction timeline. */
+  onOpenTicket: (ticketId: string) => void;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -44,6 +47,7 @@ export function CustomerProfileScreen({
   customerId,
   departments,
   onOpenCustomer,
+  onOpenTicket,
 }: CustomerProfileScreenProps) {
   const t = useTranslations("customers");
   const format = useFormat();
@@ -200,9 +204,12 @@ export function CustomerProfileScreen({
       <div className="rounded-lg border border-border-default bg-surface-base p-5">
         <AttachmentsLane ownerType="customer" ownerId={customer.id} />
       </div>
-      <Section title={t("profile.history")}>
-        <p className="text-sm text-fg-muted">{t("profile.historyPlaceholder")}</p>
-      </Section>
+      <div className="rounded-lg border border-border-default bg-surface-base p-5">
+        <CustomerTimeline
+          customerId={customer.id}
+          onOpenTicket={onOpenTicket}
+        />
+      </div>
 
       <CustomerFormDialog
         open={editing}

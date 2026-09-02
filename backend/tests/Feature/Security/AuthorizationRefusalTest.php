@@ -65,22 +65,72 @@ final class AuthorizationRefusalTest extends TestCase
         $this->assertStringContainsString($capability, (string) $response->json('detail'));
     }
 
-    public function test_an_agent_cannot_reassign_a_ticket(): void
+    public function test_an_agent_cannot_take_a_ticket_a_colleague_is_holding(): void
     {
+        /*
+         * Story 4.2 split assignment in two, so this refusal moved from the
+         * route to the command. An agent MAY assign — picking up unclaimed
+         * work is most of their day — but taking a ticket out of a colleague's
+         * hands needs `ticket.reassign_any`, which only a supervisor holds.
+         *
+         * Asserted through the real endpoint with a real ticket, because the
+         * rule depends on who currently holds it and a capability check alone
+         * could not express that.
+         */
+        $colleague = User::factory()->create();
+        $colleague->syncRoles([Roles::AGENT]);
+
+        $ticket = $this->ticketHeldBy($colleague);
+
         $this->signedInAs(Roles::AGENT);
 
-        /*
-         * The ticket need not exist: the capability gate runs before the
-         * controller, and being refused for the right reason is what is under
-         * test. A real ULID only so the route matches its own constraint.
-         */
-        $this->assertRefusal(
-            $this->withIdempotencyKey()->postJson('/api/v1/tickets/'.self::SOME_ULID.'/assign', [
-                'version' => 1,
-                'assignee_id' => null,
-            ]),
-            Capabilities::TICKET_REASSIGN,
+        $response = $this->withIdempotencyKey()->postJson("/api/v1/tickets/{$ticket}/assign", [
+            'version' => 1,
+            'assignee_id' => $this->currentUserId(),
+        ])->assertStatus(403);
+
+        $response->assertHeader('Content-Type', 'application/problem+json')
+            ->assertJsonPath('code', 'tickets.reassign_forbidden');
+
+        // The refusal says who to ask, not just no.
+        $this->assertStringContainsString('supervisor', (string) $response->json('detail'));
+    }
+
+    /** A ticket already assigned to someone else. */
+    private function ticketHeldBy(User $holder): string
+    {
+        $department = \App\Modules\Security\Domain\Department::firstOrCreate(
+            ['name' => 'Billing'],
+            ['is_active' => true],
         );
+
+        $customer = new \App\Modules\Customers\Domain\Customer([
+            'reference' => \App\Modules\Customers\Domain\Customer::mintReference(),
+            'full_name' => 'Hana Yousef',
+            'department_id' => $department->getKey(),
+            'state' => 'active',
+        ]);
+        $customer->setAttribute('id', (string) \Illuminate\Support\Str::ulid());
+        $customer->save();
+
+        $ticket = $this->app->make(\App\Modules\Tickets\Domain\Commands\CreateTicket::class)->handle(
+            \App\Modules\Tickets\Domain\Actor\Actor::staff((string) $holder->getKey(), 'Colleague'),
+            new \App\Modules\Tickets\Domain\Commands\CreateTicketInput(
+                subject: 'Held by someone else',
+                description: 'Mid-conversation.',
+                customerId: (string) $customer->getKey(),
+                channel: \App\Modules\Tickets\Domain\Enum\TicketChannel::Agent,
+            ),
+        );
+
+        $ticket->forceFill(['assignee_id' => $holder->getKey()])->save();
+
+        return (string) $ticket->getKey();
+    }
+
+    private function currentUserId(): int
+    {
+        return (int) auth()->id();
     }
 
     public function test_an_agent_cannot_manage_users(): void

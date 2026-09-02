@@ -288,6 +288,22 @@ export interface paths {
         patch: operations["customers.notes.update"];
         trace?: never;
     };
+    "/customers/{customer}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["customers.timeline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/customers": {
         parameters: {
             query?: never;
@@ -718,6 +734,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tickets/{ticket}/department": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Moves a ticket to another department */
+        patch: operations["tickets.department"];
+        trace?: never;
+    };
     "/tickets/{ticket}/reopen": {
         parameters: {
             query?: never;
@@ -804,6 +837,17 @@ export interface components {
              *     instruction and not the same as omitting the field.
              */
             assignee_id: number | null;
+        };
+        /** ChangeDepartmentRequest */
+        ChangeDepartmentRequest: {
+            version: number;
+            /**
+             * @description Existence is checked by the command, not by an `exists` rule, so
+             *     the refusal is `tickets.department_invalid` with the id echoed
+             *     back rather than a generic validation error the UI cannot act on.
+             */
+            department_id: number;
+            reason?: string | null;
         };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
@@ -1002,7 +1046,7 @@ export interface components {
         UpdateTicketAttributesRequest: {
             version: number;
             /** @enum {string} */
-            status?: "open" | "pending" | "resolved" | "closed" | "reopened";
+            status?: "open" | "pending" | "resolved" | "closed";
             /** @enum {string} */
             priority?: "low" | "normal" | "high" | "urgent";
             category_id?: number | null;
@@ -2148,6 +2192,52 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "customers.timeline": {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                customer: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            id: string;
+                            kind: string;
+                            ticket_id: string;
+                            ticket_ref: string;
+                            occurred_at: string;
+                            preview: string | null;
+                        }[];
+                        next_cursor: string | null;
+                        has_more: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
             /** @description An RFC 9457 problem document. */
             default: {
                 headers: {
@@ -3815,6 +3905,65 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ResolveTicketRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "tickets.department": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                ticket: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeDepartmentRequest"];
             };
         };
         responses: {

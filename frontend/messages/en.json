@@ -463,8 +463,7 @@
       "open": "Open",
       "pending": "Pending",
       "resolved": "Resolved",
-      "closed": "Closed",
-      "reopened": "Reopened"
+      "closed": "Closed"
     },
     "show": {
       "reference": "Reference",
@@ -473,6 +472,38 @@
       "customer": "Customer",
       "notFound": "That ticket does not exist.",
       "loadError": "The ticket could not be loaded."
+    },
+    "errors": {
+      "transitionForbidden": "That status change isn't allowed from here.",
+      "reopenWindowExpired": "This ticket closed more than {days} days ago and can no longer be reopened. Start a new request instead — it gets its own history and its own clock.",
+      "startNewRequest": "Start a new request",
+      "reassignForbidden": "A colleague is working on this ticket. A supervisor can move it.",
+      "assigneeInvalid": "That person can't take this ticket.",
+      "departmentInvalid": "That department doesn't exist."
     }
+  },
+  "timeline": {
+    "title": "Interaction timeline",
+    "loadMore": "Load more",
+    "loading": "Loading…",
+    "empty": {
+      "title": "No history yet",
+      "body": "Tickets and messages will appear here as they happen."
+    },
+    "entry": {
+      "ticketOpened": "Ticket opened",
+      "messageInbound": "Inbound message",
+      "messageOutbound": "Outbound message"
+    },
+    "error": {
+      "body": "The timeline couldn't be loaded.",
+      "retry": "Retry"
+    },
+    "forbidden": {
+      "title": "You do not have access to this history",
+      "body": "Ask an administrator for customer access."
+    },
+    "announced": "{count} more entries loaded.",
+    "openTicket": "Open {reference}"
   }
 }

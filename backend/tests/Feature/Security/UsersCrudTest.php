@@ -5,11 +5,19 @@ declare(strict_types=1);
 namespace Tests\Feature\Security;
 
 use App\Models\User;
+use App\Modules\Customers\Domain\Customer;
 use App\Modules\Security\Domain\Department;
 use App\Modules\Security\Domain\Roles;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use App\Modules\Tickets\Domain\Actor\Actor;
+use App\Modules\Tickets\Domain\Commands\CreateTicket;
+use App\Modules\Tickets\Domain\Commands\CreateTicketInput;
+use App\Modules\Tickets\Domain\Enum\TicketChannel;
+use App\Modules\Tickets\Domain\Ticket;
+use App\Modules\Tickets\Domain\TicketEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 final class UsersCrudTest extends TestCase
@@ -189,5 +197,84 @@ final class UsersCrudTest extends TestCase
         $user = User::factory()->create();
 
         $this->withIdempotencyKey()->deleteJson("/api/v1/users/{$user->id}")->assertStatus(405);
+    }
+
+    /**
+     * Builds a ticket created by, and assigned to, the given user.
+     *
+     * Written against the real tickets table rather than a stub: the point of
+     * this test is that attribution survives in the schema the product
+     * actually has.
+     */
+    private function ticketAttributedTo(User $user): Ticket
+    {
+        $department = Department::firstOrCreate(['name' => 'Billing'], ['is_active' => true]);
+
+        $customer = new Customer([
+            'reference' => Customer::mintReference(),
+            'full_name' => 'Hana Yousef',
+            'department_id' => $department->getKey(),
+            'state' => 'active',
+        ]);
+        $customer->setAttribute('id', (string) Str::ulid());
+        $customer->save();
+
+        $ticket = $this->app->make(CreateTicket::class)->handle(
+            Actor::staff((string) $user->getKey(), (string) $user->name),
+            new CreateTicketInput(
+                subject: 'Invoice is wrong',
+                description: 'Charged twice.',
+                customerId: (string) $customer->getKey(),
+                channel: TicketChannel::Agent,
+            ),
+        );
+
+        $ticket->forceFill(['assignee_id' => $user->getKey()])->save();
+
+        return $ticket;
+    }
+
+    public function test_a_deactivated_user_still_appears_on_the_tickets_they_worked(): void
+    {
+        $agent = User::factory()->create(['name' => 'Nadia Salem']);
+        $agent->syncRoles([Roles::AGENT]);
+
+        $ticket = $this->ticketAttributedTo($agent);
+
+        $this->withIdempotencyKey()->postJson("/api/v1/users/{$agent->id}/deactivate")->assertOk();
+
+        /*
+         * The whole reason deactivation is not a delete. Every historical
+         * attribution points at this row — "created by", "assigned to",
+         * "changed by" — and removing it would turn a year of ticket history
+         * into orphan ids nobody can resolve.
+         */
+        $this->assertDatabaseHas('users', ['id' => $agent->id, 'name' => 'Nadia Salem', 'is_active' => false]);
+
+        $ticket->refresh();
+        $this->assertSame($agent->id, $ticket->assignee_id);
+        $this->assertSame((string) $agent->id, $ticket->creator_id);
+
+        // And the name is still reachable from the ticket, not just the id.
+        $this->assertSame('Nadia Salem', User::query()->findOrFail($ticket->assignee_id)->name);
+    }
+
+    public function test_the_event_trail_still_names_a_deactivated_user(): void
+    {
+        $agent = User::factory()->create(['name' => 'Nadia Salem']);
+        $agent->syncRoles([Roles::AGENT]);
+
+        $ticket = $this->ticketAttributedTo($agent);
+
+        $this->withIdempotencyKey()->postJson("/api/v1/users/{$agent->id}/deactivate")->assertOk();
+
+        // The history is what settles "who changed this?" months later, and it
+        // has to keep working for people who have since left.
+        $this->assertDatabaseHas('ticket_events', [
+            'ticket_id' => $ticket->getKey(),
+            'event_type' => TicketEvent::CREATED,
+            'actor_type' => 'staff',
+            'actor_id' => (string) $agent->id,
+        ]);
     }
 }

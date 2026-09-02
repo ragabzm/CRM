@@ -84,4 +84,14 @@ final class NoOrganisationFieldTest extends TestCase
         // ...and the comment explaining the rule is not.
         $this->assertStringNotContainsString('organisation', $code);
     }
+
+    /*
+     * The FRONTEND half of this rule lives in
+     * frontend/__tests__/architecture/no-organisation.test.ts.
+     *
+     * It cannot live here: backend/ must not reference frontend/ — the two are
+     * separately deployable and `composer no-cross-import` fails the build on
+     * any such reference. Two guards, one per side, is the shape the boundary
+     * requires.
+     */
 }

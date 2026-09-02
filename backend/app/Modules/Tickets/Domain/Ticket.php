@@ -43,6 +43,16 @@ final class Ticket extends Model
             'priority' => Priority::class,
             'channel' => TicketChannel::class,
             'version' => 'integer',
+
+            /*
+             * Cast, or the lifecycle rules do date arithmetic on strings. The
+             * reopen window compares `closed_at` against now(); without these
+             * the comparison is a fatal error rather than a wrong answer,
+             * which is at least loud.
+             */
+            'resolved_at' => 'immutable_datetime',
+            'closed_at' => 'immutable_datetime',
+            'last_customer_activity_at' => 'immutable_datetime',
         ];
     }
 

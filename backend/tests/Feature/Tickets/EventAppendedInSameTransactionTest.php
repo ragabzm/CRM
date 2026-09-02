@@ -226,6 +226,7 @@ final class EventAppendedInSameTransactionTest extends TestCase
         $this->assertSame([
             'AppendMessage',
             'AssignTicket',
+            'ChangeDepartment',
             'ChangeStatus',
             'CreateTicket',
             'ReopenTicket',

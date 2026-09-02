@@ -7,10 +7,16 @@ namespace Tests\Feature\Security;
 use App\Models\User;
 use App\Modules\Platform\Http\ProblemDetails;
 use App\Modules\Security\Contracts\DepartmentUsageProbe;
+use App\Modules\Customers\Domain\Customer;
 use App\Modules\Security\Domain\Department;
 use App\Modules\Security\Domain\Roles;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use App\Modules\Tickets\Domain\Actor\Actor;
+use App\Modules\Tickets\Domain\Commands\CreateTicket;
+use App\Modules\Tickets\Domain\Commands\CreateTicketInput;
+use App\Modules\Tickets\Domain\Enum\TicketChannel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 final class DepartmentsCrudTest extends TestCase
@@ -177,5 +183,50 @@ final class DepartmentsCrudTest extends TestCase
 
         // It fills the filter on the customer list they use all day.
         $this->getJson('/api/v1/departments')->assertOk();
+    }
+
+    public function test_the_real_usage_probe_counts_real_tickets(): void
+    {
+        /*
+         * Every other test here swaps the probe for a fake, which proves the
+         * REFUSAL works but says nothing about the count being right. The
+         * tickets table exists now, so the real implementation can finally be
+         * exercised end to end — a probe that always answered zero would make
+         * the whole rule silently permissive.
+         */
+        $department = Department::create(['name' => 'Support', 'is_active' => true]);
+
+        $customer = new Customer([
+            'reference' => Customer::mintReference(),
+            'full_name' => 'Hana Yousef',
+            'department_id' => $department->getKey(),
+            'state' => 'active',
+        ]);
+        $customer->setAttribute('id', (string) Str::ulid());
+        $customer->save();
+
+        $ticket = $this->app->make(CreateTicket::class)->handle(
+            Actor::staff('1', 'Root Admin'),
+            new CreateTicketInput(
+                subject: 'Still open',
+                description: 'Needs someone.',
+                customerId: (string) $customer->getKey(),
+                channel: TicketChannel::Agent,
+                departmentId: (int) $department->getKey(),
+            ),
+        );
+
+        $this->withIdempotencyKey()
+            ->postJson("/api/v1/departments/{$department->getKey()}/deactivate")
+            ->assertStatus(409)
+            ->assertJsonPath('activeTicketCount', 1);
+
+        // ...and once the ticket is no longer active, the department frees up.
+        $ticket->forceFill(['status' => 'closed'])->save();
+
+        $this->withIdempotencyKey()
+            ->postJson("/api/v1/departments/{$department->getKey()}/deactivate")
+            ->assertOk()
+            ->assertJsonPath('is_active', false);
     }
 }

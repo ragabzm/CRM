@@ -12,18 +12,25 @@ use App\Modules\Security\Contracts\DepartmentUsageProbe;
 use App\Modules\Tickets\Contracts\CategoryUsageProbe;
 use App\Modules\Tickets\Domain\CategoryUsage;
 use App\Modules\Tickets\Domain\Commands\AppendMessage;
+use App\Modules\Tickets\Console\Commands\TicketsAutoCloseCommand;
 use App\Modules\Tickets\Domain\Commands\AssignTicket;
+use App\Modules\Tickets\Domain\Commands\ChangeDepartment;
 use App\Modules\Tickets\Domain\Commands\ChangeStatus;
 use App\Modules\Tickets\Domain\Commands\CreateTicket;
 use App\Modules\Tickets\Domain\Commands\ReopenTicket;
 use App\Modules\Tickets\Domain\Commands\ResolveTicket;
 use App\Modules\Tickets\Domain\Commands\UpdateTicketAttributes;
 use App\Modules\Tickets\Domain\Concurrency\VersionGuard;
+use App\Modules\Tickets\Domain\Events\CustomerReplyPosted;
+use App\Modules\Tickets\Domain\Lifecycle\TicketLifecycle;
+use App\Modules\Tickets\Http\AssigneeDirectory;
+use App\Modules\Tickets\Listeners\ReopenOnCustomerReply;
 use App\Modules\Tickets\Domain\Query\DepartmentTicketUsage;
 use App\Modules\Tickets\Domain\Reference\PostgresTicketReferenceAllocator;
 use App\Modules\Tickets\Domain\Reference\SqliteTicketReferenceAllocator;
 use App\Modules\Tickets\Domain\Reference\TicketReferenceAllocator;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -65,6 +72,8 @@ final class TicketsServiceProvider extends ServiceProvider implements RegistersS
         });
 
         $this->app->singleton(VersionGuard::class);
+        $this->app->singleton(TicketLifecycle::class);
+        $this->app->singleton(AssigneeDirectory::class);
 
         // Stateless, so one instance each. Every ticket mutation in the product
         // goes through one of these.
@@ -72,6 +81,7 @@ final class TicketsServiceProvider extends ServiceProvider implements RegistersS
             AppendMessage::class,
             CreateTicket::class,
             UpdateTicketAttributes::class,
+            ChangeDepartment::class,
             AssignTicket::class,
             ChangeStatus::class,
             ResolveTicket::class,
@@ -84,10 +94,40 @@ final class TicketsServiceProvider extends ServiceProvider implements RegistersS
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/Database/Migrations');
+
+        $this->commands([TicketsAutoCloseCommand::class]);
+
+        /*
+         * A resolved ticket reopens when the customer replies. Wired here so
+         * the conversation story only has to fire the event.
+         */
+        Event::listen(CustomerReplyPosted::class, ReopenOnCustomerReply::class);
     }
 
     public function registerSettings(SettingsRegistry $registry): void
     {
+        $registry->register(new SettingDefinition(
+            key: 'tickets.auto_close_window_hours',
+            type: SettingType::Int,
+            default: 72,
+            summary: 'How long a resolved ticket waits, with no word from the customer, before it closes itself.',
+            validator: static fn (mixed $v): bool|string => is_int($v) && $v >= 1 && $v <= 24 * 30
+                ? true
+                // A window under an hour would close tickets before a customer
+                // in another timezone had opened their email.
+                : 'The auto-close window must be between 1 hour and 30 days.',
+        ));
+
+        $registry->register(new SettingDefinition(
+            key: 'tickets.reopen_window_days',
+            type: SettingType::Int,
+            default: 14,
+            summary: 'How long after closing a ticket can still be reopened rather than raised again.',
+            validator: static fn (mixed $v): bool|string => is_int($v) && $v >= 1 && $v <= 365
+                ? true
+                : 'The reopen window must be between 1 and 365 days.',
+        ));
+
         $registry->register(new SettingDefinition(
             key: 'tickets.auto_close_hours',
             type: SettingType::Int,

@@ -1,7 +1,7 @@
 "use client";
 
 import { isProblem } from "./client";
-import { ApiError, TicketStaleVersionError } from "./errors";
+import { ApiError, TicketRefusedError, TicketStaleVersionError } from "./errors";
 import { ulid } from "./ulid";
 
 /**
@@ -54,7 +54,7 @@ export function xsrfToken(): string | null {
  * It is DECLARED in errors.ts because TicketStaleVersionError extends it, and
  * a class cannot extend something defined in a module that imports it back.
  */
-export { ApiError, TicketStaleVersionError } from "./errors";
+export { ApiError, TicketRefusedError, TicketStaleVersionError } from "./errors";
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -107,6 +107,11 @@ export async function request<T>(path: string, init: RequestInitWithFetch = {}):
     const stale = TicketStaleVersionError.from(body, response.status);
 
     if (stale) throw stale;
+
+    // The other ticket refusals, recognised in the same one place.
+    const refused = TicketRefusedError.from(body, response.status);
+
+    if (refused) throw refused;
 
     throw new ApiError(
       problem?.detail ?? problem?.title ?? "Request failed",

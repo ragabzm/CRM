@@ -215,7 +215,9 @@ final class SettingsRegistryTest extends TestCase
             'sla.response_target_seconds.urgent',
             'sla.working_hours',
             'tickets.auto_close_hours',
+            'tickets.auto_close_window_hours',
             'tickets.quick_replies',
+            'tickets.reopen_window_days',
             'tickets.reopen_window_hours',
         ], $this->registry()->knownKeys());
     }

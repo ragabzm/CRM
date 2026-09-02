@@ -45,26 +45,37 @@ final class TicketLifecycleTest extends TestCase
         ]);
     }
 
-    /** @return array<string, array{string, string, bool}> */
+    /**
+     * The whole graph, allowed and forbidden alike.
+     *
+     * Story 4.2 replaced 4.1's table: `closed` is no longer terminal — it
+     * reopens inside the configured window — and the fifth `reopened` state is
+     * gone, because a reopened ticket IS open and every "needs attention"
+     * filter would otherwise have to remember a fifth value.
+     *
+     * @return array<string, array{string, string, bool}>
+     */
     public static function transitions(): array
     {
         return [
             'open to pending' => ['open', 'pending', true],
             'open to resolved' => ['open', 'resolved', true],
-            'open to closed' => ['open', 'closed', true],
             'pending to open' => ['pending', 'open', true],
             'pending to resolved' => ['pending', 'resolved', true],
-            'resolved to reopened' => ['resolved', 'reopened', true],
             'resolved to closed' => ['resolved', 'closed', true],
-            'reopened to resolved' => ['reopened', 'resolved', true],
-            // The one terminal state.
-            'closed to open' => ['closed', 'open', false],
+            // The customer disagreed that it was done.
+            'resolved to open' => ['resolved', 'open', true],
+            // Reopened by hand, inside the window.
+            'closed to open' => ['closed', 'open', true],
+
+            // Closing skips the resolution nobody wrote down.
+            'open to closed' => ['open', 'closed', false],
+            'pending to closed' => ['pending', 'closed', false],
+            // A closed ticket comes back to open and starts again, or stays
+            // closed; re-entering mid-lifecycle would produce tickets that were
+            // never open in their own history.
             'closed to pending' => ['closed', 'pending', false],
             'closed to resolved' => ['closed', 'resolved', false],
-            'closed to reopened' => ['closed', 'reopened', false],
-            // Nonsense jumps.
-            'open to reopened' => ['open', 'reopened', false],
-            'pending to reopened' => ['pending', 'reopened', false],
         ];
     }
 
@@ -83,28 +94,20 @@ final class TicketLifecycleTest extends TestCase
             return;
         }
 
-        $response->assertStatus(422)->assertJsonPath('code', 'tickets.lifecycle_violation');
+        $response->assertStatus(409)->assertJsonPath('code', 'tickets.transition_forbidden');
         $this->assertSame($from, Ticket::query()->findOrFail($this->id())->status->value);
     }
 
-    public function test_a_closed_ticket_says_what_to_do_instead(): void
-    {
-        Ticket::query()->whereKey($this->id())->update(['status' => 'closed']);
-
-        $detail = (string) $this->moveTo('open')->assertStatus(422)->json('detail');
-
-        // A refusal that only says no leaves the agent stuck with a customer
-        // waiting.
-        $this->assertStringContainsString('open a new one', $detail);
-    }
-
-    public function test_the_refusal_lists_where_the_ticket_can_go(): void
+    public function test_the_refusal_names_the_edge_that_was_refused(): void
     {
         Ticket::query()->whereKey($this->id())->update(['status' => 'open']);
 
-        $response = $this->moveTo('reopened')->assertStatus(422);
+        $response = $this->moveTo('closed')->assertStatus(409);
 
-        $this->assertSame(['pending', 'resolved', 'closed'], $response->json('allowed'));
+        // Not a generic "invalid": the agent is told which move, and where the
+        // ticket can actually go.
+        $this->assertStringContainsString('cannot become closed', (string) $response->json('detail'));
+        $this->assertSame(['pending', 'resolved'], $response->json('allowed'));
     }
 
     public function test_setting_a_status_to_what_it_already_is_succeeds(): void
@@ -140,7 +143,7 @@ final class TicketLifecycleTest extends TestCase
         $this->assertSame('open', Ticket::query()->findOrFail($this->id())->status->value);
     }
 
-    public function test_reopening_is_distinct_from_open(): void
+    public function test_reopening_a_resolved_ticket_returns_it_to_open(): void
     {
         $this->withIdempotencyKey()->postJson("/api/v1/tickets/{$this->id()}/resolve", [
             'version' => $this->currentVersion(),
@@ -150,11 +153,10 @@ final class TicketLifecycleTest extends TestCase
         $this->withIdempotencyKey()->postJson("/api/v1/tickets/{$this->id()}/reopen", [
             'version' => $this->currentVersion(),
             'reason' => 'Customer says it is still wrong.',
-        ])->assertOk()->assertJsonPath('status', 'reopened');
+        ])->assertOk()->assertJsonPath('status', TicketStatus::Open->value);
 
-        // Not "open": a reopened ticket is one where the first attempt did not
-        // work, and collapsing the two loses the only signal that says so.
-        $this->assertNotSame(TicketStatus::Open->value, Ticket::query()->findOrFail($this->id())->status->value);
+        // That it came back is a fact about the HISTORY, which the event
+        // records exactly — not a fifth status every filter has to remember.
         $this->assertDatabaseHas('ticket_events', ['event_type' => TicketEvent::REOPENED]);
     }
 
@@ -204,5 +206,78 @@ final class TicketLifecycleTest extends TestCase
         // Replaying the events reproduces the version history exactly, which is
         // what makes a disputed change reconstructable.
         $this->assertSame([1, 2, 3], $versions);
+    }
+
+    public function test_there_are_exactly_four_statuses(): void
+    {
+        /*
+         * No `new`: a ticket is born open, and a state meaning "not looked at
+         * yet" is answered by the assignee being null.
+         *
+         * No `cancelled`: a ticket raised in error is closed with a reason,
+         * like any other ending. A second terminal state would double every
+         * "is this finished?" check.
+         *
+         * No `reopened`: a reopened ticket IS open, and the fact that it came
+         * back lives in the history where it belongs.
+         */
+        $this->assertSame(['open', 'pending', 'resolved', 'closed'], TicketStatus::values());
+    }
+
+    public function test_no_forbidden_status_appears_anywhere(): void
+    {
+        $offenders = [];
+
+        foreach (['new', 'cancelled', 'canceled', 'reopened'] as $word) {
+            foreach (\Tests\Architecture\SourceScanner::phpFiles('app/Modules/Tickets') as $file) {
+                /*
+                 * Migrations are exempt. One of them exists precisely to REMOVE
+                 * `reopened` — from the rows and from the check constraint —
+                 * and naming the value it deletes is the opposite of a
+                 * violation. What the database will accept is asserted by that
+                 * constraint itself.
+                 */
+                if (str_contains($file, '/Database/Migrations/')) {
+                    continue;
+                }
+
+                $code = \Tests\Architecture\SourceScanner::codeOnly($file);
+
+                // As a status literal specifically, not as an ordinary word.
+                if (preg_match("/'{$word}'\\s*(=>|,|\\))/i", $code) === 1
+                    && str_contains($code, 'status')) {
+                    $offenders[] = basename($file)." mentions '{$word}'";
+                }
+            }
+        }
+
+        $this->assertSame([], $offenders, implode("\n", $offenders));
+    }
+
+    public function test_the_contract_publishes_only_the_four(): void
+    {
+        $spec = (string) file_get_contents(base_path('openapi.yaml'));
+
+        foreach (['cancelled', 'reopened'] as $word) {
+            // A contract advertising a status the server cannot produce would
+            // have every client writing a branch that never runs.
+            $this->assertStringNotContainsString("- {$word}", $spec);
+        }
+    }
+
+    public function test_a_ticket_is_born_open(): void
+    {
+        $created = $this->createTicket();
+
+        $this->assertSame(TicketStatus::Open->value, $created['status']);
+    }
+
+    public function test_a_ticket_cannot_be_created_in_another_status(): void
+    {
+        // `status` is not an accepted field on create; supplying one is
+        // ignored rather than honoured.
+        $created = $this->createTicket(['status' => 'closed']);
+
+        $this->assertSame(TicketStatus::Open->value, $created['status']);
     }
 }

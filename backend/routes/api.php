@@ -19,6 +19,7 @@ use App\Modules\Security\Http\Controllers\ProfileController;
 use App\Modules\Security\Http\Controllers\UsersController;
 use App\Modules\Tickets\Domain\Category;
 use App\Modules\Tickets\Http\Controllers\Admin\CategoriesController;
+use App\Modules\Tickets\Http\Controllers\CustomerTimelineController;
 use App\Modules\Tickets\Http\Controllers\PortalTicketsController;
 use App\Modules\Tickets\Http\Controllers\TicketMessagesController;
 use App\Modules\Tickets\Http\Controllers\TicketsController;
@@ -163,22 +164,29 @@ Route::prefix('v1')->group(function (): void {
                 ->name('show');
 
             Route::patch('/{ticket}', [TicketsController::class, 'updateAttributes'])
-                ->middleware('can.capability:'.Capabilities::TICKET_UPDATE)
+                ->middleware('can.capability:'.Capabilities::TICKET_CHANGE_STATUS)
                 ->whereUlid('ticket')
                 ->name('update');
 
             Route::post('/{ticket}/assign', [TicketsController::class, 'assign'])
-                ->middleware('can.capability:'.Capabilities::TICKET_REASSIGN)
+                // Assigning, not reassigning: taking work off a colleague is a
+                // second check inside the command, on TICKET_REASSIGN_ANY.
+                ->middleware('can.capability:'.Capabilities::TICKET_ASSIGN)
                 ->whereUlid('ticket')
                 ->name('assign');
 
             Route::post('/{ticket}/resolve', [TicketsController::class, 'resolveTicket'])
-                ->middleware('can.capability:'.Capabilities::TICKET_CLOSE)
+                ->middleware('can.capability:'.Capabilities::TICKET_RESOLVE)
                 ->whereUlid('ticket')
                 ->name('resolve');
 
+            Route::patch('/{ticket}/department', [TicketsController::class, 'changeDepartment'])
+                ->middleware('can.capability:'.Capabilities::TICKET_CHANGE_DEPARTMENT)
+                ->whereUlid('ticket')
+                ->name('department');
+
             Route::post('/{ticket}/reopen', [TicketsController::class, 'reopenTicket'])
-                ->middleware('can.capability:'.Capabilities::TICKET_UPDATE)
+                ->middleware('can.capability:'.Capabilities::TICKET_REOPEN)
                 ->whereUlid('ticket')
                 ->name('reopen');
 
@@ -268,6 +276,17 @@ Route::prefix('v1')->group(function (): void {
                     ->name('duplicates.preview');
                 Route::get('/{id}', [CustomersController::class, 'show'])
                     ->whereUlid('id')->name('show');
+
+                /*
+                 * The interaction timeline. Read-only, so no Idempotency-Key.
+                 *
+                 * The path is keyed by customer because that is how a person
+                 * thinks about it; the HANDLER lives in Tickets, which owns the
+                 * rows. Tickets (T3) may depend on Customers (T2) — downward —
+                 * while the reverse would invert the tier graph.
+                 */
+                Route::get('/{customer}/timeline', [CustomerTimelineController::class, 'index'])
+                    ->whereUlid('customer')->name('timeline');
             });
 
         Route::middleware('can.capability:'.Capabilities::CUSTOMER_MANAGE)

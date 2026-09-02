@@ -20,32 +20,37 @@ enum TicketStatus: string
     case Pending = 'pending';
     case Resolved = 'resolved';
     case Closed = 'closed';
-    case Reopened = 'reopened';
+
+    /*
+     * Four states, and deliberately no `reopened`.
+     *
+     * A reopened ticket IS open — it needs someone to work it, it belongs in
+     * the open queue, and every filter that means "needs attention" would have
+     * to remember to include a fifth value or silently miss it. That the ticket
+     * came back is a fact about its HISTORY, which the event stream records
+     * exactly, not a fifth thing it can be.
+     *
+     * Also absent: `new` and `cancelled`. A ticket is born open, and one that
+     * should not have existed is closed with a reason like any other.
+     */
 
     /**
      * Which statuses may follow this one.
      *
-     * `closed` leads nowhere. It is the one terminal state: a closed ticket
-     * that could be edited would mean an agreed outcome could be quietly
-     * changed months later, and the answer to "we need to look at this again"
-     * is a new ticket that references the old one.
+     * Delegates to TicketTransitions, which is the single source of truth the
+     * story requires — this method is the convenient reading of that table, not
+     * a second copy of it.
      *
      * @return list<self>
      */
     public function allowedNext(): array
     {
-        return match ($this) {
-            self::Open => [self::Pending, self::Resolved, self::Closed],
-            self::Pending => [self::Open, self::Resolved, self::Closed],
-            self::Resolved => [self::Reopened, self::Closed],
-            self::Reopened => [self::Open, self::Pending, self::Resolved, self::Closed],
-            self::Closed => [],
-        };
+        return TicketTransitions::from($this);
     }
 
     public function canMoveTo(self $next): bool
     {
-        return in_array($next, $this->allowedNext(), true);
+        return TicketTransitions::allowed($this, $next);
     }
 
     /**
@@ -64,12 +69,10 @@ enum TicketStatus: string
         }
 
         throw ProblemException::make(
-            'tickets.lifecycle_violation',
+            'tickets.transition_forbidden',
             'That status change is not allowed',
-            422,
-            $this === self::Closed
-                ? 'This ticket is closed. Closed tickets cannot be changed — open a new one that references it.'
-                : sprintf('A %s ticket cannot become %s.', $this->value, $next->value),
+            409,
+            sprintf('A %s ticket cannot become %s.', $this->value, $next->value),
             ['from' => $this->value, 'to' => $next->value, 'allowed' => array_map(
                 static fn (self $case): string => $case->value,
                 $this->allowedNext(),

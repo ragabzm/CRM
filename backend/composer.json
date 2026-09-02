@@ -73,7 +73,7 @@
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
         ],
-        "openapi:generate": "@php artisan scramble:export --path=openapi.yaml",
+        "openapi:generate": "@php artisan openapi:generate",
         "openapi:check": "@php artisan openapi:check",
         "arch": [
             "vendor/bin/deptrac analyse --config-file=deptrac.yaml --no-progress --fail-on-uncovered",

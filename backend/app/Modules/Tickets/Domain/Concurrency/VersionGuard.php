@@ -35,12 +35,32 @@ final class VersionGuard
 
     /**
      * @param  array<string, mixed>  $changes  The proposed change set.
+     * @param  bool  $exempt  True for the application acting on its own behalf.
      *
      * @throws ProblemException 409 when the submitted version is stale.
      */
-    public function apply(Ticket $ticket, ?int $submittedVersion, array $changes): void
+    public function apply(Ticket $ticket, ?int $submittedVersion, array $changes, bool $exempt = false): void
     {
         if (! self::touchesContended($changes)) {
+            return;
+        }
+
+        /*
+         * The system is exempt.
+         *
+         * The guard exists to stop one PERSON silently overwriting another's
+         * edit — it protects a human who read a screen and then acted on what
+         * they read. The auto-close sweep and the customer-reply listener read
+         * nothing and overwrite no one's intention; they react to the ticket's
+         * own state at the moment they run. Holding them to a version would
+         * mean the sweep could never close anything, because it has no version
+         * to submit.
+         *
+         * A system actor that acted on stale state is still safe: the
+         * transition check runs immediately after this and refuses a move that
+         * no longer makes sense.
+         */
+        if ($exempt) {
             return;
         }
 

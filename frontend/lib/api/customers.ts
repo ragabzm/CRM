@@ -146,3 +146,43 @@ export async function setCustomerState(
 
   return request(`/customers/${encodeURIComponent(id)}/${action}`, { method: "POST", fetchImpl });
 }
+
+/* --- interaction timeline --- */
+
+export type TimelineKind = "ticket_opened" | "message_inbound" | "message_outbound";
+
+export interface TimelineEntry {
+  id: string;
+  kind: TimelineKind;
+  ticket_id: string;
+  /** The human reference, so a row is quotable without a second lookup. */
+  ticket_ref: string;
+  occurred_at: string;
+  /** Already truncated server-side. Null for a ticket opening. */
+  preview: string | null;
+}
+
+export interface TimelinePage {
+  data: TimelineEntry[];
+  /** Opaque. Pass it back verbatim; never build one by hand. */
+  next_cursor: string | null;
+  has_more: boolean;
+}
+
+export function listCustomerTimeline(
+  customerId: string,
+  options: { cursor?: string | null; limit?: number } = {},
+  fetchImpl: typeof fetch = fetch,
+): Promise<TimelinePage> {
+  const query = new URLSearchParams();
+
+  if (options.cursor) query.set("cursor", options.cursor);
+  if (options.limit) query.set("limit", String(options.limit));
+
+  const suffix = query.toString();
+
+  return request(
+    `/customers/${encodeURIComponent(customerId)}/timeline${suffix ? `?${suffix}` : ""}`,
+    { method: "GET", fetchImpl },
+  );
+}

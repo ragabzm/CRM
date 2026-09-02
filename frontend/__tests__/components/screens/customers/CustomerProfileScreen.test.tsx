@@ -38,6 +38,7 @@ beforeEach(() => {
 
       // The profile mounts the notes and attachments lanes, which fetch on
       // mount. Empty is the uninteresting answer; both have their own suites.
+      if (url.includes("/timeline")) return json({ data: [], next_cursor: null, has_more: false });
       if (url.includes("/notes")) return json({ data: [] });
       if (url.includes("/attachments")) return json({ data: [] });
 
@@ -66,6 +67,7 @@ function renderProfile(options: { locale?: "en" | "ar" } = {}) {
       customerId="01AAAAAAAAAAAAAAAAAAAAAAAA"
       departments={DEPARTMENTS}
       onOpenCustomer={vi.fn()}
+      onOpenTicket={vi.fn()}
     />,
     options,
   );

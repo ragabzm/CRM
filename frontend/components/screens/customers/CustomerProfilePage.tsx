@@ -17,6 +17,7 @@ export function CustomerProfilePage({ customerId }: { customerId: string }) {
         customerId={customerId}
         departments={departments}
         onOpenCustomer={(id) => router.push(`/customers/${id}`)}
+        onOpenTicket={(ticketId) => router.push(`/tickets/${ticketId}`)}
       />
     </AppShell>
   );

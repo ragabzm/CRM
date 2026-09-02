@@ -90,4 +90,84 @@ final class CapabilitiesInSyncTest extends TestCase
             \Database\Seeders\RolesAndPermissionsSeeder::matrix(),
         );
     }
+
+    /**
+     * The six lifecycle capabilities and who holds them.
+     *
+     * Pinned rather than derived: the seeder is the authorization model, and a
+     * capability quietly appearing on the wrong role is a privilege change
+     * nobody reviewed.
+     */
+    public function test_the_lifecycle_capabilities_are_seeded_to_the_right_roles(): void
+    {
+        $matrix = \Database\Seeders\RolesAndPermissionsSeeder::matrix();
+
+        $shared = [
+            Capabilities::TICKET_ASSIGN,
+            Capabilities::TICKET_CHANGE_STATUS,
+            Capabilities::TICKET_CHANGE_DEPARTMENT,
+            Capabilities::TICKET_RESOLVE,
+            Capabilities::TICKET_REOPEN,
+        ];
+
+        foreach ($shared as $capability) {
+            $this->assertContains($capability, $matrix[Roles::AGENT], "Agent is missing [{$capability}].");
+            $this->assertContains($capability, $matrix[Roles::SUPERVISOR], "Supervisor is missing [{$capability}].");
+        }
+
+        /*
+         * The one that separates them. An agent picking up unclaimed work is
+         * ordinary; taking a ticket out of a colleague's hands is not.
+         */
+        $this->assertContains(Capabilities::TICKET_REASSIGN_ANY, $matrix[Roles::SUPERVISOR]);
+        $this->assertNotContains(Capabilities::TICKET_REASSIGN_ANY, $matrix[Roles::AGENT]);
+
+        // The administrator holds everything through Gate::before and is
+        // deliberately absent from the matrix.
+        $this->assertArrayNotHasKey(Roles::ADMINISTRATOR, $matrix);
+    }
+
+    public function test_a_customer_holds_no_lifecycle_capability(): void
+    {
+        $matrix = \Database\Seeders\RolesAndPermissionsSeeder::matrix();
+
+        foreach ([
+            Capabilities::TICKET_ASSIGN,
+            Capabilities::TICKET_REASSIGN_ANY,
+            Capabilities::TICKET_CHANGE_STATUS,
+            Capabilities::TICKET_CHANGE_DEPARTMENT,
+            Capabilities::TICKET_RESOLVE,
+            Capabilities::TICKET_REOPEN,
+        ] as $capability) {
+            // A customer may raise and read their own tickets. Moving them
+            // through the lifecycle is staff work.
+            $this->assertNotContains($capability, $matrix[Roles::CUSTOMER]);
+        }
+    }
+
+    public function test_every_declared_capability_is_held_by_someone_or_is_administrator_only(): void
+    {
+        $matrix = \Database\Seeders\RolesAndPermissionsSeeder::matrix();
+        $held = array_unique(array_merge(...array_values($matrix)));
+
+        // Administrator-only by design: configuring the product and reading
+        // everyone's actions.
+        $administratorOnly = [
+            Capabilities::USER_MANAGE,
+            Capabilities::DEPARTMENT_MANAGE,
+            Capabilities::AUDIT_READ,
+            Capabilities::SETTING_MANAGE,
+            Capabilities::TICKET_REASSIGN,
+        ];
+
+        foreach (Capabilities::all() as $capability) {
+            if (in_array($capability, $administratorOnly, true)) {
+                continue;
+            }
+
+            // A capability nobody holds is either dead or a gate that refuses
+            // everyone — both worth finding at build time.
+            $this->assertContains($capability, $held, "Nobody holds [{$capability}].");
+        }
+    }
 }

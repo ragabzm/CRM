@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Modules\Tickets\Domain\Commands;
 
+use App\Modules\Platform\Audit\Domain\AuditAction;
 use App\Modules\Platform\Exceptions\ProblemException;
+use App\Modules\Platform\Support\Audit\AuditLogger;
 use App\Modules\Tickets\Domain\Actor\Actor;
 use App\Modules\Tickets\Domain\Concurrency\VersionGuard;
 use App\Modules\Tickets\Domain\Enum\TicketStatus;
+use App\Modules\Tickets\Domain\Lifecycle\TicketLifecycle;
 use App\Modules\Tickets\Domain\Ticket;
 use App\Modules\Tickets\Domain\TicketEvent;
 use Illuminate\Database\ConnectionInterface;
@@ -35,6 +38,18 @@ final class UpdateTicketAttributes
     public function __construct(
         private readonly ConnectionInterface $db,
         private readonly VersionGuard $guard,
+        /*
+         * The system-wide audit log, which is NOT the ticket's own history.
+         * The two coexist deliberately: `ticket_events` is what an agent reads
+         * inside the ticket, while the audit log answers "what did this person
+         * change across the whole system" for a security review. Merging them
+         * would put every sign-in attempt in a customer's ticket history.
+         *
+         * Tickets (T3) depending on Platform (T0) runs downward, so this is a
+         * legal dependency.
+         */
+        private readonly AuditLogger $audit,
+        private readonly TicketLifecycle $lifecycle,
     ) {}
 
     /**
@@ -84,15 +99,32 @@ final class UpdateTicketAttributes
             // Before the write, and before the lifecycle check: being told the
             // ticket moved on is more useful than being told a transition is
             // illegal when it is only illegal against stale state.
-            $this->guard->apply($ticket, $submittedVersion, $columns);
+            $this->guard->apply(
+                $ticket,
+                $submittedVersion,
+                $columns,
+                // The sweep and the reply listener act on the ticket's own
+                // state, not on a screen somebody read.
+                exempt: $actor->kind() === 'system',
+            );
+
+            $stamps = [];
 
             if (array_key_exists('status', $columns)) {
-                $ticket->status->assertCanMoveTo(TicketStatus::from((string) $columns['status']));
+                $target = TicketStatus::from((string) $columns['status']);
+
+                $ticket->status->assertCanMoveTo($target);
+                $this->lifecycle->assertMayLeaveClosed($ticket, $target, $actor);
+
+                // The timestamps the lifecycle turns on, derived from the
+                // transition rather than passed in — a caller could otherwise
+                // resolve a ticket without a resolved_at and break the sweep.
+                $stamps = $this->lifecycle->stampsFor($ticket, $target);
             }
 
             $before = VersionGuard::contendedValues($ticket);
 
-            $ticket->forceFill([...$columns, 'version' => $ticket->version + 1])->save();
+            $ticket->forceFill([...$columns, ...($stamps ?? []), 'version' => $ticket->version + 1])->save();
 
             /*
              * One event per changed attribute, unless the caller named the
@@ -109,6 +141,10 @@ final class UpdateTicketAttributes
                     ...$extraPayload,
                 ]);
 
+                foreach (array_keys($columns) as $attribute) {
+                    $this->auditFieldChange($actor, $ticket, $attribute, $before, $after);
+                }
+
                 return $ticket;
             }
 
@@ -118,9 +154,36 @@ final class UpdateTicketAttributes
                     'from' => $before[$attribute] ?? null,
                     'to' => $after[$attribute] ?? null,
                 ]);
+
+                $this->auditFieldChange($actor, $ticket, $attribute, $before, $after);
             }
 
             return $ticket;
         });
+    }
+
+    /**
+     * One audit entry per changed field, inside the same transaction.
+     *
+     * @param  array<string, mixed>  $before
+     * @param  array<string, mixed>  $after
+     */
+    private function auditFieldChange(
+        Actor $actor,
+        Ticket $ticket,
+        string $attribute,
+        array $before,
+        array $after,
+    ): void {
+        $this->audit->write(
+            // The audit log records numeric staff ids; a portal or system actor
+            // has none, and null is the honest answer rather than a zero.
+            is_numeric($actor->id()) ? (int) $actor->id() : null,
+            AuditAction::TicketFieldChanged->value,
+            'ticket',
+            (string) $ticket->getKey(),
+            [$attribute => $before[$attribute] ?? null],
+            [$attribute => $after[$attribute] ?? null],
+        );
     }
 }

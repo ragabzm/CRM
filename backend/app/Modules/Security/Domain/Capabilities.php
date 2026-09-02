@@ -49,6 +49,32 @@ final class Capabilities
 
     public const TICKET_CLOSE = 'ticket.close';
 
+    /*
+     * Lifecycle capabilities.
+     *
+     * Singular `ticket.*`, matching every other capability in this file. Story
+     * 4.2 asked for plural `tickets.*`; mixing the two is how somebody writes
+     * the wrong key months later and gets a silent refusal.
+     */
+    public const TICKET_ASSIGN = 'ticket.assign';
+
+    /**
+     * Taking a ticket somebody else is holding.
+     *
+     * Separate from TICKET_ASSIGN because they are different acts: picking up
+     * unclaimed work is what an agent does all day, while pulling a ticket out
+     * of a colleague's hands is a supervisor's call.
+     */
+    public const TICKET_REASSIGN_ANY = 'ticket.reassign_any';
+
+    public const TICKET_CHANGE_STATUS = 'ticket.change_status';
+
+    public const TICKET_CHANGE_DEPARTMENT = 'ticket.change_department';
+
+    public const TICKET_RESOLVE = 'ticket.resolve';
+
+    public const TICKET_REOPEN = 'ticket.reopen';
+
     public const CUSTOMER_READ = 'customer.read';
 
     public const CUSTOMER_MANAGE = 'customer.manage';

@@ -10,11 +10,15 @@ use App\Modules\Tickets\Domain\Ticket;
 use App\Modules\Tickets\Domain\TicketEvent;
 
 /**
- * Reopens a resolved ticket.
+ * Reopens a resolved or closed ticket.
  *
- * Moves to `reopened` rather than back to `open`, because the two are different
- * facts: a reopened ticket is one where the first attempt did not work, and
- * collapsing it into `open` loses the only signal that would tell anyone.
+ * Moves to `open`, not to a status of its own. A reopened ticket IS open — it
+ * needs someone to work it and belongs in the open queue — and a fifth status
+ * would mean every "needs attention" filter had to remember to include it or
+ * silently miss the tickets that came back.
+ *
+ * That it came back is recorded as a `ticket.reopened` EVENT, which is where
+ * that fact belongs: in the history, not in the current state.
  */
 final class ReopenTicket
 {
@@ -26,7 +30,7 @@ final class ReopenTicket
             $actor,
             $ticketId,
             $submittedVersion,
-            TicketStatus::Reopened,
+            TicketStatus::Open,
             TicketEvent::REOPENED,
             $reason !== null ? ['reason' => trim($reason)] : [],
         );

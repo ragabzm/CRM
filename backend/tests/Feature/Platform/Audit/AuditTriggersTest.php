@@ -296,4 +296,100 @@ final class AuditTriggersTest extends TestCase
         // year later, which is exactly when it gets read.
         $this->assertSame('Root Admin', $this->onlyEntry(AuditAction::DepartmentCreated)->actor_label);
     }
+
+    /** A ticket to change, with the customer and department it needs. */
+    private function seedTicket(): \App\Modules\Tickets\Domain\Ticket
+    {
+        $department = \App\Modules\Security\Domain\Department::firstOrCreate(
+            ['name' => 'Billing'],
+            ['is_active' => true],
+        );
+
+        $customer = new \App\Modules\Customers\Domain\Customer([
+            'reference' => \App\Modules\Customers\Domain\Customer::mintReference(),
+            'full_name' => 'Hana Yousef',
+            'department_id' => $department->getKey(),
+            'state' => 'active',
+        ]);
+        $customer->setAttribute('id', (string) \Illuminate\Support\Str::ulid());
+        $customer->save();
+
+        return $this->app->make(\App\Modules\Tickets\Domain\Commands\CreateTicket::class)->handle(
+            \App\Modules\Tickets\Domain\Actor\Actor::staff((string) $this->administrator->getKey(), 'Root Admin'),
+            new \App\Modules\Tickets\Domain\Commands\CreateTicketInput(
+                subject: 'Invoice is wrong',
+                description: 'Charged twice.',
+                customerId: (string) $customer->getKey(),
+                channel: \App\Modules\Tickets\Domain\Enum\TicketChannel::Agent,
+            ),
+        );
+    }
+
+    public function test_a_ticket_field_change_is_recorded(): void
+    {
+        $this->actingAs($this->administrator);
+        $ticket = $this->seedTicket();
+
+        $this->withIdempotencyKey()
+            ->patchJson("/api/v1/tickets/{$ticket->getKey()}", ['version' => 1, 'priority' => 'urgent'])
+            ->assertOk();
+
+        $entry = $this->onlyEntry(AuditAction::TicketFieldChanged);
+
+        $this->assertSame('ticket', $entry->target_type);
+        $this->assertSame((string) $ticket->getKey(), $entry->target_id);
+        $this->assertSame('normal', json_decode((string) $entry->before, true)['priority']);
+        $this->assertSame('urgent', json_decode((string) $entry->after, true)['priority']);
+    }
+
+    public function test_the_ticket_history_and_the_audit_log_both_record_it(): void
+    {
+        $this->actingAs($this->administrator);
+        $ticket = $this->seedTicket();
+
+        $this->withIdempotencyKey()
+            ->patchJson("/api/v1/tickets/{$ticket->getKey()}", ['version' => 1, 'priority' => 'urgent'])
+            ->assertOk();
+
+        /*
+         * The two coexist deliberately. `ticket_events` is what an agent reads
+         * inside the ticket; the audit log answers "what did this person change
+         * across the whole system" for a security review. Merging them would
+         * put every sign-in attempt in a customer's ticket history.
+         */
+        $this->assertDatabaseHas('ticket_events', [
+            'ticket_id' => $ticket->getKey(),
+            'event_type' => \App\Modules\Tickets\Domain\TicketEvent::PRIORITY_CHANGED,
+        ]);
+        $this->assertCount(1, $this->entries(AuditAction::TicketFieldChanged));
+    }
+
+    public function test_a_refused_ticket_change_records_nothing(): void
+    {
+        $this->actingAs($this->administrator);
+        $ticket = $this->seedTicket();
+
+        $this->withIdempotencyKey()
+            ->patchJson("/api/v1/tickets/{$ticket->getKey()}", ['version' => 999, 'priority' => 'urgent'])
+            ->assertStatus(409);
+
+        // The audit write is inside the transaction the guard aborts.
+        $this->assertCount(0, $this->entries(AuditAction::TicketFieldChanged));
+    }
+
+    public function test_resolving_a_ticket_is_audited_too(): void
+    {
+        $this->actingAs($this->administrator);
+        $ticket = $this->seedTicket();
+
+        $this->withIdempotencyKey()->postJson("/api/v1/tickets/{$ticket->getKey()}/resolve", [
+            'version' => 1,
+            'resolution_note' => 'Credited the duplicate charge.',
+        ])->assertOk();
+
+        // A status change reached through a named command is still a field
+        // change, and a security review must see it.
+        $entry = $this->onlyEntry(AuditAction::TicketFieldChanged);
+        $this->assertSame('resolved', json_decode((string) $entry->after, true)['status']);
+    }
 }

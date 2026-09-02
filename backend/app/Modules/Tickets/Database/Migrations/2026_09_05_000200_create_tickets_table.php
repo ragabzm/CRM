@@ -82,7 +82,7 @@ return new class extends Migration
             return;
         }
 
-        DB::statement("ALTER TABLE tickets ADD CONSTRAINT tickets_status_check CHECK (status IN ('open','pending','resolved','closed','reopened'))");
+        DB::statement("ALTER TABLE tickets ADD CONSTRAINT tickets_status_check CHECK (status IN ('open','pending','resolved','closed'))");
         DB::statement("ALTER TABLE tickets ADD CONSTRAINT tickets_priority_check CHECK (priority IN ('low','normal','high','urgent'))");
         DB::statement("ALTER TABLE tickets ADD CONSTRAINT tickets_channel_check CHECK (channel IN ('agent','portal','email','system'))");
         DB::statement("ALTER TABLE tickets ADD CONSTRAINT tickets_creator_type_check CHECK (creator_type IN ('staff','portal','system'))");

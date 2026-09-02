@@ -32,6 +32,83 @@ export interface TicketContendedValues {
 export const TICKET_STALE_VERSION = "tickets.stale_version";
 
 /**
+ * Every refusal a ticket write can come back with, and the message key that
+ * explains it.
+ *
+ * One table, so a screen catching `TicketRefusedError` renders the right
+ * sentence without a switch of its own — and adding a refusal server-side is a
+ * line here rather than an edit in every surface that writes tickets.
+ */
+export const TICKET_REFUSALS: Record<string, string> = {
+  "tickets.transition_forbidden": "tickets.errors.transitionForbidden",
+  "tickets.reopen_window_expired": "tickets.errors.reopenWindowExpired",
+  "tickets.reassign_forbidden": "tickets.errors.reassignForbidden",
+  "tickets.assignee_invalid": "tickets.errors.assigneeInvalid",
+  "tickets.department_invalid": "tickets.errors.departmentInvalid",
+};
+
+/** What a reopen-window refusal offers instead. */
+export interface NewRequestHint {
+  action: string;
+  path: string;
+  customer_id: string;
+}
+
+/**
+ * A ticket write the server refused on a domain rule.
+ *
+ * Distinct from a plain ApiError so a screen can catch exactly these and show
+ * the server's reason with the right copy — and, for an expired reopen window,
+ * the "start a new request" route the refusal carries. A refusal that only says
+ * no leaves an agent with a customer on the line and nothing to offer.
+ */
+export class TicketRefusedError extends ApiError {
+  /** The i18n key for this refusal. */
+  readonly messageKey: string;
+
+  /** Present only on `tickets.reopen_window_expired`. */
+  readonly newRequestHint: NewRequestHint | null;
+
+  /** Present only on `tickets.reopen_window_expired`. */
+  readonly reopenWindowDays: number | null;
+
+  constructor(message: string, problem: ApiError["problem"], status: number, messageKey: string) {
+    super(message, problem, status);
+    this.name = "TicketRefusedError";
+    this.messageKey = messageKey;
+
+    const body = (problem ?? {}) as Record<string, unknown>;
+    const hint = body.new_request_hint;
+
+    this.newRequestHint =
+      hint !== null && typeof hint === "object" ? (hint as unknown as NewRequestHint) : null;
+    this.reopenWindowDays =
+      typeof body.reopen_window_days === "number" ? body.reopen_window_days : null;
+  }
+
+  static from(problem: unknown, status: number): TicketRefusedError | null {
+    if (problem === null || typeof problem !== "object") return null;
+
+    const code = (problem as Record<string, unknown>).code;
+
+    if (typeof code !== "string") return null;
+
+    const messageKey = TICKET_REFUSALS[code];
+
+    if (messageKey === undefined) return null;
+
+    const detail = (problem as Record<string, unknown>).detail;
+
+    return new TicketRefusedError(
+      typeof detail === "string" ? detail : "That change was refused.",
+      problem as ApiError["problem"],
+      status,
+      messageKey,
+    );
+  }
+}
+
+/**
  * Someone else changed the ticket while this edit was in flight.
  *
  * A distinct error type rather than a status code check, so a screen can catch

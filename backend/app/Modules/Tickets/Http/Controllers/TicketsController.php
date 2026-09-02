@@ -6,7 +6,9 @@ namespace App\Modules\Tickets\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Platform\Exceptions\ProblemException;
+use App\Modules\Security\Domain\Capabilities;
 use App\Modules\Tickets\Domain\Commands\AssignTicket;
+use App\Modules\Tickets\Domain\Commands\ChangeDepartment;
 use App\Modules\Tickets\Domain\Commands\CreateTicket;
 use App\Modules\Tickets\Domain\Commands\CreateTicketInput;
 use App\Modules\Tickets\Domain\Commands\ReopenTicket;
@@ -19,6 +21,7 @@ use App\Modules\Tickets\Domain\Query\TicketVisibility;
 use App\Modules\Tickets\Domain\Ticket;
 use App\Modules\Tickets\Http\ActorResolver;
 use App\Modules\Tickets\Http\Requests\AssignTicketRequest;
+use App\Modules\Tickets\Http\Requests\ChangeDepartmentRequest;
 use App\Modules\Tickets\Http\Requests\ReopenTicketRequest;
 use App\Modules\Tickets\Http\Requests\ResolveTicketRequest;
 use App\Modules\Tickets\Http\Requests\StoreTicketRequest;
@@ -43,6 +46,7 @@ final class TicketsController extends Controller
         private readonly AssignTicket $assign,
         private readonly ResolveTicket $resolve,
         private readonly ReopenTicket $reopen,
+        private readonly ChangeDepartment $department,
     ) {}
 
     /**
@@ -131,6 +135,13 @@ final class TicketsController extends Controller
             $ticket,
             (int) $data['version'],
             $data['assignee_id'] === null ? null : (int) $data['assignee_id'],
+            /*
+             * Whether this person may take work off a colleague. Resolved here
+             * from the caller's capabilities and passed in, so the command
+             * stays free of ambient auth — the sweep and the console call it
+             * with no session at all.
+             */
+            $request->user()?->can(Capabilities::TICKET_REASSIGN_ANY) ?? false,
         );
 
         return new JsonResponse(TicketResource::toArray($updated));
@@ -165,6 +176,25 @@ final class TicketsController extends Controller
             $ticket,
             (int) $data['version'],
             isset($data['reason']) ? (string) $data['reason'] : null,
+        );
+
+        return new JsonResponse(TicketResource::toArray($updated));
+    }
+
+    /**
+     * Moves a ticket to another department.
+     *
+     * @response array<string, mixed>
+     */
+    public function changeDepartment(ChangeDepartmentRequest $request, string $ticket): JsonResponse
+    {
+        $data = $request->validated();
+
+        $updated = $this->department->handle(
+            $this->actors->fromRequest($request),
+            $ticket,
+            (int) $data['version'],
+            (int) $data['department_id'],
         );
 
         return new JsonResponse(TicketResource::toArray($updated));

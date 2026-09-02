@@ -189,4 +189,117 @@ final class CustomerSearchPostgresTest extends TestCase
             'updated_at' => now(),
         ]);
     }
+
+    /** NFR-02: a search must come back inside this, on a realistic table. */
+    private const NFR_02_BUDGET_MS = 300;
+
+    private const SEED_ROWS = 5000;
+
+    /**
+     * Bulk-inserts a realistic table.
+     *
+     * Raw inserts rather than the API: this measures the SEARCH, and paying for
+     * 5,000 HTTP round trips first would make the test take minutes and prove
+     * nothing extra.
+     */
+    private function seedManyCustomers(): void
+    {
+        $customers = [];
+        $identifiers = [];
+        $now = now();
+
+        for ($i = 0; $i < self::SEED_ROWS; $i++) {
+            $id = (string) \Illuminate\Support\Str::ulid();
+
+            $customers[] = [
+                'id' => $id,
+                'reference' => sprintf('C-%08d', $i),
+                'full_name' => 'Customer '.$i.' Surname'.($i % 97),
+                'department_id' => $this->departmentId,
+                'state' => 'active',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+
+            $identifiers[] = [
+                'id' => (string) \Illuminate\Support\Str::ulid(),
+                'customer_id' => $id,
+                'kind' => 'email',
+                'value' => "person{$i}@example.test",
+                'value_normalised' => "person{$i}@example.test",
+                'is_primary' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        foreach (array_chunk($customers, 500) as $chunk) {
+            DB::table('customers')->insert($chunk);
+        }
+
+        foreach (array_chunk($identifiers, 500) as $chunk) {
+            DB::table('contact_identifiers')->insert($chunk);
+        }
+
+        // Trigram indexes are only chosen once the planner has statistics.
+        DB::statement('ANALYZE customers');
+        DB::statement('ANALYZE contact_identifiers');
+    }
+
+    private function timeSearch(string $term): float
+    {
+        $started = microtime(true);
+
+        $this->getJson('/api/v1/customers?q='.urlencode($term))->assertOk();
+
+        return (microtime(true) - $started) * 1000;
+    }
+
+    public function test_search_meets_the_response_time_target_on_a_realistic_table(): void
+    {
+        $this->seedManyCustomers();
+
+        $this->assertSame(self::SEED_ROWS, (int) DB::table('customers')->count());
+
+        /*
+         * Each of the four things a search can match, because they take
+         * different paths: name and identifier go through the trigram indexes,
+         * the reference through a prefix comparison.
+         */
+        $measurements = [
+            'name' => $this->timeSearch('Surname42'),
+            'email' => $this->timeSearch('person1234@example.test'),
+            'reference' => $this->timeSearch('C-000012'),
+            'partial name' => $this->timeSearch('Customer 99'),
+        ];
+
+        foreach ($measurements as $kind => $ms) {
+            $this->assertLessThan(
+                self::NFR_02_BUDGET_MS,
+                $ms,
+                sprintf('Searching by %s took %.0fms against %d rows; NFR-02 allows %dms.',
+                    $kind, $ms, self::SEED_ROWS, self::NFR_02_BUDGET_MS),
+            );
+        }
+    }
+
+    public function test_the_search_stays_a_single_query_however_many_identifiers_match(): void
+    {
+        $this->seedManyCustomers();
+
+        $queries = 0;
+        DB::listen(function () use (&$queries): void {
+            $queries++;
+        });
+
+        $this->getJson('/api/v1/customers?q=Surname42')->assertOk();
+
+        /*
+         * A handful, not one per row. The correlated sub-select exists so the
+         * identifier score is computed in the same statement — fetching
+         * identifiers per customer would be the classic N+1 that turns a fast
+         * page into a slow one only once real data arrives.
+         */
+        $this->assertLessThan(10, $queries, "The search issued {$queries} queries.");
+    }
 }
