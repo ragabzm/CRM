@@ -118,7 +118,12 @@ export const BAND_NAMES = ["mobile", "tablet", "desktop"] as const;
 export const MEASURE_TOKENS = ["row-height", "rail-width", "motion-duration"] as const;
 
 /** Focus indication. Outline-based, so it survives Windows High Contrast Mode. */
-export const FOCUS_RING_TOKENS = ["focus-ring", "focus-ring-color", "focus-ring-width", "focus-ring-offset"] as const;
+export const FOCUS_RING_TOKENS = [
+  "focus-ring",
+  "focus-ring-color",
+  "focus-ring-width",
+  "focus-ring-offset",
+] as const;
 
 /** Every semantic token, in one list. */
 export const SEMANTIC_TOKENS = [

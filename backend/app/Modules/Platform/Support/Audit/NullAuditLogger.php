@@ -7,14 +7,12 @@ namespace App\Modules\Platform\Support\Audit;
 use Illuminate\Support\Facades\Log;
 
 /**
- * The default binding until Story 2.4 lands the real writer.
+ * Writes to the `audit` log channel instead of the table.
  *
- * Writes to the `audit` log channel rather than discarding: a story that ships
- * "auditing" which silently drops every entry is worse than one that admits it
- * has none. This at least leaves a trail an operator can grep, and it exercises
- * the call sites so 2.4 inherits working wiring.
- *
- * TODO(Story 2.4): replace this binding with the persistent audit writer.
+ * No longer the default binding — AuditWriter is. This is kept for the two
+ * cases that still want it: a test exercising a code path without asserting on
+ * audit rows, and any future context where the table is unreachable but losing
+ * the trail entirely would be worse than writing it to a file.
  */
 final class NullAuditLogger implements AuditLogger
 {
@@ -25,13 +23,15 @@ final class NullAuditLogger implements AuditLogger
     public function write(
         ?int $actorUserId,
         string $action,
-        string $target,
+        string $targetType,
+        string $targetId,
         array $before,
         array $after,
     ): void {
         Log::channel('audit')->info($action, [
             'actor_id' => $actorUserId,
-            'target' => $target,
+            'target_type' => $targetType,
+            'target_id' => $targetId,
             'before' => $before,
             'after' => $after,
         ]);

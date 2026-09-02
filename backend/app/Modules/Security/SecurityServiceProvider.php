@@ -9,9 +9,12 @@ use App\Modules\Platform\Http\ProblemDetailsHandler;
 use App\Modules\Security\Contracts\DepartmentUsageProbe;
 use App\Modules\Security\Contracts\NoDepartmentUsage;
 use App\Modules\Security\Domain\Capabilities;
+use App\Modules\Security\Contracts\DepartmentDirectory;
+use App\Modules\Security\Domain\EloquentDepartmentDirectory;
 use App\Modules\Security\Domain\Roles;
 use App\Modules\Security\Events\StaffAuthAttempted;
 use App\Modules\Security\Listeners\LogStaffAuthAttempt;
+use App\Modules\Security\Listeners\RecordStaffAuthAttempt;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -29,6 +32,10 @@ final class SecurityServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // Published for higher tiers that group by department without needing
+        // to know how one is stored.
+        $this->app->singleton(DepartmentDirectory::class, EloquentDepartmentDirectory::class);
+
         /*
          * The default answer to "is anything using this department?" is "no".
          * The Tickets module rebinds this with a real query when it is present;
@@ -47,6 +54,9 @@ final class SecurityServiceProvider extends ServiceProvider
         $this->registerCapabilityGates();
 
         Event::listen(StaffAuthAttempted::class, LogStaffAuthAttempt::class);
+        // Both, not either: the log line is for operations, the audit row is
+        // for the review that happens months later.
+        Event::listen(StaffAuthAttempted::class, RecordStaffAuthAttempt::class);
     }
 
     /**

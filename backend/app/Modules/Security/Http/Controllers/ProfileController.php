@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Security\Http\Requests\ChangePasswordRequest;
 use App\Modules\Security\Http\Requests\UpdateProfileRequest;
 use App\Models\User;
+use App\Modules\Security\Http\StaffUserShape;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -22,7 +23,7 @@ use Illuminate\Support\Facades\Hash;
 final class ProfileController extends Controller
 {
     /**
-     * @response array{id: int, name: string, email: string, preferred_locale: string}
+     * @response array{id: int, name: string, email: string, preferred_locale: string, roles: list<string>}
      */
     public function show(Request $request): JsonResponse
     {
@@ -35,7 +36,7 @@ final class ProfileController extends Controller
     /**
      * Update name and language.
      *
-     * @response array{id: int, name: string, email: string, preferred_locale: string}
+     * @response array{id: int, name: string, email: string, preferred_locale: string, roles: list<string>}
      */
     public function update(UpdateProfileRequest $request): JsonResponse
     {
@@ -80,15 +81,10 @@ final class ProfileController extends Controller
     }
 
     /**
-     * @return array{id: int, name: string, email: string, preferred_locale: string}
+     * @return array{id: int, name: string, email: string, preferred_locale: string, roles: list<string>}
      */
     private function shape(User $user): array
     {
-        return [
-            'id' => (int) $user->getAuthIdentifier(),
-            'name' => (string) $user->name,
-            'email' => (string) $user->email,
-            'preferred_locale' => $user->preferredLocale(),
-        ];
+        return StaffUserShape::for($user);
     }
 }

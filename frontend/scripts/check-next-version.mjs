@@ -74,7 +74,9 @@ export function validate(version) {
   }
 
   if (compare(version, MINIMUM_VERSION) < 0) {
-    failures.push(`next ${version} is older than the required security release ${MINIMUM_VERSION}.`);
+    failures.push(
+      `next ${version} is older than the required security release ${MINIMUM_VERSION}.`,
+    );
   }
 
   return failures;

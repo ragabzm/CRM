@@ -22,7 +22,7 @@ const DESTINATIONS: Destination[] = [
   { key: "home", href: "/", icon: Home },
   { key: "tickets", href: "/tickets", icon: Ticket },
   { key: "customers", href: "/customers", icon: Users },
-  { key: "administration", href: "/administration", icon: Shield, requiresRole: "administrator" },
+  { key: "administration", href: "/admin", icon: Shield, requiresRole: "administrator" },
 ];
 
 /**
@@ -41,10 +41,16 @@ export function Sidebar({ className }: { className?: string }) {
    * whole shell, so it degrades to "no destination is current" instead.
    */
   const pathname = usePathname() ?? "";
-  const { roles } = useCurrentUser();
+  const { roles, loaded } = useCurrentUser();
 
+  /*
+   * Until the session has been read, a role-gated destination is withheld
+   * rather than guessed. Showing it and taking it away a moment later reads as
+   * a glitch; withholding it and then adding it reads as loading.
+   */
   const visible = DESTINATIONS.filter(
-    (destination) => !destination.requiresRole || roles.includes(destination.requiresRole),
+    (destination) =>
+      !destination.requiresRole || (loaded && roles.includes(destination.requiresRole)),
   );
 
   return (

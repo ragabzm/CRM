@@ -54,3 +54,6 @@ frontend/.vercel
 # The backend publishes openapi.yaml as a CI artifact and the frontend job
 # downloads it here. The committed copy of the contract lives in backend/.
 frontend/openapi.yaml
+
+# Logs from scripts/verify.sh
+.verify/

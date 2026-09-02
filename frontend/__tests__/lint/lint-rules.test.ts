@@ -330,7 +330,10 @@ describe("one formatting layer", () => {
     `new Intl.ListFormat("en").format(["a"]);`,
     `new Intl.PluralRules("en").select(1);`,
   ])("rejects %s outside lib/format", async (source) => {
-    const messages = await lintFixture("components/shell/Fixture.tsx", `export const x = ${source}`);
+    const messages = await lintFixture(
+      "components/shell/Fixture.tsx",
+      `export const x = ${source}`,
+    );
 
     const errors = messagesFrom(messages, DIRECT_INTL_RULE);
     expect(errors.length).toBeGreaterThan(0);

@@ -9,6 +9,7 @@ use App\Modules\Platform\Exceptions\ProblemException;
 use App\Modules\Security\Events\StaffAuthAttempted;
 use App\Modules\Security\Http\Requests\LoginRequest;
 use App\Models\User;
+use App\Modules\Security\Http\StaffUserShape;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -144,23 +145,10 @@ final class AuthController extends Controller
     }
 
     /**
-     * The public shape of a staff user.
-     *
-     * Built explicitly rather than serialising the model: a hidden-attribute
-     * list is a denylist, and a denylist is one migration away from leaking a
-     * column nobody remembered to hide.
-     *
      * @return array{id: int, name: string, email: string, preferred_locale: string, roles: list<string>}
      */
     private function profileShape(User $user): array
     {
-        return [
-            'id' => (int) $user->getAuthIdentifier(),
-            'name' => (string) $user->name,
-            'email' => (string) $user->email,
-            'preferred_locale' => $user->preferredLocale(),
-            // Populated by Story 2.3 (roles and permissions).
-            'roles' => [],
-        ];
+        return StaffUserShape::for($user);
     }
 }

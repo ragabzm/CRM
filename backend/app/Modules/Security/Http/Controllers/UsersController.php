@@ -6,6 +6,8 @@ namespace App\Modules\Security\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Platform\Audit\Application\AuditWriter;
+use App\Modules\Platform\Audit\Domain\AuditAction;
 use App\Modules\Security\Http\Requests\StoreUserRequest;
 use App\Modules\Security\Http\Requests\UpdateUserRequest;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +23,21 @@ use Illuminate\Support\Str;
  */
 final class UsersController extends Controller
 {
+    public function __construct(private readonly AuditWriter $audit) {}
+
+    /**
+     * The fields worth recording a change to.
+     *
+     * An explicit allowlist, not "everything on the model". A denylist would
+     * put the password hash one forgotten column away from the audit log, and
+     * the audit log is the last place a hash should ever appear — the redactor
+     * would catch `password`, but relying on that for something we can simply
+     * not select is the wrong order of defences.
+     *
+     * @var list<string>
+     */
+    private const AUDITED_FIELDS = ['name', 'email', 'department_id', 'is_active'];
+
     /**
      * @response array{data: array<int, array{id:int,name:string,email:string,role:string|null,department_id:int|null,is_active:bool}>}
      */
@@ -59,6 +76,13 @@ final class UsersController extends Controller
 
             $user->syncRoles([$data['role']]);
 
+            $this->audit->record(
+                action: AuditAction::UserCreated,
+                targetType: 'user',
+                targetId: (string) $user->getKey(),
+                after: $this->auditable($user, $data['role']),
+            );
+
             return $user;
         });
 
@@ -81,7 +105,14 @@ final class UsersController extends Controller
         $data = $request->validated();
 
         DB::transaction(function () use ($data, $user): void {
-            $user->fill(array_intersect_key($data, array_flip(['name', 'email', 'department_id', 'is_active'])));
+            /*
+             * Captured before the fill, and inside the transaction. An audit
+             * row written outside it would survive a rollback and claim a
+             * change that never happened.
+             */
+            $before = $this->auditable($user, $this->roleOf($user));
+
+            $user->fill(array_intersect_key($data, array_flip(self::AUDITED_FIELDS)));
             $user->save();
 
             if (isset($data['role'])) {
@@ -90,9 +121,24 @@ final class UsersController extends Controller
                 $user->syncRoles([$data['role']]);
             }
 
-            if (array_key_exists('is_active', $data) && $data['is_active'] === false) {
+            $deactivated = array_key_exists('is_active', $data) && $data['is_active'] === false;
+
+            if ($deactivated) {
                 $this->revokeAccess($user);
             }
+
+            $this->audit->record(
+                /*
+                 * A deactivation through the edit form is still a
+                 * deactivation. Recording it as a generic update would hide the
+                 * one user change that most needs to be findable by action.
+                 */
+                action: $deactivated ? AuditAction::UserDeactivated : AuditAction::UserUpdated,
+                targetType: 'user',
+                targetId: (string) $user->getKey(),
+                before: $before,
+                after: $this->auditable($user->refresh(), $this->roleOf($user)),
+            );
         });
 
         return new JsonResponse($this->shape($user->refresh()->load('roles')));
@@ -111,12 +157,47 @@ final class UsersController extends Controller
              * attribution that points at it — "assigned by", "note written by",
              * "closed by" — and turn an audit trail into a set of orphan ids.
              */
+            $before = $this->auditable($user, $this->roleOf($user));
+
             $user->forceFill(['is_active' => false])->save();
 
             $this->revokeAccess($user);
+
+            $this->audit->record(
+                action: AuditAction::UserDeactivated,
+                targetType: 'user',
+                targetId: (string) $user->getKey(),
+                before: $before,
+                after: $this->auditable($user->refresh(), $this->roleOf($user)),
+            );
         });
 
         return new JsonResponse($this->shape($user->refresh()->load('roles')));
+    }
+
+    /**
+     * The audited view of a user: named fields only, never the model.
+     *
+     * @return array<string, mixed>
+     */
+    private function auditable(User $user, ?string $role): array
+    {
+        $fields = [];
+
+        foreach (self::AUDITED_FIELDS as $field) {
+            $fields[$field] = $user->getAttribute($field);
+        }
+
+        $fields['role'] = $role;
+
+        return $fields;
+    }
+
+    private function roleOf(User $user): ?string
+    {
+        $role = $user->getRoleNames()->first();
+
+        return is_string($role) ? $role : null;
     }
 
     /**

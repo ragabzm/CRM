@@ -15,6 +15,10 @@ namespace App\Modules\Platform\Support\Audit;
  * `before` and `after` are both required: an audit entry that records only the
  * new value cannot answer "what did this used to be?", which is the question
  * an incident review actually asks.
+ *
+ * The target is a TYPE and an ID rather than one string, so the log can answer
+ * "everything that happened to this record" without pattern-matching a label
+ * whose format nobody agreed on.
  */
 interface AuditLogger
 {
@@ -25,7 +29,8 @@ interface AuditLogger
     public function write(
         ?int $actorUserId,
         string $action,
-        string $target,
+        string $targetType,
+        string $targetId,
         array $before,
         array $after,
     ): void;

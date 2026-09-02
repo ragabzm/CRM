@@ -110,7 +110,9 @@ describe("failures surface as typed problems", () => {
     };
     const { impl } = recordingFetch([{ status: 204 }, { status: 401, body: problem }]);
 
-    await expect(login({ email: "a@b.test", password: "x" }, impl)).rejects.toBeInstanceOf(AuthError);
+    await expect(login({ email: "a@b.test", password: "x" }, impl)).rejects.toBeInstanceOf(
+      AuthError,
+    );
 
     await expect(login({ email: "a@b.test", password: "x" }, impl)).rejects.toMatchObject({
       status: 401,
@@ -121,7 +123,17 @@ describe("failures surface as typed problems", () => {
   it("surfaces the rate-limit status", async () => {
     const { impl } = recordingFetch([
       { status: 204 },
-      { status: 429, body: { code: "platform.too_many_requests", status: 429, title: "x", type: "y", instance: "z", trace_id: "t" } },
+      {
+        status: 429,
+        body: {
+          code: "platform.too_many_requests",
+          status: 429,
+          title: "x",
+          type: "y",
+          instance: "z",
+          trace_id: "t",
+        },
+      },
     ]);
 
     await expect(login({ email: "a@b.test", password: "x" }, impl)).rejects.toMatchObject({
@@ -141,7 +153,10 @@ describe("the auth surface", () => {
   });
 
   it("requests a reset link with a POST", async () => {
-    const { calls, impl } = recordingFetch([{ status: 204 }, { status: 202, body: { status: "accepted" } }]);
+    const { calls, impl } = recordingFetch([
+      { status: 204 },
+      { status: 202, body: { status: "accepted" } },
+    ]);
 
     await forgotPassword({ email: "a@b.test" }, impl);
 
@@ -151,10 +166,17 @@ describe("the auth surface", () => {
   });
 
   it("changes a password with a POST", async () => {
-    const { calls, impl } = recordingFetch([{ status: 204 }, { status: 200, body: { status: "ok" } }]);
+    const { calls, impl } = recordingFetch([
+      { status: 204 },
+      { status: 200, body: { status: "ok" } },
+    ]);
 
     await changePassword(
-      { current_password: "Old-Passw0rd-Long", password: "New-Passw0rd-Long", password_confirmation: "New-Passw0rd-Long" },
+      {
+        current_password: "Old-Passw0rd-Long",
+        password: "New-Passw0rd-Long",
+        password_confirmation: "New-Passw0rd-Long",
+      },
       impl,
     );
 
@@ -173,10 +195,18 @@ describe("the auth surface", () => {
   });
 
   it("resets a password with the token from the link", async () => {
-    const { calls, impl } = recordingFetch([{ status: 204 }, { status: 200, body: { status: "ok" } }]);
+    const { calls, impl } = recordingFetch([
+      { status: 204 },
+      { status: 200, body: { status: "ok" } },
+    ]);
 
     await resetPassword(
-      { token: "tok", email: "a@b.test", password: "New-Passw0rd-Long", password_confirmation: "New-Passw0rd-Long" },
+      {
+        token: "tok",
+        email: "a@b.test",
+        password: "New-Passw0rd-Long",
+        password_confirmation: "New-Passw0rd-Long",
+      },
       impl,
     );
 

@@ -30,9 +30,6 @@ export async function lintFixture(filePath: string, source: string) {
   return results[0]?.messages ?? [];
 }
 
-export function messagesFrom(
-  messages: Awaited<ReturnType<typeof lintFixture>>,
-  ruleId: string,
-) {
+export function messagesFrom(messages: Awaited<ReturnType<typeof lintFixture>>, ruleId: string) {
   return messages.filter((message) => message.ruleId === ruleId);
 }

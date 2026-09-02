@@ -57,14 +57,14 @@ export function ForgotPasswordForm() {
       </div>
 
       <FormField
-          label={t("email")}
-          type="email"
-          name="email"
-          value={email}
-          autoComplete="username"
-          required
-          onChange={(event) => setEmail(event.target.value)}
-        />
+        label={t("email")}
+        type="email"
+        name="email"
+        value={email}
+        autoComplete="username"
+        required
+        onChange={(event) => setEmail(event.target.value)}
+      />
 
       <SubmitButton variant="primary" pending={pending}>
         {t("submit")}

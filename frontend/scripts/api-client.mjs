@@ -67,7 +67,9 @@ if (command === "generate") {
   if (fresh === committed) {
     console.log("api:check: lib/api/schema.ts is up to date.");
   } else {
-    console.error("api:check: lib/api/schema.ts is stale — it does not match backend/openapi.yaml.");
+    console.error(
+      "api:check: lib/api/schema.ts is stale — it does not match backend/openapi.yaml.",
+    );
     console.error("  Remediation: run `pnpm run api:generate` and commit the result.");
     process.exit(1);
   }

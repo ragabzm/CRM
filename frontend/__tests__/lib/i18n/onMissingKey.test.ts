@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { extractKey, onMissingKey, translationReporter } from "@/lib/i18n/onMissingKey";
 
-
 function missingMessageError(key: string, locale: string) {
   return {
     code: "MISSING_MESSAGE",

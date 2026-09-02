@@ -24,14 +24,18 @@ import { en, render, screen } from "@/__tests__/helpers/intl";
 const USER = { id: 1, name: "Hana", email: "h@ragab.test", preferred_locale: "en", roles: [] };
 
 function problem(code: string, status: number) {
-  return new AuthError("failed", {
-    type: `https://errors.ragab-crm/${code}`,
-    title: "t",
+  return new AuthError(
+    "failed",
+    {
+      type: `https://errors.ragab-crm/${code}`,
+      title: "t",
+      status,
+      instance: "/api/v1/auth/login",
+      code,
+      trace_id: "01HZY",
+    },
     status,
-    instance: "/api/v1/auth/login",
-    code,
-    trace_id: "01HZY",
-  }, status);
+  );
 }
 
 beforeEach(() => {

@@ -88,16 +88,24 @@ export function scanDirectory(dir) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const target = process.argv[2] ? resolve(process.cwd(), process.argv[2]) : join(ROOT, "components");
+  const target = process.argv[2]
+    ? resolve(process.cwd(), process.argv[2])
+    : join(ROOT, "components");
 
   const violations = scanDirectory(target);
 
   if (violations.length > 0) {
-    console.error("check-tokens: components must reference semantic tokens, never primitives or literals.");
+    console.error(
+      "check-tokens: components must reference semantic tokens, never primitives or literals.",
+    );
     for (const violation of violations) console.error(violation);
-    console.error("\n  Remediation: use a semantic token (bg-surface-raised, text-fg-muted). See tokens/tokens.css.");
+    console.error(
+      "\n  Remediation: use a semantic token (bg-surface-raised, text-fg-muted). See tokens/tokens.css.",
+    );
     process.exit(1);
   }
 
-  console.log(`check-tokens: no primitives or colour literals under ${relative(ROOT, target) || "."}.`);
+  console.log(
+    `check-tokens: no primitives or colour literals under ${relative(ROOT, target) || "."}.`,
+  );
 }

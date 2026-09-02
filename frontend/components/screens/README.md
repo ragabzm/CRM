@@ -1,6 +1,6 @@
 # Layer C — screen compositions
 
-A screen is assembled from Layer B. It decides *what* appears and in what order;
+A screen is assembled from Layer B. It decides _what_ appears and in what order;
 it does not decide what a table or an empty state looks like.
 
 ## Contract

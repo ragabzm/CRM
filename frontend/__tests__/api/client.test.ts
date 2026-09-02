@@ -62,7 +62,9 @@ describe("Idempotency-Key injection", () => {
 
   it("gives each write its own key, so two writes never replay each other", async () => {
     const first = await throughMiddleware(new Request("http://api.test/thing", { method: "POST" }));
-    const second = await throughMiddleware(new Request("http://api.test/thing", { method: "POST" }));
+    const second = await throughMiddleware(
+      new Request("http://api.test/thing", { method: "POST" }),
+    );
 
     expect(first.headers.get(IDEMPOTENCY_KEY_HEADER)).not.toBe(
       second.headers.get(IDEMPOTENCY_KEY_HEADER),

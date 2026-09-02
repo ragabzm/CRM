@@ -28,7 +28,7 @@ final class OpenApiContract
      * which would make the replay actively wrong. The routes opt out with
      * withoutMiddleware(); this keeps the document honest about that.
      */
-    private const IDEMPOTENCY_EXEMPT_PREFIXES = ['/auth/', '/profile'];
+    private const IDEMPOTENCY_EXEMPT_PREFIXES = ['/auth/', '/profile', '/customers/duplicates/preview'];
 
     /**
      * @param  array<string, mixed>  $spec

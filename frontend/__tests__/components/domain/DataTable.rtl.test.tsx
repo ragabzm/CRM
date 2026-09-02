@@ -9,7 +9,8 @@ import { RowActions } from "@/components/domain/RowActions/RowActions";
 import { AUDIT_COLUMNS, COLUMNS, FILTERS, ROWS, getRowId } from "./fixtures";
 
 /** Physical CSS that would break when the document direction flips. */
-const PHYSICAL_CSS = /(?:^|[\s;"{])(?:left|right|margin-left|margin-right|padding-left|padding-right)\s*:/;
+const PHYSICAL_CSS =
+  /(?:^|[\s;"{])(?:left|right|margin-left|margin-right|padding-left|padding-right)\s*:/;
 
 /** Physical Tailwind utilities, as whole class tokens. */
 const PHYSICAL_UTILITY = /(?:^|\s)(?:[\w[\]&>:._-]+:)*(?:ml|mr|pl|pr)-[\w./-]+(?=\s|"|$)/;
@@ -41,12 +42,27 @@ describe("domain components under dir=rtl", () => {
   });
 
   it.each([
-    ["EmptyState", <EmptyState key="e" headline="No data" description="Nothing matched" count="0 of 1,284" />],
+    [
+      "EmptyState",
+      <EmptyState key="e" headline="No data" description="Nothing matched" count="0 of 1,284" />,
+    ],
     [
       "ForbiddenState",
-      <ForbiddenState key="f" headline="You do not have access" description="Outside your scope" withheldLabel="tickets" />,
+      <ForbiddenState
+        key="f"
+        headline="You do not have access"
+        description="Outside your scope"
+        withheldLabel="tickets"
+      />,
     ],
-    ["RowActions", <RowActions key="r" rowLabel="TKT-000123" actions={[{ id: "a", label: "Open", onSelect: () => {} }]} />],
+    [
+      "RowActions",
+      <RowActions
+        key="r"
+        rowLabel="TKT-000123"
+        actions={[{ id: "a", label: "Open", onSelect: () => {} }]}
+      />,
+    ],
   ])("%s leaks no physical-direction CSS", (_name, node) => {
     const { container } = renderInRtl(node);
 
@@ -55,9 +71,7 @@ describe("domain components under dir=rtl", () => {
   });
 
   it("flipping dir changes nothing in the DOM but the attribute", () => {
-    const table = (
-      <DataTable caption="Tickets" columns={COLUMNS} rows={ROWS} getRowId={getRowId} />
-    );
+    const table = <DataTable caption="Tickets" columns={COLUMNS} rows={ROWS} getRowId={getRowId} />;
 
     // Radix mints an incrementing id per mount; that counter is not a layout
     // difference, so it is normalised out before comparing.

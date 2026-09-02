@@ -68,29 +68,27 @@ export function ResetPasswordForm() {
     <form onSubmit={onSubmit} className="flex w-full max-w-sm flex-col gap-4" noValidate>
       <h1 className="text-xl font-semibold text-fg-default">{t("title")}</h1>
 
-      {error && (
-        <FormAlert tone="error">{error}</FormAlert>
-      )}
+      {error && <FormAlert tone="error">{error}</FormAlert>}
 
       <FormField
-          label={t("password")}
-          type="password"
-          name="password"
-          value={password}
-          autoComplete="new-password"
-          required
-          onChange={(event) => setPassword(event.target.value)}
-        />
+        label={t("password")}
+        type="password"
+        name="password"
+        value={password}
+        autoComplete="new-password"
+        required
+        onChange={(event) => setPassword(event.target.value)}
+      />
 
       <FormField
-          label={t("confirm")}
-          type="password"
-          name="password_confirmation"
-          value={confirmation}
-          autoComplete="new-password"
-          required
-          onChange={(event) => setConfirmation(event.target.value)}
-        />
+        label={t("confirm")}
+        type="password"
+        name="password_confirmation"
+        value={confirmation}
+        autoComplete="new-password"
+        required
+        onChange={(event) => setConfirmation(event.target.value)}
+      />
 
       <SubmitButton variant="primary" pending={pending}>
         {t("submit")}

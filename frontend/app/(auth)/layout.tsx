@@ -7,7 +7,5 @@ import type { ReactNode } from "react";
  * both confusing and a small information leak about what the product contains.
  */
 export default function AuthLayout({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-screen items-center justify-center p-6">{children}</div>
-  );
+  return <div className="flex min-h-screen items-center justify-center p-6">{children}</div>;
 }

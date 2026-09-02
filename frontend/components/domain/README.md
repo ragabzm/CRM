@@ -1,7 +1,7 @@
 # Layer B — shared domain components
 
 The components that encode a product decision rather than a widget: what a data
-table *is* here, what an empty result looks like, how a row exposes its actions.
+table _is_ here, what an empty result looks like, how a row exposes its actions.
 
 Built once so that six epics do not each invent their own.
 
@@ -13,22 +13,22 @@ Built once so that six epics do not each invent their own.
 
 ## What lives here after Story 1.2
 
-| Component | Guarantee |
-| --- | --- |
-| `DataTable` | Real `<table>` semantics, server-driven sort with `aria-sort`, filter chips + panel, search, column visibility with the identity column **locked not absent**, two collapse modes (below), roving tabindex, focus retention across pagination. |
-| `RowActions` | The overflow control is **persistent**, never revealed on hover (UX-02). |
-| `EmptyState` | "Nothing happened." May print a count. |
-| `ForbiddenState` | "You may not see this." Prints **no numeral** — a count is itself information the reader is not scoped to (UX-06). |
+| Component        | Guarantee                                                                                                                                                                                                                                      |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DataTable`      | Real `<table>` semantics, server-driven sort with `aria-sort`, filter chips + panel, search, column visibility with the identity column **locked not absent**, two collapse modes (below), roving tabindex, focus retention across pagination. |
+| `RowActions`     | The overflow control is **persistent**, never revealed on hover (UX-02).                                                                                                                                                                       |
+| `EmptyState`     | "Nothing happened." May print a count.                                                                                                                                                                                                         |
+| `ForbiddenState` | "You may not see this." Prints **no numeral** — a count is itself information the reader is not scoped to (UX-06).                                                                                                                             |
 
 ## How a table gives up horizontal room
 
 Two mechanisms, and the choice is about **what the reader is doing**, not about
 how many columns there are.
 
-| Mode | For | Mechanism |
-| --- | --- | --- |
-| `fold` *(default)* | Rows you **open** — tickets, customers, articles, tasks | Secondary columns hide below the desktop band; their values move into a labelled `<dl>` meta line inside the row. |
-| `scroll` | Columns you **compare** — reports, SLA compliance, agent performance, the audit log | The table scrolls inside its own container with the identity column pinned to the inline-start edge. |
+| Mode               | For                                                                                 | Mechanism                                                                                                         |
+| ------------------ | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `fold` _(default)_ | Rows you **open** — tickets, customers, articles, tasks                             | Secondary columns hide below the desktop band; their values move into a labelled `<dl>` meta line inside the row. |
+| `scroll`           | Columns you **compare** — reports, SLA compliance, agent performance, the audit log | The table scrolls inside its own container with the identity column pinned to the inline-start edge.              |
 
 ```tsx
 <DataTable mode="fold" columns={ticketColumns} … />          // scanning

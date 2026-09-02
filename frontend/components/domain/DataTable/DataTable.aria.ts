@@ -7,7 +7,10 @@ import type { SortDirection, SortState } from "./DataTable.types";
  * sortable header reports "none". A table where several headers claim to be
  * sorted is worse than one that announces nothing.
  */
-export function ariaSortFor(columnId: string, sort: SortState): "ascending" | "descending" | "none" {
+export function ariaSortFor(
+  columnId: string,
+  sort: SortState,
+): "ascending" | "descending" | "none" {
   if (!sort || sort.column !== columnId) {
     return "none";
   }

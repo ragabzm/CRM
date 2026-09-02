@@ -1,6 +1,7 @@
 "use client";
 
-import { createApiClient, type Problem, isProblem } from "@/lib/api/client";
+import { createApiClient } from "@/lib/api/client";
+import { ApiError, getCsrf, request, type RequestInitWithFetch } from "@/lib/api/request";
 
 /**
  * The staff authentication calls.
@@ -25,82 +26,15 @@ export interface ProfileFields {
   preferred_locale?: "en" | "ar";
 }
 
-/** Base origin of the API, without the /api/v1 suffix. */
-function apiOrigin(): string {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
-
-  return base.replace(/\/api\/v1\/?$/, "");
-}
-
 /**
- * Primes the CSRF cookie.
- *
- * Sanctum sets XSRF-TOKEN here; the browser echoes it back on subsequent
- * requests. It is a double-submit cookie, not a credential — knowing it grants
- * nothing without the session cookie, which JavaScript cannot read.
+ * Auth calls fail with an AuthError, which is the shared ApiError under a name
+ * the sign-in screens already use.
  */
-export async function getCsrf(fetchImpl: typeof fetch = fetch): Promise<void> {
-  await fetchImpl(`${apiOrigin()}/sanctum/csrf-cookie`, {
-    method: "GET",
-    credentials: "include",
-  });
-}
+export { ApiError as AuthError, getCsrf };
 
-/** Reads the XSRF cookie so it can be echoed in the header Laravel expects. */
-function xsrfToken(): string | null {
-  if (typeof document === "undefined") return null;
-
-  const match = /(?:^|;\s*)XSRF-TOKEN=([^;]*)/.exec(document.cookie);
-
-  return match ? decodeURIComponent(match[1]!) : null;
-}
-
-export class AuthError extends Error {
-  constructor(
-    message: string,
-    readonly problem: Problem | null,
-    readonly status: number,
-  ) {
-    super(message);
-    this.name = "AuthError";
-  }
-}
-
-/**
- * One JSON call against the API, with the cookie plumbing every auth request
- * needs.
- */
-async function call<T>(
-  path: string,
-  init: RequestInit & { fetchImpl?: typeof fetch } = {},
-): Promise<T> {
-  const { fetchImpl = fetch, ...rest } = init;
-  const token = xsrfToken();
-
-  const response = await fetchImpl(`${apiOrigin()}/api/v1${path}`, {
-    ...rest,
-    credentials: "include",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      ...(token ? { "X-XSRF-TOKEN": token } : {}),
-      ...(rest.headers ?? {}),
-    },
-  });
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  const body = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const problem = isProblem(body) ? body : null;
-
-    throw new AuthError(problem?.detail ?? problem?.title ?? "Request failed", problem, response.status);
-  }
-
-  return body as T;
+/** Session routes are exempt from the Idempotency-Key requirement. */
+function call<T>(path: string, init: RequestInitWithFetch = {}): Promise<T> {
+  return request<T>(path, init);
 }
 
 export async function login(

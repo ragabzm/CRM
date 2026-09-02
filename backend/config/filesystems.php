@@ -47,6 +47,21 @@ return [
             'report' => false,
         ],
 
+        /*
+         * Attachments. Private, and deliberately WITHOUT a `url` key: a public
+         * URL mapping would make every uploaded file reachable by path, which
+         * defeats the quarantine entirely. Reading one goes through a
+         * short-lived signed URL issued only after the scan passed.
+         */
+        'attachments' => [
+            'driver' => env('ATTACHMENTS_DRIVER', 'local'),
+            'root' => storage_path('app/attachments'),
+            'visibility' => 'private',
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

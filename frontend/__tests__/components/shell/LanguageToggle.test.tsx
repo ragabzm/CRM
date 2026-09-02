@@ -23,7 +23,9 @@ afterEach(() => {
 
 function mockFetch(ok: boolean) {
   const fetchMock = vi.fn(async () =>
-    ok ? new Response(JSON.stringify({ ok: true }), { status: 200 }) : new Response(null, { status: 500 }),
+    ok
+      ? new Response(JSON.stringify({ ok: true }), { status: 200 })
+      : new Response(null, { status: 500 }),
   );
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
@@ -35,13 +37,17 @@ describe("LanguageToggle", () => {
 
     // The label names the language you switch TO — a control named after the
     // current state reads as a status rather than an action.
-    expect(screen.getByRole("button", { name: en.shell.actions.toggleLanguage })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: en.shell.actions.toggleLanguage }),
+    ).toBeInTheDocument();
   });
 
   it("offers English while Arabic is active", () => {
     render(withIntl(<LanguageToggle />, "ar"));
 
-    expect(screen.getByRole("button", { name: ar.shell.actions.toggleLanguage })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: ar.shell.actions.toggleLanguage }),
+    ).toBeInTheDocument();
   });
 
   it("persists the other locale server-side and refreshes", async () => {

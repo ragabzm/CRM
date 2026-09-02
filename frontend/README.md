@@ -27,13 +27,15 @@ never needs the backend checked out.
 ```ts
 import { createApiClient, idempotent, isProblem } from "@/lib/api/client";
 
-const api = createApiClient({ requestId });          // requestId is optional
+const api = createApiClient({ requestId }); // requestId is optional
 
 const { data, error } = await api.GET("/healthz");
 
 if (isProblem(error)) {
   // Branch on the stable machine code, never on the human-readable title.
-  if (error.code === "platform.not_found") { /* ... */ }
+  if (error.code === "platform.not_found") {
+    /* ... */
+  }
 }
 ```
 
@@ -64,10 +66,10 @@ Established by Story 1.2 (work item 493).
 
 Two tiers, and the distinction is load-bearing:
 
-| Tier | Where | Who may use it |
-| --- | --- | --- |
-| Primitives | `@theme` in `tokens/tokens.css` | Tailwind, to generate utilities. **Never a component.** |
-| Semantic aliases | `:root` + `@theme inline` | Everything. `bg-surface-raised`, `text-fg-muted`, … |
+| Tier             | Where                           | Who may use it                                          |
+| ---------------- | ------------------------------- | ------------------------------------------------------- |
+| Primitives       | `@theme` in `tokens/tokens.css` | Tailwind, to generate utilities. **Never a component.** |
+| Semantic aliases | `:root` + `@theme inline`       | Everything. `bg-surface-raised`, `text-fg-muted`, …     |
 
 A component that reads `--color-n-800` has hard-coded a decision it does not
 own; one that reads `--surface-raised` inherits every future retheme for free.
@@ -104,14 +106,14 @@ does not ship one.
 
 ### The three rules
 
-| Rule | Enforced by | Why |
-| --- | --- | --- |
-| Logical utilities only | `design-system/logical-utilities-only` | A physical utility breaks Arabic silently. This is the cheapest guarantee that RTL holds, and it has to be a lint error rather than review discipline. |
-| Semantic tokens only, in `components/` | `design-system/semantic-tokens-only` + `scripts/check-tokens.mjs` | A colour literal is a value nobody can retheme. |
-| Screens may not import Layer A | `no-restricted-imports` | A screen built from repeated primitives is how six epics end up with six different badges. |
+| Rule                                   | Enforced by                                                       | Why                                                                                                                                                    |
+| -------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Logical utilities only                 | `design-system/logical-utilities-only`                            | A physical utility breaks Arabic silently. This is the cheapest guarantee that RTL holds, and it has to be a lint error rather than review discipline. |
+| Semantic tokens only, in `components/` | `design-system/semantic-tokens-only` + `scripts/check-tokens.mjs` | A colour literal is a value nobody can retheme.                                                                                                        |
+| Screens may not import Layer A         | `no-restricted-imports`                                           | A screen built from repeated primitives is how six epics end up with six different badges.                                                             |
 
 The rules are real ESLint rules (`eslint-rules/index.mjs`), not regex selectors,
-because both need to reason about *class tokens* rather than raw text: a regex
+because both need to reason about _class tokens_ rather than raw text: a regex
 cannot tell `ml-2` (banned) from `slide-in-from-left-2` (an animation origin
 keyed to Radix's own physical `data-[side]`) without false positives that teach
 people to disable the rule.
@@ -194,8 +196,8 @@ Eastern Arabic digits** on some ICU builds and not others, so the product's
 answer is written once, as a pinned tag:
 
 ```ts
-en: "en-US"
-ar: "ar-u-ca-gregory-nu-latn"   // Gregorian, Western 0-9, on every runtime
+en: "en-US";
+ar: "ar-u-ca-gregory-nu-latn"; // Gregorian, Western 0-9, on every runtime
 ```
 
 Tests assert no `٠-٩` reaches any formatter output in either locale, and that
@@ -217,11 +219,11 @@ Established by Story 1.4 (work item 495).
 
 ### Three bands, and only three
 
-| Band | Width | Posture |
-| --- | --- | --- |
-| `mobile` | 0 – 767px | Base. One pane. A thumb. |
-| `tablet` | 768 – 1023px | One pane plus a drawer. A finger. |
-| `desktop` | 1024px + | Two and three panes. A pointer and a keyboard. |
+| Band      | Width        | Posture                                        |
+| --------- | ------------ | ---------------------------------------------- |
+| `mobile`  | 0 – 767px    | Base. One pane. A thumb.                       |
+| `tablet`  | 768 – 1023px | One pane plus a drawer. A finger.              |
+| `desktop` | 1024px +     | Two and three panes. A pointer and a keyboard. |
 
 Bare `sm:` / `md:` / `lg:` / `xl:` / `2xl:` and hand-rolled `@media` are lint
 errors (`design-system/no-adhoc-breakpoint`). Tailwind's defaults are also
@@ -295,13 +297,196 @@ Screens compose Layer-B form components (`FormField`, `FormAlert`,
 `aria-describedby`/`aria-invalid` wiring that every hand-assembled form gets
 subtly wrong.
 
+## The configuration console
+
+`/admin` under `app/(admin)/`, six sections, one page each. `/admin` itself
+redirects to the first section rather than rendering an index that duplicates
+the one already on screen.
+
+The six are Organisation, Ticketing, Service levels, Email, Platform and Audit
+log — declared once in `components/screens/admin/sections.ts`. Knowledge base,
+AI, portal and integrations are deliberately absent: an index listing
+destinations that do not exist teaches the administrator that half the
+navigation is decorative. The audit-log page is a real page with honest copy for
+the same reason — a six-item index whose last item 404s costs you the other five.
+
+### Settings are rendered from their declared type
+
+`SettingRow` picks its control from `setting.type`, which the API publishes from
+the backend registry. A new setting appears in the console with the right
+control the moment a module declares it, and cannot be edited through a control
+that does not match the rule it will be judged by.
+
+- `bool` saves on toggle, with no separate Save press.
+- `enum` renders a select limited to `allowed_values`, so a locale the
+  application does not have cannot be typed in.
+- `int` / `duration_seconds` reject a non-numeric draft before it leaves the
+  browser — `/^-?\d+$/`, not `parseInt`, so `"24abc"` does not silently become
+  `24`.
+- `json` parses before sending.
+- Secrets start empty and submit nothing when untouched: an empty box means
+  "leave it alone", not "set it to nothing". The hint distinguishes "a value is
+  saved" from "not set", because both otherwise look like an empty field.
+
+A refused write renders the **server's** message. The bound belongs to the
+validator; the frontend does not know it and must not invent it.
+
+### A save re-reads
+
+`useSettings.save()` PATCHes the one key and then re-fetches the whole resolved
+set. Settings are not independent — a validator can reject a value because of
+another one, and the server may store a normalised form of what was sent — so
+trusting the local guess is how the console starts showing something the server
+does not agree with.
+
+### Who sees the console
+
+`useCurrentUser` now reads the real session (`GET /profile`) instead of the
+fixture Story 1.3 shipped, because the shell gates the Administration
+destination on `roles`. A stub that always claimed `administrator` advertised a
+console every agent would be refused at.
+
+Until the session has been read the gated destination is **withheld**, not
+guessed: showing it and taking it away a moment later reads as a glitch, while
+withholding it and then adding it reads as loading. Unknown role names are
+dropped rather than trusted.
+
+This drives what the chrome OFFERS, never what it permits. Every admin endpoint
+re-checks `setting.manage` server-side, so a session that lied about its roles
+would gain a menu item and nothing else.
+
+### Layer discipline
+
+The lint rule that forbids `components/ui/*` inside `components/screens/**` is
+what shaped this directory. Every piece that needed a primitive became a Layer-B
+domain component: `SettingRow`, `SettingsGroup`'s row renderer, `CategoryList`,
+`CategoryEditor`, `QuickReplyList`, `QuickReplyEditor`, `DestructiveConfirm`,
+`RuleBlockedRefusal`, `AsyncAction`. The screens compose those and nothing else.
+
+Two of them exist only because of that rule and are better for it:
+`CategoryEditor` replaced a `window.prompt` rename (a prompt takes one string,
+which would have renamed the English name and left the Arabic one describing
+something else), and `AsyncAction` replaced a hand-rolled busy/outcome state
+(disable while in flight, clear the previous outcome, announce the result
+through a live region).
+
+### Reordering is keyboard-first
+
+`QuickReplyList` reorders with buttons, not drag-and-drop. A drag handle is
+unreachable without a pointer and unusable with a tremor or a trackpad, and the
+accessible fallback people bolt onto a drag library afterwards is always the
+same pair of buttons — so they are the primary mechanism rather than the
+consolation prize. Each move announces the new position through a polite live
+region and returns focus to the button that was pressed, so a second press keeps
+moving the same row.
+
+The handler receives the **complete** new order. A partial list would be read by
+the server as a request to delete the rest.
+
+### Destructive actions name the consequence
+
+`DestructiveConfirm` requires `consequence` and renders **nothing** without it,
+logging an error. Falling back to a generic "Are you sure?" would let a caller
+ship the exact dialog the component exists to prevent, and it would look correct
+in review.
+
+`RuleBlockedRefusal` reads `count` and `path` from a 409 problem document and
+renders "Cannot delete: 7 tickets still use it — view them". "Cannot delete" on
+its own is where a support request starts; the count says how big the problem is
+and the link is the route to fixing it.
+
+### Bilingual fields
+
+Both languages are on screen at once, never behind tabs, each field carrying its
+own `dir`. A tabbed editor lets someone fill in English, save, and never see
+that the Arabic side is empty — the gap then surfaces to an agent mid-conversation
+with a customer waiting. Side by side, the empty field is the thing you are
+looking at.
+
+Latin previews inside the list are wrapped in `BidiValue`; without it a run like
+`TKT-000123` reorders inside Arabic prose, silently, and only in Arabic.
+
+## The audit log screen
+
+A **comparative** table: horizontal scroll with the actor column pinned, not the
+folding used by the customer and ticket lists. The difference is what the reader
+is doing — here they read down a column comparing values ("who else touched
+this?", "what else happened that morning?"), and folding a column away to save
+width destroys exactly that. The actor column is pinned because every other
+column is meaningless without knowing whose row it is.
+
+There is no edit or delete affordance anywhere on the screen — not disabled ones,
+none at all. A greyed-out Save invites the question of who is allowed to press
+it, and the answer is nobody. The row menu offers `View` and only `View`.
+`audit.immutabilityNote` says why, near the header: immutability that is only
+true in the backend is a property nobody reading the screen can rely on.
+
+The action filter is built from the `actions` array the API returns alongside the
+data, so the dropdown lists what the server actually records rather than a second
+list that drifts. An action the console has no copy for renders as its raw name —
+worse-looking and still true, rather than a blank cell.
+
+## Customers
+
+### One search box
+
+Name, email, phone and reference at once. An agent with a caller on the line has
+one fact to hand and should not have to tell the product which kind of fact it
+is.
+
+Identifiers render as the customer gave them, never normalised — nobody wants
+their phone number handed back with the punctuation stripped out — and every one
+is wrapped in `BidiValue`, because a Latin run reverses inside Arabic prose.
+
+### The duplicate offer
+
+`DuplicateOffer` appears between pressing Save and the record existing, which is
+the only moment it is useful: after the fact it is a merge problem, and before it
+there is nothing to compare.
+
+Both routes out are live and neither is disabled. "Open existing" is listed first
+because it is usually right; "Create anyway" is a plain enabled button, because
+two people in one household really do share a phone number and a disabled button
+is a block. The panel says so in as many words.
+
+The dialog previews duplicates before submitting **and** handles the server's own
+409, because the client check can race a customer created a moment earlier. A
+failed preview does not block the save — it is a courtesy, not the enforcement.
+
+`lib/customers/normalise.ts` mirrors the backend's normalisation so the form can
+catch the same detail typed twice before a round trip.
+`__tests__/lib/customers/normalise.test.ts` asserts the same cases as the
+backend's `IdentifierNormaliserTest` — two implementations of one rule drift
+silently unless the same examples are pinned on both sides.
+
+### Deactivation names what survives
+
+The confirmation says "this will hide {name} from customer search. Their tickets,
+notes and history stay exactly as they are, and the record can be reactivated at
+any time." An agent should not have to guess whether the button destroys a
+customer's history.
+
+### More Layer-B components
+
+The layer rule produced three more domain components this round, and each is
+better than the loose primitives it replaced:
+
+- `ActionBar` fixes the ordering rule once — secondary actions first, primary
+  last, destructive separated and never the default. Assembled by hand, each
+  screen puts Delete somewhere slightly different.
+- `SegmentedFilter` renders mutually exclusive filters as a labelled group with
+  `aria-pressed`, so "Active / Inactive / All" both tells the reader deactivated
+  records exist and announces which is on rather than only colouring it.
+- `AuditEntryDetail` and `AuditFilterBar` keep the audit screen composing domain
+  components only.
+
 ## Version pins
 
 Node 24 LTS, Next.js **16.3.3**, React 19.2.x, TypeScript 5.x with `strict`,
 `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`.
 
 `scripts/check-next-version.mjs` fails the build on 16.3.2 (explicitly
-forbidden) or anything older than 16.3.3. It reads the *resolved* version from
+forbidden) or anything older than 16.3.3. It reads the _resolved_ version from
 `node_modules`, not the range in `package.json`, because it is the resolved
 version that ships.
 

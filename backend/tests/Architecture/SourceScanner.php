@@ -76,4 +76,34 @@ final class SourceScanner
 
         return array_keys($tiers);
     }
+
+    /**
+     * A file's source with comments and docblocks removed.
+     *
+     * Guards that grep for a forbidden word must read CODE. Scanning raw text
+     * makes a comment explaining why the thing is forbidden into a violation of
+     * that same rule, which is both absurd and a real incentive to write worse
+     * comments.
+     */
+    public static function codeOnly(string $file): string
+    {
+        $source = (string) file_get_contents($file);
+        $code = '';
+
+        foreach (token_get_all($source) as $token) {
+            if (is_array($token)) {
+                if ($token[0] === T_COMMENT || $token[0] === T_DOC_COMMENT) {
+                    continue;
+                }
+
+                $code .= $token[1];
+
+                continue;
+            }
+
+            $code .= $token;
+        }
+
+        return $code;
+    }
 }

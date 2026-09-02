@@ -57,6 +57,8 @@ final class OpenApiContractTest extends TestCase
         '/auth/password/reset',
         '/profile',
         '/profile/password',
+        // A read that is a POST only so its input stays out of access logs.
+        '/customers/duplicates/preview',
     ];
 
     public function test_every_resource_write_requires_an_idempotency_key(): void
@@ -111,6 +113,35 @@ final class OpenApiContractTest extends TestCase
 
         // A new write that quietly lands without a key fails here.
         $this->assertSame($expected, array_values(array_unique($exemptWrites)));
+    }
+
+    public function test_it_documents_the_configuration_console(): void
+    {
+        $paths = $this->spec()['paths'];
+
+        // The console is generated from this document, so a route that exists
+        // in PHP but not here is a screen the frontend cannot build.
+        foreach ([
+            '/admin/settings',
+            '/admin/settings/{key}',
+            '/admin/quick-replies',
+            '/admin/quick-replies/{id}',
+            '/admin/quick-replies/reorder',
+            '/admin/categories',
+            '/admin/categories/{category}',
+            '/admin/priorities',
+        ] as $path) {
+            $this->assertArrayHasKey($path, $paths, "{$path} is missing from the contract.");
+        }
+    }
+
+    public function test_the_priority_list_is_read_only_in_the_contract(): void
+    {
+        $operations = array_keys($this->spec()['paths']['/admin/priorities']);
+
+        // The four priorities are fixed. If a write ever appears here, the
+        // fixed set has stopped being fixed.
+        $this->assertSame(['get'], $operations);
     }
 
     /**

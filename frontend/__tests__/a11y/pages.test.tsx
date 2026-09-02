@@ -15,13 +15,7 @@ import { withIntl } from "@/__tests__/helpers/intl";
 import type { Locale } from "@/lib/i18n/locale";
 import { render } from "@testing-library/react";
 
-import {
-  AUDIT_COLUMNS,
-  COLUMNS,
-  FILTERS,
-  ROWS,
-  getRowId,
-} from "../components/domain/fixtures";
+import { AUDIT_COLUMNS, COLUMNS, FILTERS, ROWS, getRowId } from "../components/domain/fixtures";
 import { axe, axePage } from "./axe";
 
 /**

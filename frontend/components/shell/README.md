@@ -10,19 +10,19 @@ There is no second Arabic stylesheet, no per-component `dir` override and no
 mirroring code in this folder — the sidebar is grid column 1 in both writing
 modes, and the browser places it on the left in LTR and on the right in RTL.
 
-That is why `AppShell.test.tsx` asserts the rendered markup is *byte-identical*
+That is why `AppShell.test.tsx` asserts the rendered markup is _byte-identical_
 in both directions: if any component ever branches on direction, that test fails.
 
 ## Files
 
-| File | What it does |
-| --- | --- |
-| `AppShell.tsx` | Server Component. The grid: sidebar column + `TopBar` + `<main>`. |
-| `Sidebar.tsx` | The four destinations. Administration is **absent** without the `administrator` role. |
-| `TopBar.tsx` | Brand, mobile nav sheet, language toggle, bell, user menu. Hosts the locale-failure toast. |
-| `LanguageToggle.tsx` | EN ⇄ AR. Persists server-side, then refreshes. |
-| `NotificationBell.tsx` | A plain `<ul>` with an empty state. No unread badge. |
-| `UserMenu.tsx` | Profile and sign-out. |
+| File                   | What it does                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------ |
+| `AppShell.tsx`         | Server Component. The grid: sidebar column + `TopBar` + `<main>`.                          |
+| `Sidebar.tsx`          | The four destinations. Administration is **absent** without the `administrator` role.      |
+| `TopBar.tsx`           | Brand, mobile nav sheet, language toggle, bell, user menu. Hosts the locale-failure toast. |
+| `LanguageToggle.tsx`   | EN ⇄ AR. Persists server-side, then refreshes.                                             |
+| `NotificationBell.tsx` | A plain `<ul>` with an empty state. No unread badge.                                       |
+| `UserMenu.tsx`         | Profile and sign-out.                                                                      |
 
 ## Decisions worth knowing
 

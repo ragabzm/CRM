@@ -2,6 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Modules\Platform\Http\Controllers\Admin\QuickRepliesController;
+use App\Modules\Customers\Http\Controllers\CustomerDuplicatesController;
+use App\Modules\Customers\Http\Controllers\CustomerNotesController;
+use App\Modules\Customers\Http\Controllers\CustomersController;
+use App\Modules\Platform\Attachments\Http\Controllers\AttachmentsController;
+use App\Modules\Platform\Audit\Http\Controllers\AuditEntriesController;
+use App\Modules\Platform\Http\Controllers\Admin\SettingsController;
 use App\Modules\Platform\Http\Controllers\HealthController;
 use App\Modules\Platform\Http\Middleware\IdempotencyKey;
 use App\Modules\Security\Domain\Capabilities;
@@ -10,6 +17,9 @@ use App\Modules\Security\Http\Controllers\DepartmentsController;
 use App\Modules\Security\Http\Controllers\PasswordResetController;
 use App\Modules\Security\Http\Controllers\ProfileController;
 use App\Modules\Security\Http\Controllers\UsersController;
+use App\Modules\Tickets\Domain\Category;
+use App\Modules\Tickets\Http\Controllers\Admin\CategoriesController;
+use App\Modules\Tickets\Http\Controllers\Admin\PrioritiesController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Route;
 
@@ -92,8 +102,16 @@ Route::prefix('v1')->group(function (): void {
                 ->name('users.deactivate');
         });
 
-        Route::middleware('can.capability:'.Capabilities::DEPARTMENT_MANAGE)->group(function (): void {
+        /*
+         * Reading the department list is separated from changing it. Every
+         * staff member needs the list — it fills the customer filter and the
+         * customer form's picker — and none of them may edit it.
+         */
+        Route::middleware('can.capability:'.Capabilities::DEPARTMENT_READ)->group(function (): void {
             Route::get('/departments', [DepartmentsController::class, 'index'])->name('departments.index');
+        });
+
+        Route::middleware('can.capability:'.Capabilities::DEPARTMENT_MANAGE)->group(function (): void {
             Route::post('/departments', [DepartmentsController::class, 'store'])->name('departments.store');
             Route::patch('/departments/{department}', [DepartmentsController::class, 'update'])
                 ->name('departments.update');
@@ -123,5 +141,154 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/tickets/{ticket}/reassign', fn (string $ticket) => new JsonResponse(['ticket' => $ticket]))
             ->middleware('can.capability:'.Capabilities::TICKET_REASSIGN)
             ->name('tickets.reassign');
+
+        /*
+         * -----------------------------------------------------------------
+         * Configuration console
+         * -----------------------------------------------------------------
+         *
+         * Gated on `setting.manage`, the capability Story 1.3 already defines
+         * and tests, rather than a bespoke `role:administrator` alias. The plan
+         * proposed the latter as a stub; the capability gate exists, is
+         * enforced identically, and keeps one answer to "who may configure
+         * this?".
+         */
+        Route::middleware('can.capability:'.Capabilities::SETTING_MANAGE)
+            ->prefix('admin')
+            ->name('admin.')
+            ->group(function (): void {
+                Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+                Route::patch('/settings/{key}', [SettingsController::class, 'update'])
+                    ->where('key', '[A-Za-z0-9_.]+')
+                    ->name('settings.update');
+
+                Route::get('/quick-replies', [QuickRepliesController::class, 'index'])->name('quick-replies.index');
+                Route::post('/quick-replies', [QuickRepliesController::class, 'store'])->name('quick-replies.store');
+                Route::post('/quick-replies/reorder', [QuickRepliesController::class, 'reorder'])
+                    ->name('quick-replies.reorder');
+                Route::patch('/quick-replies/{id}', [QuickRepliesController::class, 'update'])->name('quick-replies.update');
+                Route::delete('/quick-replies/{id}', [QuickRepliesController::class, 'destroy'])->name('quick-replies.destroy');
+
+                Route::get('/categories', [CategoriesController::class, 'index'])->name('categories.index');
+                Route::post('/categories', [CategoriesController::class, 'store'])->name('categories.store');
+                Route::patch('/categories/{category}', [CategoriesController::class, 'update'])->name('categories.update');
+                Route::delete('/categories/{category}', [CategoriesController::class, 'destroy'])->name('categories.destroy');
+
+                Route::get('/priorities', [PrioritiesController::class, 'index'])->name('priorities.index');
+
+                /*
+                 * TODO(Story 5.1): actually send. 202 states the request was
+                 * accepted, which is honest — nothing has been delivered yet.
+                 */
+                Route::post('/email/test', fn () => new JsonResponse(['status' => 'accepted'], 202))
+                    ->name('email.test');
+            });
+
+        /*
+         * Customers.
+         *
+         * Reading and writing are separate capabilities: an agent looks people
+         * up all day and only a supervisor corrects their details.
+         *
+         * The duplicate preview is a READ — it reports who already exists and
+         * changes nothing — so it sits behind customer.read even though it is a
+         * POST. The verb is POST because the identifiers being checked belong
+         * in a body, not in a query string that lands in access logs.
+         */
+        Route::middleware('can.capability:'.Capabilities::CUSTOMER_READ)
+            ->prefix('customers')
+            ->name('customers.')
+            ->group(function (): void {
+                Route::get('/', [CustomersController::class, 'index'])->name('index');
+                /*
+                 * Exempt from the Idempotency-Key requirement. It is a POST
+                 * only because the identifiers being checked belong in a body
+                 * rather than in a query string that lands in access logs — it
+                 * creates nothing, so a retry has nothing to duplicate and a
+                 * replayed answer would be staler than a fresh one.
+                 */
+                Route::post('/duplicates/preview', [CustomerDuplicatesController::class, 'preview'])
+                    ->withoutMiddleware(IdempotencyKey::class)
+                    ->name('duplicates.preview');
+                Route::get('/{id}', [CustomersController::class, 'show'])
+                    ->whereUlid('id')->name('show');
+            });
+
+        Route::middleware('can.capability:'.Capabilities::CUSTOMER_MANAGE)
+            ->prefix('customers')
+            ->name('customers.')
+            ->group(function (): void {
+                Route::post('/', [CustomersController::class, 'store'])->name('store');
+                Route::patch('/{id}', [CustomersController::class, 'update'])
+                    ->whereUlid('id')->name('update');
+                Route::post('/{id}/deactivate', [CustomersController::class, 'deactivate'])
+                    ->whereUlid('id')->name('deactivate');
+                Route::post('/{id}/reactivate', [CustomersController::class, 'reactivate'])
+                    ->whereUlid('id')->name('reactivate');
+            });
+
+        /*
+         * Notes on a customer.
+         *
+         * Reading and writing need only customer READ: recording what a caller
+         * said is part of handling the call. Who may EDIT or DELETE one is
+         * about authorship, not role, so it is decided in the controller
+         * rather than by a capability on the route.
+         */
+        Route::middleware('can.capability:'.Capabilities::CUSTOMER_READ)
+            ->name('customers.notes.')
+            ->group(function (): void {
+                Route::get('/customers/{customer}/notes', [CustomerNotesController::class, 'index'])
+                    ->whereUlid('customer')->name('index');
+                Route::post('/customers/{customer}/notes', [CustomerNotesController::class, 'store'])
+                    ->whereUlid('customer')->name('store');
+                Route::patch('/notes/{note}', [CustomerNotesController::class, 'update'])
+                    ->whereUlid('note')->name('update');
+                Route::delete('/notes/{note}', [CustomerNotesController::class, 'destroy'])
+                    ->whereUlid('note')->name('destroy');
+            });
+
+        /*
+         * Attachments.
+         *
+         * Gated on being signed in and nothing narrower: the three owner kinds
+         * have different audiences, and a capability here would have to be the
+         * loosest of them, which protects nothing. The owning module decides
+         * who may attach to what when it builds the upload.
+         *
+         * There is no inline-preview route, and there will not be one. Serving
+         * uploaded content inline from a trusted origin is a stored XSS that no
+         * virus scanner would flag.
+         */
+        Route::prefix('attachments')->name('attachments.')->group(function (): void {
+            Route::get('/', [AttachmentsController::class, 'index'])->name('index');
+            Route::post('/', [AttachmentsController::class, 'store'])->name('store');
+            Route::get('/{id}', [AttachmentsController::class, 'show'])
+                ->whereUlid('id')->name('show');
+            Route::get('/{id}/download', [AttachmentsController::class, 'download'])
+                ->whereUlid('id')->name('download');
+        });
+
+        /*
+         * The audit log: two GETs, and deliberately nothing else.
+         *
+         * No `apiResource` here. That helper registers five routes, two of
+         * which mutate — and the whole point of this table is that no HTTP
+         * path can. With only GET registered the router answers 405 to a PUT,
+         * PATCH or DELETE, which is a stronger guarantee than a controller
+         * method that chooses to refuse.
+         *
+         * Gated on `audit.read`, which by the role matrix only an
+         * administrator holds.
+         */
+        Route::middleware('can.capability:'.Capabilities::AUDIT_READ)
+            ->prefix('audit-entries')
+            ->name('audit-entries.')
+            ->group(function (): void {
+                Route::get('/', [AuditEntriesController::class, 'index'])->name('index');
+                Route::get('/{id}', [AuditEntriesController::class, 'show'])
+                    ->whereUlid('id')
+                    ->name('show');
+            });
     });
 });

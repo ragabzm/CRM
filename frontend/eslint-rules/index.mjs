@@ -199,7 +199,6 @@ const semanticTokensOnly = {
   },
 };
 
-
 /* ------------------------------------------------------------------------- *
  * Story 1.3 — i18n rules
  * ------------------------------------------------------------------------- */
@@ -277,7 +276,10 @@ const noLiteralJsxStrings = {
       Literal(node) {
         if (typeof node.value !== "string") return;
         if (node.parent?.type !== "JSXExpressionContainer") return;
-        if (node.parent.parent?.type !== "JSXElement" && node.parent.parent?.type !== "JSXFragment") {
+        if (
+          node.parent.parent?.type !== "JSXElement" &&
+          node.parent.parent?.type !== "JSXFragment"
+        ) {
           return;
         }
 
@@ -298,11 +300,7 @@ const INTL_CONSTRUCTORS = new Set([
 ]);
 
 /** Instance methods that quietly format against the ambient locale. */
-const TO_LOCALE_METHODS = new Set([
-  "toLocaleString",
-  "toLocaleDateString",
-  "toLocaleTimeString",
-]);
+const TO_LOCALE_METHODS = new Set(["toLocaleString", "toLocaleDateString", "toLocaleTimeString"]);
 
 const DIRECT_INTL_MESSAGE = "Direct Intl / toLocale* call — go through lib/format/.";
 
@@ -346,7 +344,6 @@ const noDirectIntlFormatting = {
   },
 };
 
-
 /* ------------------------------------------------------------------------- *
  * Story 1.4 — responsive bands
  * ------------------------------------------------------------------------- */
@@ -360,8 +357,7 @@ const RAW_MEDIA_QUERY = /@media\s*[(\w]/;
 const BREAKPOINT_MESSAGE =
   "Use a named band (mobile:/tablet:/desktop:) — bare Tailwind screens are not the product's breakpoints.";
 
-const RAW_MEDIA_MESSAGE =
-  "Hand-rolled @media query — use a named band (mobile:/tablet:/desktop:).";
+const RAW_MEDIA_MESSAGE = "Hand-rolled @media query — use a named band (mobile:/tablet:/desktop:).";
 
 /**
  * Keeps the product to exactly three breakpoints.

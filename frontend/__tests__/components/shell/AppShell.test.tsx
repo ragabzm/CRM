@@ -22,7 +22,15 @@ function renderShell(dir: "ltr" | "rtl", locale: "en" | "ar" = "en") {
   wrapper.setAttribute("dir", dir);
   document.body.appendChild(wrapper);
 
-  return render(withIntl(<AppShell><p>content</p></AppShell>, locale), { container: wrapper });
+  return render(
+    withIntl(
+      <AppShell>
+        <p>content</p>
+      </AppShell>,
+      locale,
+    ),
+    { container: wrapper },
+  );
 }
 
 afterEach(() => {

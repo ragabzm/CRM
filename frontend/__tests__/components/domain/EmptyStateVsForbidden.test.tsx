@@ -12,7 +12,11 @@ import { ForbiddenState } from "@/components/domain/ForbiddenState/ForbiddenStat
 describe("EmptyState and ForbiddenState are unmistakable", () => {
   function renderBoth() {
     const empty = render(
-      <EmptyState headline="No data for this selection" count="0 of 1,284" description="Nothing matched." />,
+      <EmptyState
+        headline="No data for this selection"
+        count="0 of 1,284"
+        description="Nothing matched."
+      />,
     );
     const emptyRoot = empty.container.querySelector("[data-slot='empty-state']")!;
 

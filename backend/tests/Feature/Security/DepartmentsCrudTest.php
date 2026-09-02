@@ -157,4 +157,25 @@ final class DepartmentsCrudTest extends TestCase
         // to see and reactivate a closed department.
         $this->assertCount(2, $this->getJson('/api/v1/departments')->json('data'));
     }
+
+    public function test_a_supervisor_reads_the_department_list_but_cannot_change_it(): void
+    {
+        $supervisor = User::factory()->create();
+        $supervisor->syncRoles([Roles::SUPERVISOR]);
+        $this->actingAs($supervisor->refresh());
+
+        // Needed to file a customer under a team; not permission to invent one.
+        $this->getJson('/api/v1/departments')->assertOk();
+        $this->withIdempotencyKey()->postJson('/api/v1/departments', ['name' => 'Invented'])->assertStatus(403);
+    }
+
+    public function test_an_agent_reads_the_department_list(): void
+    {
+        $agent = User::factory()->create();
+        $agent->syncRoles([Roles::AGENT]);
+        $this->actingAs($agent->refresh());
+
+        // It fills the filter on the customer list they use all day.
+        $this->getJson('/api/v1/departments')->assertOk();
+    }
 }

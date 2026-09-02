@@ -1,8 +1,4 @@
-import {
-  render as rtlRender,
-  type RenderOptions,
-  type RenderResult,
-} from "@testing-library/react";
+import { render as rtlRender, type RenderOptions, type RenderResult } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactElement, ReactNode } from "react";
 

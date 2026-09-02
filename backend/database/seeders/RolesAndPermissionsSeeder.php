@@ -37,6 +37,7 @@ final class RolesAndPermissionsSeeder extends Seeder
     private const MATRIX = [
         Roles::SUPERVISOR => [
             Capabilities::ROLE_READ,
+            Capabilities::DEPARTMENT_READ,
             Capabilities::TICKET_READ,
             Capabilities::TICKET_CREATE,
             Capabilities::TICKET_UPDATE,
@@ -46,6 +47,7 @@ final class RolesAndPermissionsSeeder extends Seeder
             Capabilities::CUSTOMER_MANAGE,
         ],
         Roles::AGENT => [
+            Capabilities::DEPARTMENT_READ,
             Capabilities::TICKET_READ,
             Capabilities::TICKET_CREATE,
             Capabilities::TICKET_UPDATE,

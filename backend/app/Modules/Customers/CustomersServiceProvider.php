@@ -4,20 +4,22 @@ declare(strict_types=1);
 
 namespace App\Modules\Customers;
 
+use App\Modules\Customers\Domain\CustomerSearch;
+use App\Modules\Customers\Domain\DuplicateDetector;
 use Illuminate\Support\ServiceProvider;
 
 /**
  * Registration seam for the Customers module.
  *
- * Story 1.1 ships the module as an empty scaffold: the provider exists so the
- * module owns its own migrations and bindings from day one, and so later
- * stories have a place to put them without touching shared bootstrap files.
+ * Routes live in the central routes/api.php with every other module's, so the
+ * whole HTTP surface is readable in one file — see the comment there.
  */
 final class CustomersServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->singleton(CustomerSearch::class);
+        $this->app->singleton(DuplicateDetector::class);
     }
 
     public function boot(): void

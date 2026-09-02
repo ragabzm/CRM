@@ -32,6 +32,11 @@ final class RequestContext
 
     private ?string $actorId = null;
 
+    /** @var Closure(): (string|null)|null Resolved lazily, for the same reason as the actor. */
+    private ?Closure $actorLabelResolver = null;
+
+    private ?string $clientIp = null;
+
     /**
      * The actor is resolved lazily rather than snapshotted: AssignRequestId runs
      * before auth:sanctum, so at middleware time there is no authenticated user
@@ -86,6 +91,43 @@ final class RequestContext
     public function setModule(?string $module): void
     {
         $this->module = $module;
+    }
+
+    /**
+     * A human-readable name for the actor, for surfaces that must stay readable
+     * after the account is renamed or removed — the audit log above all.
+     */
+    public function actorLabel(): ?string
+    {
+        if ($this->actorLabelResolver === null) {
+            return null;
+        }
+
+        return ($this->actorLabelResolver)();
+    }
+
+    /** @param Closure(): (string|null) $resolver */
+    public function setActorLabelResolver(Closure $resolver): void
+    {
+        $this->actorLabelResolver = $resolver;
+    }
+
+    /**
+     * The caller's IP as the application believes it.
+     *
+     * Read from here rather than from `$request->ip()` at each call site, so
+     * trusted-proxy handling is decided once. Behind a load balancer every
+     * direct read returns the balancer's address, and an audit log full of one
+     * internal IP is an audit log with no source in it at all.
+     */
+    public function clientIp(): ?string
+    {
+        return $this->clientIp;
+    }
+
+    public function setClientIp(?string $ip): void
+    {
+        $this->clientIp = $ip;
     }
 
     public function ticketId(): ?string

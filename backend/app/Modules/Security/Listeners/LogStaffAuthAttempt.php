@@ -10,9 +10,10 @@ use Illuminate\Support\Facades\Log;
 /**
  * Writes sign-in outcomes to the audit channel.
  *
- * TODO(Story 2.4): replace this listener with the real audit-log writer. The
- * event and its payload are the contract; only this class changes, which is why
- * the controllers dispatch an event rather than calling a logger directly.
+ * Kept alongside RecordStaffAuthAttempt, which writes the same fact to the
+ * audit table. Not redundant: this stream is sized for operations and rotates,
+ * while the table is what an incident review reads months later. One event
+ * feeds both, so they cannot disagree about what happened.
  */
 final class LogStaffAuthAttempt
 {

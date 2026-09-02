@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Security;
 
 use App\Models\User;
+use App\Modules\Security\Domain\Roles;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -136,5 +138,24 @@ final class ProfileTest extends TestCase
         $this->getJson('/api/v1/profile')
             ->assertOk()
             ->assertJsonPath('preferred_locale', 'en');
+    }
+
+    public function test_the_profile_reports_the_roles_the_user_actually_holds(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $user = User::factory()->create();
+        $user->syncRoles([Roles::SUPERVISOR]);
+        $this->actingAs($user->refresh());
+
+        $this->getJson('/api/v1/profile')->assertOk()->assertJsonPath('roles', ['supervisor']);
+    }
+
+    public function test_a_user_with_no_role_reports_an_empty_list(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        // An empty list, not a missing key: the SPA branches on it.
+        $this->getJson('/api/v1/profile')->assertOk()->assertJsonPath('roles', []);
     }
 }

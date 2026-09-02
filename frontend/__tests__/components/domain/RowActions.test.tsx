@@ -52,9 +52,7 @@ describe("RowActions overflow trigger is persistent", () => {
   it("names the row it acts on, so the control is unambiguous to a screen reader", () => {
     render(<RowActions rowLabel="TKT-000123" actions={ACTIONS} />);
 
-    expect(
-      screen.getByRole("button", { name: /actions for TKT-000123/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /actions for TKT-000123/i })).toBeInTheDocument();
   });
 
   it("opens its menu from the keyboard alone", async () => {

@@ -24,14 +24,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
  */
 const SCANNED_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts"];
 
-const IGNORED_DIRECTORIES = new Set([
-  "node_modules",
-  ".next",
-  ".git",
-  "coverage",
-  "out",
-  "build",
-]);
+const IGNORED_DIRECTORIES = new Set(["node_modules", ".next", ".git", "coverage", "out", "build"]);
 
 /**
  * The only two files exempt from the scan, and both for the same reason: they
@@ -106,7 +99,10 @@ export function scanRepository() {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (process.argv.includes("--self-test")) {
-    const planted = scanSource(`import { thing } from "../backend/app/thing";`, "<self-test fixture>");
+    const planted = scanSource(
+      `import { thing } from "../backend/app/thing";`,
+      "<self-test fixture>",
+    );
 
     if (planted.length === 0) {
       console.error("SELF-TEST FAILED: the scan did not flag a planted cross-import.");

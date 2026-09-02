@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Security\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Platform\Audit\Application\AuditWriter;
+use App\Modules\Platform\Audit\Domain\AuditAction;
 use App\Modules\Platform\Exceptions\ProblemException;
 use App\Modules\Security\Contracts\DepartmentUsageProbe;
 use App\Modules\Security\Domain\Department;
@@ -22,6 +24,7 @@ final class DepartmentsController extends Controller
         // Answered by the Tickets module at runtime; Security declares the
         // interface and never imports a ticket model.
         private readonly DepartmentUsageProbe $usage,
+        private readonly AuditWriter $audit,
     ) {}
 
     /**
@@ -48,6 +51,13 @@ final class DepartmentsController extends Controller
             'is_active' => true,
         ]);
 
+        $this->audit->record(
+            action: AuditAction::DepartmentCreated,
+            targetType: 'department',
+            targetId: (string) $department->getKey(),
+            after: $this->shape($department),
+        );
+
         return new JsonResponse($this->shape($department), 201);
     }
 
@@ -58,7 +68,17 @@ final class DepartmentsController extends Controller
      */
     public function update(UpdateDepartmentRequest $request, Department $department): JsonResponse
     {
+        $before = $this->shape($department);
+
         $department->fill(['name' => trim((string) $request->validated('name'))])->save();
+
+        $this->audit->record(
+            action: AuditAction::DepartmentUpdated,
+            targetType: 'department',
+            targetId: (string) $department->getKey(),
+            before: $before,
+            after: $this->shape($department->refresh()),
+        );
 
         return new JsonResponse($this->shape($department->refresh()));
     }
@@ -102,7 +122,19 @@ final class DepartmentsController extends Controller
                 );
             }
 
+            $before = $this->shape($department);
+
             $department->forceFill(['is_active' => false])->save();
+
+            // Inside the transaction: a refused deactivation throws above this
+            // line, so no entry claims a change the rule prevented.
+            $this->audit->record(
+                action: AuditAction::DepartmentDeleted,
+                targetType: 'department',
+                targetId: (string) $department->getKey(),
+                before: $before,
+                after: $this->shape($department->refresh()),
+            );
         });
 
         return new JsonResponse($this->shape($department->refresh()));

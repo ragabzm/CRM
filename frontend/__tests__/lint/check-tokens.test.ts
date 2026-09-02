@@ -25,14 +25,20 @@ describe("check-tokens.mjs", () => {
 
   it("exits non-zero on a fixture containing a primitive", () => {
     const dir = mkdtempSync(join(tmpdir(), "token-fixture-"));
-    writeFileSync(join(dir, "Bad.tsx"), `export const B = () => <div className="bg-n-800">x</div>;`);
+    writeFileSync(
+      join(dir, "Bad.tsx"),
+      `export const B = () => <div className="bg-n-800">x</div>;`,
+    );
 
     expect(runAgainst(dir)).not.toBe(0);
   });
 
   it("exits non-zero on a fixture containing a hex literal", () => {
     const dir = mkdtempSync(join(tmpdir(), "token-fixture-"));
-    writeFileSync(join(dir, "Bad.tsx"), `export const B = () => <div style={{ color: "#abcdef" }} />;`);
+    writeFileSync(
+      join(dir, "Bad.tsx"),
+      `export const B = () => <div style={{ color: "#abcdef" }} />;`,
+    );
 
     expect(runAgainst(dir)).not.toBe(0);
   });

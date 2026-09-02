@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Platform\Support\Settings;
 
 use App\Modules\Platform\Exceptions\ProblemException;
+use App\Modules\Platform\Audit\Domain\AuditAction;
 use App\Modules\Platform\Support\Audit\AuditLogger;
 use InvalidArgumentException;
 
@@ -162,7 +163,8 @@ final class SettingsRegistry
 
         $this->audit->write(
             $actorUserId,
-            'settings.updated',
+            AuditAction::ConfigChanged->value,
+            'setting',
             $key,
             ['value' => $definition->redactedValue($before)],
             ['value' => $definition->redactedValue($value)],

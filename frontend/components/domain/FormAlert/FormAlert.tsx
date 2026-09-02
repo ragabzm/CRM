@@ -36,7 +36,10 @@ export function FormAlert({ tone, children, className }: FormAlertProps) {
     >
       <Glyph
         aria-hidden="true"
-        className={cn("mt-0.5 size-4 shrink-0", tone === "error" ? "text-state-danger" : "text-state-success")}
+        className={cn(
+          "mt-0.5 size-4 shrink-0",
+          tone === "error" ? "text-state-danger" : "text-state-success",
+        )}
       />
       <span>{children}</span>
     </p>

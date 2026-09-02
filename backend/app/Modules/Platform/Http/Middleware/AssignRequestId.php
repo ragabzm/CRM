@@ -35,6 +35,13 @@ final class AssignRequestId
 
         $this->context->setRequestId($requestId);
         $this->context->setModule($this->resolveModule($request));
+        /*
+         * Captured here, once. Laravel has already applied the trusted-proxy
+         * configuration by this point, so `$request->ip()` is the real client
+         * rather than the load balancer — and every consumer that reads it
+         * through RequestContext inherits that decision instead of re-making it.
+         */
+        $this->context->setClientIp($request->ip());
         $request->headers->set(self::HEADER, $requestId);
 
         /** @var Response $response */

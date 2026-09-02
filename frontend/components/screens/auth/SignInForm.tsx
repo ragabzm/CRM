@@ -51,29 +51,27 @@ export function SignInForm() {
         <p className="text-sm text-fg-muted">{t("subtitle")}</p>
       </div>
 
-      {error && (
-        <FormAlert tone="error">{error}</FormAlert>
-      )}
+      {error && <FormAlert tone="error">{error}</FormAlert>}
 
       <FormField
-          label={t("email")}
-          type="email"
-          name="email"
-          value={email}
-          autoComplete="username"
-          required
-          onChange={(event) => setEmail(event.target.value)}
-        />
+        label={t("email")}
+        type="email"
+        name="email"
+        value={email}
+        autoComplete="username"
+        required
+        onChange={(event) => setEmail(event.target.value)}
+      />
 
       <FormField
-          label={t("password")}
-          type="password"
-          name="password"
-          value={password}
-          autoComplete="current-password"
-          required
-          onChange={(event) => setPassword(event.target.value)}
-        />
+        label={t("password")}
+        type="password"
+        name="password"
+        value={password}
+        autoComplete="current-password"
+        required
+        onChange={(event) => setPassword(event.target.value)}
+      />
 
       <SubmitButton variant="primary" pending={pending} pendingLabel={t("submitting")}>
         {t("submit")}

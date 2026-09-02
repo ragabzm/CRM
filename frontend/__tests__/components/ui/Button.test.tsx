@@ -40,9 +40,9 @@ describe("Button variants survive greyscale", () => {
         if (signatures[i] === signatures[j]) {
           // Two variants sharing a signature would be distinguishable only by
           // hue, which fails under greyscale.
-          expect(
-            `${VARIANTS[i]} and ${VARIANTS[j]} share the signature ${signatures[i]}`,
-          ).toBe("distinct non-colour signatures");
+          expect(`${VARIANTS[i]} and ${VARIANTS[j]} share the signature ${signatures[i]}`).toBe(
+            "distinct non-colour signatures",
+          );
         }
       }
     }

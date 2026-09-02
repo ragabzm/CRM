@@ -100,5 +100,331 @@
   },
   "session": {
     "expired": "Your session has ended. Please sign in again."
+  },
+  "admin": {
+    "title": "Administration",
+    "indexLabel": "Configuration sections",
+    "sections": {
+      "organisation": "Organisation",
+      "ticketing": "Ticketing",
+      "serviceLevels": "Service levels",
+      "email": "Email",
+      "platform": "Platform",
+      "auditLog": "Audit log"
+    },
+    "sectionSummaries": {
+      "organisation": "Departments and the people who work in them.",
+      "ticketing": "Categories, priorities, saved replies, and how tickets close.",
+      "serviceLevels": "Response and resolution targets, working hours, and holidays.",
+      "email": "The mailbox tickets arrive in, and the acknowledgement customers receive.",
+      "platform": "Attachments and the default language.",
+      "auditLog": "Who changed what, and when."
+    },
+    "setting": {
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "reset": "Reset to default",
+      "defaultIs": "Default: {value}",
+      "secretSet": "A value is saved. Enter a new one to replace it.",
+      "secretUnset": "Not set.",
+      "secretPlaceholder": "Enter a new value",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "seconds": "seconds",
+      "minutes": "minutes",
+      "hours": "hours",
+      "days": "days",
+      "genericError": "That value was not accepted."
+    },
+    "organisation": {
+      "departments": "Departments",
+      "departmentsBody": "Departments group agents so a ticket can be routed to a team rather than a person.",
+      "users": "Users",
+      "usersBody": "Staff accounts and the role each one holds.",
+      "screensPending": "Managed through the API today. The screen arrives with the users story."
+    },
+    "ticketing": {
+      "categories": "Categories",
+      "categoriesHint": "A flat list. Categories do not nest, so every ticket has exactly one.",
+      "addCategory": "Add category",
+      "categoryEn": "Name (English)",
+      "categoryAr": "Name (Arabic)",
+      "categoriesCaption": "Ticket categories",
+      "columnName": "Name",
+      "columnNameAr": "Arabic name",
+      "columnActions": "Actions",
+      "rename": "Rename",
+      "delete": "Delete",
+      "noCategories": "No categories yet",
+      "noCategoriesBody": "Add the first category to let agents file tickets by subject.",
+      "closing": "Closing and reopening",
+      "quickReplies": "Quick replies",
+      "quickRepliesHint": "Shared saved text agents can insert into a reply. Plain text — no variables.",
+      "priorities": "Priorities",
+      "prioritiesFixed": "Priorities are fixed at Low · Normal · High · Urgent and are not editable here."
+    },
+    "quickReply": {
+      "add": "Add quick reply",
+      "edit": "Edit quick reply",
+      "labelEn": "Label (English)",
+      "labelAr": "Label (Arabic)",
+      "bodyEn": "Body (English)",
+      "bodyAr": "Body (Arabic)",
+      "save": "Save reply",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "listLabel": "Quick replies, in the order agents see them",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "movedTo": "Moved {label} to position {position} of {total}.",
+      "empty": "No quick replies yet",
+      "emptyBody": "Saved replies appear in the agent's reply box in this order.",
+      "bothLanguages": "Both languages are required. An agent who only reads Arabic cannot use an English-only reply.",
+      "editAction": "Edit"
+    },
+    "serviceLevels": {
+      "targets": "Response and resolution targets",
+      "targetsHint": "Measured in working hours, per priority.",
+      "priority": "Priority",
+      "response": "First response",
+      "resolution": "Resolution",
+      "targetsCaption": "Service level targets by priority",
+      "workingHours": "Working hours",
+      "workingHoursHint": "A day with no hours is treated as closed.",
+      "holidays": "Holidays",
+      "holidaysHint": "One date per line, as YYYY-MM-DD.",
+      "atRisk": "At-risk threshold",
+      "atRiskHint": "A ticket is flagged before it breaches, at this share of its target.",
+      "notYetEnforced": "These targets are recorded now and start being enforced in a later story."
+    },
+    "email": {
+      "mailbox": "Mailbox",
+      "mailboxHint": "The mailbox incoming tickets are read from.",
+      "acknowledgement": "Acknowledgement",
+      "acknowledgementHint": "Sent to the customer when a ticket is created from their email.",
+      "sendTest": "Send test message",
+      "sendTestHint": "Checks the mailbox settings without creating a ticket.",
+      "testQueued": "Test message queued.",
+      "testFailed": "The test message could not be queued.",
+      "log": "Mail log",
+      "logPlaceholder": "Sent and failed messages will be listed here once email is live."
+    },
+    "platform": {
+      "attachments": "Attachments",
+      "attachmentTypes": "Allowed file types",
+      "attachmentTypesHint": "One MIME type per line. A type that is not listed is refused on upload.",
+      "attachmentSize": "Maximum file size",
+      "language": "Language",
+      "defaultLocale": "Default language",
+      "defaultLocaleHint": "Used for people who have not chosen one."
+    },
+    "auditLog": {
+      "title": "Audit log",
+      "placeholder": "Configuration changes are already recorded with who made them. The searchable log arrives with the audit story."
+    },
+    "confirm": {
+      "title": "Confirm",
+      "cancel": "Cancel",
+      "confirmDelete": "Delete",
+      "deleteCategory": "This will delete the category “{name}”. Tickets already filed under it keep their history, but no new ticket can use it.",
+      "deleteQuickReply": "This will delete the quick reply “{name}” for every agent."
+    },
+    "blocked": {
+      "cannotDelete": "Cannot delete: {count} tickets still use it.",
+      "viewThem": "View them"
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "immutabilityNote": "Entries are written once and never changed or removed — not by an administrator, not through this screen, and not through the API. That is what makes the log worth reading after an incident.",
+    "columns": {
+      "occurredAt": "When",
+      "actor": "Who",
+      "action": "What",
+      "target": "Target",
+      "sourceIp": "From",
+      "requestId": "Request"
+    },
+    "filters": {
+      "actor": "Who",
+      "actorPlaceholder": "Name or id",
+      "action": "What",
+      "anyAction": "Any action",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply",
+      "clear": "Clear filters",
+      "dateNote": "Dates are inclusive and read in UTC."
+    },
+    "actions": {
+      "authSignInSucceeded": "Signed in",
+      "authSignInFailed": "Sign-in failed",
+      "userCreated": "User created",
+      "userUpdated": "User updated",
+      "userDeactivated": "User deactivated",
+      "userReactivated": "User reactivated",
+      "departmentCreated": "Department created",
+      "departmentUpdated": "Department updated",
+      "departmentDeleted": "Department deactivated",
+      "configChanged": "Setting changed",
+      "ticketFieldChanged": "Ticket changed",
+      "customerFieldChanged": "Customer changed"
+    },
+    "detail": {
+      "open": "View",
+      "title": "Audit entry",
+      "before": "Before",
+      "after": "After",
+      "noPayload": "Nothing recorded for this side.",
+      "close": "Close",
+      "redacted": "Values that looked like credentials were replaced before this entry was written.",
+      "entryId": "Entry id",
+      "actorType": "Actor type"
+    },
+    "empty": {
+      "title": "No entries for this selection",
+      "body": "Widen the date range or clear the filters to see more."
+    },
+    "forbidden": {
+      "title": "You do not have access to the audit log",
+      "body": "Reading what every colleague has done is limited to administrators."
+    },
+    "loadError": "The audit log could not be loaded.",
+    "showing": "Showing {count} of {total}"
+  },
+  "customers": {
+    "title": "Customers",
+    "search": {
+      "label": "Search customers",
+      "placeholder": "Name, email, phone or reference",
+      "hint": "Partial matches work. Deactivated customers are hidden unless you ask for them."
+    },
+    "state": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "all": "All"
+    },
+    "department": {
+      "label": "Department",
+      "any": "All departments",
+      "note": "Departments group customers. They never limit who can see them."
+    },
+    "columns": {
+      "reference": "Reference",
+      "name": "Name",
+      "department": "Department",
+      "email": "Email",
+      "phone": "Phone",
+      "state": "State",
+      "updatedAt": "Updated"
+    },
+    "empty": {
+      "title": "No customers match this search",
+      "body": "Try fewer words, or include deactivated customers."
+    },
+    "forbidden": {
+      "title": "You do not have access to customer records",
+      "body": "Ask an administrator for customer access."
+    },
+    "loadError": "Customers could not be loaded.",
+    "actions": {
+      "create": "Add customer",
+      "edit": "Edit",
+      "deactivate": "Deactivate",
+      "reactivate": "Reactivate",
+      "open": "Open",
+      "copy": "Copy",
+      "copied": "Copied"
+    },
+    "form": {
+      "createTitle": "Add customer",
+      "editTitle": "Edit customer",
+      "fullName": "Full name",
+      "department": "Department",
+      "preferredChannel": "Preferred channel",
+      "noPreference": "No preference",
+      "notes": "Notes",
+      "identifiers": "Contact details",
+      "identifiersHint": "At least one. A customer with no contact details cannot be replied to.",
+      "addEmail": "Add email",
+      "addPhone": "Add phone",
+      "remove": "Remove",
+      "primary": "Primary",
+      "kindEmail": "Email",
+      "kindPhone": "Phone",
+      "save": "Save",
+      "cancel": "Cancel",
+      "checking": "Checking for existing customers…",
+      "nameRequired": "Enter the customer's name.",
+      "identifierRequired": "Add at least one email address or phone number.",
+      "identifierRepeated": "This contact detail is already listed above.",
+      "genericError": "That could not be saved."
+    },
+    "duplicates": {
+      "title": "This person may already exist",
+      "body": "These contact details already belong to {count} existing customer records. Open one instead of creating a second.",
+      "matchedOn": "Matched on {value}",
+      "inactive": "Deactivated",
+      "openExisting": "Open existing",
+      "createAnyway": "Create anyway",
+      "createAnywayHint": "Two people in one household can share a phone number. Create a second record only if this is genuinely a different person."
+    },
+    "profile": {
+      "contactDetails": "Contact details",
+      "notes": "Notes",
+      "notesEmpty": "No notes yet.",
+      "history": "Interaction history",
+      "historyAll": "All",
+      "historyPlaceholder": "Tickets and messages for this customer will appear here.",
+      "deactivatedOn": "Deactivated {date}",
+      "confirmDeactivate": "This will hide {name} from customer search. Their tickets, notes and history stay exactly as they are, and the record can be reactivated at any time.",
+      "notFound": "That customer does not exist."
+    }
+  },
+  "notes": {
+    "title": "Notes",
+    "add": "Add note",
+    "placeholder": "What happened, in your own words",
+    "save": "Save note",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "edited": "edited",
+    "empty": "No notes yet",
+    "emptyBody": "Notes are for what you would otherwise keep in your head — what the customer asked, what you promised.",
+    "confirmDelete": "This will permanently remove the note written by {author}. It cannot be recovered.",
+    "tooLong": "A note can be up to 5,000 characters.",
+    "required": "Write something before saving.",
+    "error": "That note could not be saved.",
+    "loadError": "Notes could not be loaded.",
+    "onlyYours": "You can only edit your own notes.",
+    "forbidden": {
+      "title": "You do not have access to these notes",
+      "body": "Notes are visible to staff who can see this customer."
+    }
+  },
+  "attachments": {
+    "title": "Attachments",
+    "add": "Attach a file",
+    "uploading": "Uploading…",
+    "empty": "No files yet",
+    "emptyBody": "Attach the invoice, the screenshot, the signed form — anything the next person handling this will need.",
+    "pendingScan": "Pending scan",
+    "pendingScanHint": "This file is being checked for malware. It will be available to download once the check finishes.",
+    "failed": "Scan failed",
+    "failedHint": "This file did not pass its security check and cannot be downloaded.",
+    "download": "Download",
+    "notDownloadable": "Not downloadable",
+    "uploadedBy": "Uploaded {when}",
+    "mimeMismatch": "That file's contents do not match its type, so it was not accepted.",
+    "typeNotAllowed": "That kind of file is not accepted here.",
+    "tooLarge": "That file is larger than the limit.",
+    "error": "That file could not be uploaded.",
+    "loadError": "Attachments could not be loaded.",
+    "forbidden": {
+      "title": "You do not have access to these files",
+      "body": "Attachments are visible to staff who can see this record."
+    }
   }
 }

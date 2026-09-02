@@ -3,12 +3,12 @@
 Four layers, separated in the file tree and enforced by lint. Established by
 Story 1.2 (work item 493).
 
-| Layer | Folder | What lives here |
-| --- | --- | --- |
-| **A** | `ui/` | Restyled shadcn/Radix primitives. Button, input, select, dialog… |
-| **B** | `domain/` | Shared domain components. DataTable, RowActions, EmptyState… |
-| **C** | `screens/` | Screen compositions. Assembled from Layer B. |
-| **D** | `shell/` | Layout shell. AppShell, Sidebar, TopBar. |
+| Layer | Folder     | What lives here                                                  |
+| ----- | ---------- | ---------------------------------------------------------------- |
+| **A** | `ui/`      | Restyled shadcn/Radix primitives. Button, input, select, dialog… |
+| **B** | `domain/`  | Shared domain components. DataTable, RowActions, EmptyState…     |
+| **C** | `screens/` | Screen compositions. Assembled from Layer B.                     |
+| **D** | `shell/`   | Layout shell. AppShell, Sidebar, TopBar.                         |
 
 ## The rule that matters
 

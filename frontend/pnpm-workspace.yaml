@@ -6,7 +6,7 @@
 # we do not take; sharp is Next's optional image optimiser, and this story ships
 # no raster image pipeline. Flip one to true the day something actually needs it.
 allowBuilds:
-  '@parcel/watcher': false
-  '@swc/core': false
+  "@parcel/watcher": false
+  "@swc/core": false
   sharp: false
   unrs-resolver: false

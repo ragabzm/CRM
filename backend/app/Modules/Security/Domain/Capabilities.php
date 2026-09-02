@@ -24,6 +24,15 @@ final class Capabilities
 
     public const DEPARTMENT_MANAGE = 'department.manage';
 
+    /**
+     * Seeing the department list, which is not the same power as changing it.
+     *
+     * Every staff member needs it: it fills the filter on the customer list and
+     * the picker on the customer form. Gating that behind department.manage
+     * would mean only an administrator could file a customer under a team.
+     */
+    public const DEPARTMENT_READ = 'department.read';
+
     public const ROLE_READ = 'role.read';
 
     public const AUDIT_READ = 'audit.read';
