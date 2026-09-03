@@ -119,8 +119,9 @@ final class VersionGuardTest extends TestCase
             ->where('event_type', TicketEvent::PRIORITY_CHANGED)
             ->firstOrFail();
 
-        $this->assertSame('normal', $event->payload['from']);
-        $this->assertSame('urgent', $event->payload['to']);
+        // Changed fields only, under the one shape every event uses.
+        $this->assertSame(['priority' => 'normal'], $event->payload['before']);
+        $this->assertSame(['priority' => 'urgent'], $event->payload['after']);
         $this->assertSame(2, $event->version_after);
     }
 

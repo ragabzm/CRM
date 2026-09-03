@@ -106,9 +106,18 @@ final class TicketDepartmentTest extends TestCase
             ->latest('created_at')
             ->firstOrFail();
 
-        // "Why is this unassigned?" has an answer.
-        $this->assertSame('department_changed', $unassigned->payload['reason']);
-        $this->assertSame($agent->getKey(), $unassigned->payload['previous_assignee_id']);
+        // "Why is this unassigned?" has an answer. Under `meta`, which is
+        // where every event puts the detail specific to its own kind.
+        $this->assertSame('department_changed', $unassigned->payload['meta']['reason']);
+        $this->assertSame(
+            $agent->getKey(),
+            $unassigned->payload['meta']['previous_assignee_id'],
+        );
+
+        // And the change itself is still readable from the same two keys as
+        // every other event.
+        $this->assertSame($agent->getKey(), $unassigned->payload['before']['assignee_id']);
+        $this->assertNull($unassigned->payload['after']['assignee_id']);
     }
 
     public function test_an_assignee_who_is_still_in_range_is_left_alone(): void

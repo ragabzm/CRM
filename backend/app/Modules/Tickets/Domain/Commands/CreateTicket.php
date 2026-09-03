@@ -9,8 +9,9 @@ use App\Modules\Tickets\Domain\Actor\Actor;
 use App\Modules\Tickets\Domain\Enum\TicketStatus;
 use App\Modules\Tickets\Domain\Priority;
 use App\Modules\Tickets\Domain\Reference\TicketReferenceAllocator;
+use App\Modules\Tickets\Domain\History\TicketEventKind;
+use App\Modules\Tickets\Domain\History\TicketEventRecorder;
 use App\Modules\Tickets\Domain\Ticket;
-use App\Modules\Tickets\Domain\TicketEvent;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\QueryException;
 
@@ -19,14 +20,13 @@ use Illuminate\Database\QueryException;
  */
 final class CreateTicket
 {
-    use AppendsEvents;
-
     /** Retries for a reference collision, which only the SQLite path can hit. */
     private const REFERENCE_ATTEMPTS = 3;
 
     public function __construct(
         private readonly TicketReferenceAllocator $references,
         private readonly ConnectionInterface $db,
+        private readonly TicketEventRecorder $history,
     ) {}
 
     public function handle(Actor $actor, CreateTicketInput $input): Ticket
@@ -39,13 +39,27 @@ final class CreateTicket
         return $this->db->transaction(function () use ($actor, $input): Ticket {
             $ticket = $this->insert($actor, $input);
 
-            $this->appendEvent($ticket, $actor, TicketEvent::CREATED, [
-                'subject' => $ticket->subject,
-                'channel' => $ticket->channel->value,
-                'category_id' => $ticket->category_id,
-                'priority' => $ticket->priority->value,
-                'department_id' => $ticket->department_id,
-            ]);
+            /*
+             * `before` is null: nothing preceded a ticket's creation. `after`
+             * carries the state it was born with, which is what makes every
+             * later diff readable against a known starting point.
+             */
+            $this->history->record(
+                (string) $ticket->getKey(),
+                TicketEventKind::Created,
+                $actor,
+                before: null,
+                after: [
+                    'subject' => $ticket->subject,
+                    'channel' => $ticket->channel->value,
+                    'status' => $ticket->status->value,
+                    'priority' => $ticket->priority->value,
+                    'category_id' => $ticket->category_id,
+                    'department_id' => $ticket->department_id,
+                    'assignee_id' => $ticket->assignee_id,
+                ],
+                versionAfter: $ticket->version,
+            );
 
             return $ticket;
         });

@@ -17,10 +17,13 @@ use App\Modules\Tickets\Domain\Commands\TicketAttributeChanges;
 use App\Modules\Tickets\Domain\Commands\UpdateTicketAttributes;
 use App\Modules\Tickets\Domain\Enum\TicketChannel;
 use App\Modules\Tickets\Domain\Priority;
+use App\Modules\Tickets\Domain\Query\TicketCounts;
+use App\Modules\Tickets\Domain\Query\TicketListQuery;
 use App\Modules\Tickets\Domain\Query\TicketVisibility;
 use App\Modules\Tickets\Domain\Ticket;
 use App\Modules\Tickets\Http\ActorResolver;
 use App\Modules\Tickets\Http\Requests\AssignTicketRequest;
+use App\Modules\Tickets\Http\Requests\ListTicketsRequest;
 use App\Modules\Tickets\Http\Requests\ChangeDepartmentRequest;
 use App\Modules\Tickets\Http\Requests\ReopenTicketRequest;
 use App\Modules\Tickets\Http\Requests\ResolveTicketRequest;
@@ -73,6 +76,48 @@ final class TicketsController extends Controller
     }
 
     /**
+     * The ticket list.
+     *
+     * Read-only, so no Idempotency-Key. Scoped by TicketVisibility before any
+     * caller-supplied filter is applied — an agent who puts a colleague's id in
+     * the URL gets their own tickets back rather than a refusal, because the
+     * filter narrows what they may see and never widens it.
+     *
+     * @response array{data: array<int, array<string, mixed>>, meta: array<string, int>}
+     */
+    public function index(ListTicketsRequest $request, TicketListQuery $query): JsonResponse
+    {
+        $page = $query->paginate($request->toFilters(), $request->user());
+
+        return new JsonResponse([
+            'data' => array_map(
+                static fn (Ticket $ticket): array => TicketResource::toArray($ticket),
+                $page->items(),
+            ),
+            'meta' => [
+                'total' => $page->total(),
+                'per_page' => $page->perPage(),
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * The five numbers on the agent's home screen.
+     *
+     * One aggregate query. Five round trips would be five times the load for a
+     * strip of numbers, taken at five slightly different moments — so they
+     * could disagree with each other and with the list they link to.
+     *
+     * @response array<string, int|null>
+     */
+    public function counts(Request $request, TicketCounts $counts): JsonResponse
+    {
+        return new JsonResponse($counts->forActor($request->user()));
+    }
+
+    /**
      * @response array<string, mixed>
      */
     public function show(Request $request, string $ticket): JsonResponse
@@ -103,7 +148,20 @@ final class TicketsController extends Controller
             );
         }
 
-        return new JsonResponse(TicketResource::toArray($found));
+        /*
+         * The version, also as an ETag.
+         *
+         * It is already in the body; this is the same fact in the form HTTP
+         * understands, so a client can hand it straight back as `If-Match`
+         * without unpacking JSON to find it. One source, two spellings — the
+         * guard still reads exactly one number.
+         *
+         * Weak, because two responses with the same version are semantically
+         * equivalent without being byte-identical (timestamps of related rows
+         * can differ).
+         */
+        return (new JsonResponse(TicketResource::toArray($found)))
+            ->setEtag(self::etagFor($found->version), weak: true);
     }
 
     /**
@@ -116,11 +174,18 @@ final class TicketsController extends Controller
         $updated = $this->update->handle(
             $this->actors->fromRequest($request),
             $ticket,
-            (int) $data['version'],
+            $request->submittedVersion(),
             TicketAttributeChanges::fromValidated($data),
         );
 
-        return new JsonResponse(TicketResource::toArray($updated));
+        return (new JsonResponse(TicketResource::toArray($updated)))
+            ->setEtag(self::etagFor($updated->version), weak: true);
+    }
+
+    /** The ticket version, spelled as an entity tag. */
+    public static function etagFor(int $version): string
+    {
+        return (string) $version;
     }
 
     /**

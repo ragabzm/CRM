@@ -205,10 +205,7 @@ export function CustomerProfileScreen({
         <AttachmentsLane ownerType="customer" ownerId={customer.id} />
       </div>
       <div className="rounded-lg border border-border-default bg-surface-base p-5">
-        <CustomerTimeline
-          customerId={customer.id}
-          onOpenTicket={onOpenTicket}
-        />
+        <CustomerTimeline customerId={customer.id} onOpenTicket={onOpenTicket} />
       </div>
 
       <CustomerFormDialog

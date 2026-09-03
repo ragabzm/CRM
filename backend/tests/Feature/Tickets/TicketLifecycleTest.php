@@ -130,7 +130,7 @@ final class TicketLifecycleTest extends TestCase
         // back. A resolution nobody wrote down has to be reconstructed.
         $this->assertSame(
             'Credited the duplicate seat and reissued the invoice.',
-            $event->payload['resolution_note'],
+            $event->payload['meta']['resolution_note'],
         );
     }
 

@@ -947,6 +947,34 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  '/tickets/{ticket}/customer-context':
+    get:
+      operationId: tickets.customer-context
+      tags:
+        - CustomerContext
+      parameters:
+        -
+          name: ticket
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /customers/duplicates/preview:
     post:
       operationId: customers.duplicates.preview
@@ -2643,6 +2671,60 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /quick-replies:
+    get:
+      operationId: quick-replies.index
+      tags:
+        - QuickReplies
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        label:
+                          type: object
+                          properties:
+                            en:
+                              type: string
+                            ar:
+                              type: string
+                          required:
+                            - en
+                            - ar
+                        body:
+                          type: object
+                          properties:
+                            en:
+                              type: string
+                            ar:
+                              type: string
+                          required:
+                            - en
+                            - ar
+                      required:
+                        - id
+                        - label
+                        - body
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /admin/settings:
     get:
       operationId: admin.settings.index
@@ -2759,6 +2841,54 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  '/tickets/{ticket}/events':
+    get:
+      operationId: tickets.events.index
+      tags:
+        - TicketEvents
+      parameters:
+        -
+          name: ticket
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: {}
+                  next_cursor:
+                    type:
+                      - string
+                      - 'null'
+                  has_more:
+                    type: boolean
+                required:
+                  - data
+                  - next_cursor
+                  - has_more
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   '/tickets/{ticket}/messages':
     get:
       operationId: tickets.messages.index
@@ -2831,6 +2961,62 @@ paths:
           $ref: '#/components/responses/AuthenticationException'
         '422':
           $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/tickets/{ticket}/messages/{message}/retry':
+    post:
+      operationId: tickets.messages.retry
+      description: "Retry rather than \"send again\": the message already exists and already\nsays who wrote it and when. Creating a second one would put the agent's\nwords in the thread twice for a failure that was never theirs."
+      summary: 'Puts a failed send back in the queue'
+      tags:
+        - TicketMessages
+      parameters:
+        -
+          name: ticket
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: message
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
         default:
           description: 'An RFC 9457 problem document.'
           content:
@@ -2947,7 +3133,6 @@ paths:
             type: string
             maxLength: 40
       requestBody:
-        required: true
         content:
           application/json:
             schema:
@@ -3554,6 +3739,15 @@ components:
           enum:
             - inbound
             - outbound
+            - internal
+        attachment_ids:
+          type: array
+          description: "Ids of files already uploaded against this ticket. Sent as a list\nrather than as the files themselves so a slow or refused upload\nnever costs the agent the reply they typed."
+          items:
+            type: string
+            minLength: 26.0
+            maxLength: 26.0
+          maxItems: 10.0
       required:
         - body
       title: AppendMessageRequest
@@ -3954,10 +4148,11 @@ components:
       title: UpdateProfileRequest
     UpdateTicketAttributesRequest:
       type: object
-      description: "A partial change. Every attribute optional, `version` required.\n\n`version` is required even though the guard would tolerate null, because a\ncaller who omitted it would be silently opting out of the protection this\nwhole mechanism exists for."
+      description: "A partial change. Every attribute optional, the version required.\n\nThe version is required even though the guard would tolerate null, because a\ncaller who omitted it would be silently opting out of the protection this\nwhole mechanism exists for.\n\nIt may arrive in the body as `version` or in an `If-Match` header — the same\nnumber, spelled the way the caller finds natural. There is still ONE guard\nreading ONE value; a second mechanism would be a second thing to get wrong,\nand the one that is wrong is the one nobody tested."
       properties:
         version:
           type: integer
+          description: 'Required only when the header did not carry it.'
           minimum: 1.0
         status:
           type: string
@@ -3985,8 +4180,6 @@ components:
           type:
             - integer
             - 'null'
-      required:
-        - version
       title: UpdateTicketAttributesRequest
     UpdateUserRequest:
       type: object

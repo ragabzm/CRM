@@ -96,7 +96,10 @@
     "passwordConfirm": "Confirm new password",
     "passwordSubmit": "Change password",
     "passwordSaved": "Your password has been changed.",
-    "error": "That could not be saved. Please check the form."
+    "error": "That could not be saved. Please check the form.",
+    "loadError": "Your profile could not be loaded.",
+    "loadRetry": "Retry",
+    "loading": "Loading your profile…"
   },
   "session": {
     "expired": "Your session has ended. Please sign in again."
@@ -380,7 +383,8 @@
       "deactivatedOn": "Deactivated {date}",
       "confirmDeactivate": "This will hide {name} from customer search. Their tickets, notes and history stay exactly as they are, and the record can be reactivated at any time.",
       "notFound": "That customer does not exist."
-    }
+    },
+    "retry": "Retry"
   },
   "notes": {
     "title": "Notes",
@@ -505,5 +509,93 @@
     },
     "announced": "{count} more entries loaded.",
     "openTicket": "Open {reference}"
+  },
+  "notFound": {
+    "title": "This page does not exist",
+    "body": "The address may be mistyped, or the page may have been moved. Nothing was lost.",
+    "home": "Go to Home"
+  },
+  "ticket": {
+    "notFound": {
+      "title": "This ticket no longer exists",
+      "body": "It may have been merged or removed.",
+      "back": "Back to tickets"
+    },
+    "forbidden": {
+      "title": "You do not have access to this ticket",
+      "body": "Ask a supervisor if you need it."
+    },
+    "loadError": "The ticket could not be loaded.",
+    "retryLoad": "Retry",
+    "tabs": {
+      "conversation": "Conversation",
+      "properties": "Properties",
+      "customer": "Customer"
+    },
+    "conversation": {
+      "title": "Conversation",
+      "empty": "Nothing has been said yet",
+      "emptyBody": "The first reply will appear here.",
+      "inbound": "From the customer",
+      "outbound": "Sent to the customer",
+      "internal": "Internal note",
+      "delivery": {
+        "queued": "Sending",
+        "sent": "Sent",
+        "failed": "Not sent"
+      },
+      "failedBody": "This reply did not reach the customer.",
+      "retry": "Retry",
+      "edit": "Edit",
+      "attachments": "Attachments",
+      "scanning": "Being checked"
+    },
+    "internalNote": {
+      "badge": "Not visible to the customer"
+    },
+    "composer": {
+      "reply": "Reply",
+      "note": "Internal note",
+      "placeholder": "Write your reply…",
+      "notePlaceholder": "Write a note for your colleagues…",
+      "quickReplies": "Quick replies",
+      "noQuickReplies": "No quick replies yet",
+      "attach": "Attach a file",
+      "send": "Send",
+      "sending": "Sending…",
+      "sendNote": "Save note",
+      "error": "Your message could not be sent.",
+      "draftKept": "Your draft is kept."
+    },
+    "propertyRail": {
+      "title": "Properties",
+      "status": "Status",
+      "priority": "Priority",
+      "category": "Category",
+      "assignee": "Assignee",
+      "department": "Department",
+      "unassigned": "Unassigned",
+      "none": "None",
+      "sla": "Service level",
+      "slaReadOnly": "Set by policy",
+      "readOnly": "You can read this ticket but not change it.",
+      "saving": "Saving…",
+      "error": "That change could not be saved."
+    },
+    "conflict": {
+      "title": "This ticket was changed by someone else",
+      "body": "Reload to see the current version. Your draft reply is kept.",
+      "reload": "Reload"
+    },
+    "context": {
+      "title": "Customer",
+      "department": "Department",
+      "openTickets": "Open tickets",
+      "recentTickets": "Raised in the last {days} days",
+      "lastInteraction": "Last contact",
+      "never": "No messages yet",
+      "openRecord": "Open full customer record"
+    },
+    "loading": "Loading the ticket…"
   }
 }

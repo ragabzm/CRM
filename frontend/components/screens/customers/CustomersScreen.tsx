@@ -45,10 +45,17 @@ export function CustomersScreen({ departments, onOpenCustomer }: CustomersScreen
   const [lastPage, setLastPage] = useState(1);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [composing, setComposing] = useState(false);
 
   const load = useCallback(() => {
     let cancelled = false;
+
+    // Deferred by a microtask: `useEffect(load, [load])` runs this in the
+    // effect body, and setting state synchronously there cascades renders.
+    void Promise.resolve().then(() => {
+      if (!cancelled) setLoading(true);
+    });
 
     listCustomers(filters)
       .then((page) => {
@@ -68,6 +75,9 @@ export function CustomersScreen({ departments, onOpenCustomer }: CustomersScreen
         }
 
         setError(t("loadError"));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
 
     return () => {
@@ -210,7 +220,11 @@ export function CustomersScreen({ departments, onOpenCustomer }: CustomersScreen
           filter is doing security work. */}
       <p className="text-xs text-fg-muted">{t("department.note")}</p>
 
-      {error && <FormAlert tone="error">{error}</FormAlert>}
+      {error && (
+        <FormAlert tone="error" action={{ label: t("retry"), onSelect: load }}>
+          {error}
+        </FormAlert>
+      )}
 
       <DataTable
         columns={columns}
@@ -222,7 +236,21 @@ export function CustomersScreen({ departments, onOpenCustomer }: CustomersScreen
         page={filters.page ?? 1}
         pageCount={lastPage}
         onPageChange={(page) => setFilters((current) => ({ ...current, page }))}
-        emptyState={<EmptyState headline={t("empty.title")} description={t("empty.body")} />}
+        emptyState={
+          /*
+           * Only when the load actually SUCCEEDED and returned nothing.
+           *
+           * These two used to render together: a red "Customers could not be
+           * loaded." directly above "No customers match this search". One says
+           * the request failed, the other says it succeeded and the customer
+           * has no records — and the reader has no way to tell which is true.
+           * A failed load has no idea whether results exist, so it must not
+           * claim there are none.
+           */
+          error === null && !loading ? (
+            <EmptyState headline={t("empty.title")} description={t("empty.body")} />
+          ) : null
+        }
       />
 
       <CustomerFormDialog

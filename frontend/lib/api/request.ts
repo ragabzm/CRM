@@ -1,6 +1,6 @@
 "use client";
 
-import { isProblem } from "./client";
+import { SESSION_EXPIRED_CODES, SESSION_EXPIRED_EVENT, isProblem } from "./client";
 import { ApiError, TicketRefusedError, TicketStaleVersionError } from "./errors";
 import { ulid } from "./ulid";
 
@@ -68,6 +68,33 @@ export interface RequestInitWithFetch extends RequestInit {
   idempotencyKey?: string;
 }
 
+/**
+ * Tells the app a session has ended, so SessionExpiryListener can send the
+ * reader back to sign-in.
+ *
+ * This is the PUBLISHER. It was missing: the listener has always been mounted
+ * in the root layout and has always had tests, but those tests dispatched the
+ * event themselves, so nothing ever noticed that no production code path fired
+ * it. A lapsed session therefore left the reader on a rendered page whose every
+ * request was quietly failing.
+ *
+ * Fired here rather than per screen for the usual reason: any request can be
+ * the one that discovers the session is gone, and a per-screen check is a check
+ * the next screen forgets.
+ */
+function announceIfSessionEnded(status: number, problem: { code?: string } | null): void {
+  if (status !== 401) return;
+
+  // A 401 whose code we do not recognise still means unauthenticated. Treating
+  // an unknown code as "not really expired" would strand the reader, which is
+  // the exact failure this function exists to prevent.
+  if (problem?.code !== undefined && !SESSION_EXPIRED_CODES.includes(problem.code)) return;
+
+  if (typeof window === "undefined") return;
+
+  window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
+}
+
 /** One JSON call against the API, with the cookie plumbing every request needs. */
 export async function request<T>(path: string, init: RequestInitWithFetch = {}): Promise<T> {
   const { fetchImpl = fetch, idempotencyKey, ...rest } = init;
@@ -96,6 +123,8 @@ export async function request<T>(path: string, init: RequestInitWithFetch = {}):
 
   if (!response.ok) {
     const problem = isProblem(body) ? body : null;
+
+    announceIfSessionEnded(response.status, problem);
 
     /*
      * The one place a stale ticket version is recognised.

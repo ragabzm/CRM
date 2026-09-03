@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Tickets\Domain\Actor;
 
+use InvalidArgumentException;
+
 /**
  * The application acting on its own behalf.
  *
@@ -13,7 +15,20 @@ namespace App\Modules\Tickets\Domain\Actor;
  */
 final class SystemActor extends Actor
 {
-    public function __construct(public readonly string $why) {}
+    public function __construct(public readonly string $why)
+    {
+        if (trim($why) === '') {
+            /*
+             * Refused at construction, not at write time. An event reading
+             * "the system did it" with no reason is a dead end for whoever is
+             * trying to explain a change months later — and by then there is
+             * nothing left to reconstruct it from.
+             */
+            throw new InvalidArgumentException(
+                'A system actor must carry a reason, e.g. "auto_close" or "sla_breach".'
+            );
+        }
+    }
 
     public function kind(): string
     {

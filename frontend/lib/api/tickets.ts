@@ -125,7 +125,26 @@ export async function reopenTicket(
 
 /* --- the thread --- */
 
-export type MessageDirection = "inbound" | "outbound";
+/**
+ * Which way a message went, or that it went nowhere.
+ *
+ * `internal` is a note colleagues leave for each other. It is not a direction
+ * in any honest sense — nothing travels — but it lives in this one field so
+ * that "may the customer see this?" has one answer in one place.
+ */
+export type MessageDirection = "inbound" | "outbound" | "internal";
+
+/** Only outbound messages have one; the others never made a journey. */
+export type DeliveryState = "queued" | "sent" | "failed";
+
+export interface MessageAttachment {
+  id: string;
+  filename: string;
+  byte_size: number;
+  /** Server-sniffed. The client's claim is never stored. */
+  mime_type: string;
+  scan_status: string;
+}
 
 export interface TicketMessage {
   id: string;
@@ -134,6 +153,8 @@ export interface TicketMessage {
   author: { type: string; id: string | null; name: string };
   body: string;
   sent_at: string | null;
+  delivery_state: DeliveryState | null;
+  attachments: MessageAttachment[];
 }
 
 export async function listTicketMessages(
@@ -159,13 +180,158 @@ export async function appendTicketMessage(
   ticketId: string,
   body: string,
   direction: MessageDirection = "outbound",
+  attachmentIds: string[] = [],
   fetchImpl: typeof fetch = fetch,
 ): Promise<TicketMessage> {
   await getCsrf(fetchImpl);
 
   return request(`/tickets/${encodeURIComponent(ticketId)}/messages`, {
     method: "POST",
-    body: JSON.stringify({ body, direction }),
+    body: JSON.stringify({ body, direction, attachment_ids: attachmentIds }),
+    fetchImpl,
+  });
+}
+
+/** Who did the thing an event records. */
+export type TicketEventActor =
+  | { type: "system"; reason: string | null }
+  | { type: "staff" | "portal"; id: string | null; display_name: string | null };
+
+export interface TicketEvent {
+  id: string;
+  /** `ticket.status_changed`, `ticket.resolved`, … */
+  kind: string;
+  actor: TicketEventActor;
+  /** Changed fields only, never the whole ticket. */
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  /** Detail specific to the kind — a resolution note, a reason. */
+  meta: Record<string, unknown> | null;
+  version_after: number;
+  occurred_at: string;
+}
+
+export interface TicketEventPage {
+  data: TicketEvent[];
+  next_cursor: string | null;
+  has_more: boolean;
+}
+
+/**
+ * One page of a ticket's history, oldest first.
+ *
+ * The panel that renders this is Story 4.4; this is the loader it will call.
+ * Cursor-paginated rather than offset: a history that is being appended to
+ * while someone reads it would otherwise repeat or skip rows between pages.
+ */
+export async function listTicketEvents(
+  ticketId: string,
+  options: { cursor?: string | null; limit?: number } = {},
+  fetchImpl: typeof fetch = fetch,
+): Promise<TicketEventPage> {
+  const query = new URLSearchParams();
+
+  if (options.cursor) query.set("cursor", options.cursor);
+  if (options.limit !== undefined) query.set("limit", String(options.limit));
+
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+
+  return request<TicketEventPage>(`/tickets/${encodeURIComponent(ticketId)}/events${suffix}`, {
+    method: "GET",
+    fetchImpl,
+  });
+}
+
+/**
+ * Puts a failed send back in the queue.
+ *
+ * Retry, not "send again": the message already exists and already says who
+ * wrote it and when. A second one would put the agent's words in the thread
+ * twice for a failure that was never theirs.
+ */
+export async function retryTicketMessage(
+  ticketId: string,
+  messageId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<TicketMessage> {
+  await getCsrf(fetchImpl);
+
+  return request(
+    `/tickets/${encodeURIComponent(ticketId)}/messages/${encodeURIComponent(messageId)}/retry`,
+    { method: "POST", fetchImpl },
+  );
+}
+
+export interface CustomerContext {
+  customer_id: string;
+  reference: string;
+  full_name: string;
+  state: string;
+  department: { id: number; name: string | null } | null;
+  open_ticket_count: number;
+  recent_ticket_count: number;
+  /** So "4 recent" can be read as "4 in the last 30 days". */
+  recent_window_days: number;
+  last_interaction_at: string | null;
+}
+
+/** Who this ticket is for, and what else they have open. One query, server-side. */
+export function getCustomerContext(
+  ticketId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<CustomerContext> {
+  return request<CustomerContext>(`/tickets/${encodeURIComponent(ticketId)}/customer-context`, {
+    method: "GET",
+    fetchImpl,
+  });
+}
+
+export interface QuickReply {
+  id: number | string;
+  title: string;
+  body: string;
+}
+
+/**
+ * The shared reply snippets an agent can drop into the composer.
+ *
+ * Read from the agent-facing route, not the admin one: using a quick reply is
+ * doing your job, while editing the list is administration.
+ */
+export async function listQuickReplies(fetchImpl: typeof fetch = fetch): Promise<QuickReply[]> {
+  const body = await request<{ data: QuickReply[] }>("/quick-replies", {
+    method: "GET",
+    fetchImpl,
+  });
+
+  return body.data;
+}
+
+/**
+ * Changes a ticket's properties, under the version guard.
+ *
+ * The version travels as `If-Match`, echoing the ETag the read handed back. On
+ * a mismatch the server refuses with 409 rather than silently overwriting
+ * whatever the other person did.
+ */
+export async function updateTicketProperties(
+  ticketId: string,
+  version: number,
+  changes: Partial<{
+    status: string;
+    priority: string;
+    category_id: number | null;
+    assignee_id: number | null;
+    department_id: number | null;
+  }>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Ticket> {
+  await getCsrf(fetchImpl);
+
+  return request<Ticket>(`/tickets/${encodeURIComponent(ticketId)}`, {
+    method: "PATCH",
+    headers: { "If-Match": `W/"${version}"` },
+    body: JSON.stringify(changes),
     fetchImpl,
   });
 }

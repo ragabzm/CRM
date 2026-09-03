@@ -21,6 +21,8 @@ use App\Modules\Tickets\Domain\Category;
 use App\Modules\Tickets\Http\Controllers\Admin\CategoriesController;
 use App\Modules\Tickets\Http\Controllers\CustomerTimelineController;
 use App\Modules\Tickets\Http\Controllers\PortalTicketsController;
+use App\Modules\Tickets\Http\Controllers\CustomerContextController;
+use App\Modules\Tickets\Http\Controllers\TicketEventsController;
 use App\Modules\Tickets\Http\Controllers\TicketMessagesController;
 use App\Modules\Tickets\Http\Controllers\TicketsController;
 use App\Modules\Tickets\Http\Controllers\Admin\PrioritiesController;
@@ -154,6 +156,22 @@ Route::prefix('v1')->group(function (): void {
          * applies, so a retried create cannot produce two tickets.
          */
         Route::prefix('tickets')->name('tickets.')->group(function (): void {
+            /*
+             * The list and the counts strip. Read-only, so no Idempotency-Key.
+             *
+             * `counts` is registered BEFORE `/{ticket}`: otherwise the ULID
+             * pattern would have to be the only thing stopping the router from
+             * treating the literal word "counts" as a ticket id, and a
+             * constraint is a worse guarantee than an order.
+             */
+            Route::get('/', [TicketsController::class, 'index'])
+                ->middleware('can.capability:'.Capabilities::TICKET_READ)
+                ->name('index');
+
+            Route::get('/counts', [TicketsController::class, 'counts'])
+                ->middleware('can.capability:'.Capabilities::TICKET_READ)
+                ->name('counts');
+
             Route::post('/', [TicketsController::class, 'store'])
                 ->middleware('can.capability:'.Capabilities::TICKET_CREATE)
                 ->name('store');
@@ -204,6 +222,36 @@ Route::prefix('v1')->group(function (): void {
                 ->middleware('can.capability:'.Capabilities::TICKET_UPDATE)
                 ->whereUlid('ticket')
                 ->name('messages.store');
+
+            /*
+             * History. GET and nothing else — deliberately no POST, PATCH, PUT
+             * or DELETE on this URI or below it. `TicketEventsAppendOnlyTest`
+             * fails if one is ever added, because a route is the easiest of the
+             * three layers to open by accident.
+             */
+            Route::get('/{ticket}/events', [TicketEventsController::class, 'index'])
+                ->middleware('can.capability:'.Capabilities::TICKET_READ)
+                ->whereUlid('ticket')
+                ->name('events.index');
+
+            Route::post('/{ticket}/messages/{message}/retry', [TicketMessagesController::class, 'retry'])
+                ->middleware('can.capability:'.Capabilities::TICKET_UPDATE)
+                ->whereUlid('ticket')
+                ->whereUlid('message')
+                ->name('messages.retry');
+
+            /*
+             * Who this ticket is for, and what else they have open.
+             *
+             * Gated on reading the TICKET, not the customer record: an agent
+             * answering a request can already see who sent it. It returns
+             * counts and a name, not the customer's full file — that stays
+             * behind `customer.read` at its own endpoint.
+             */
+            Route::get('/{ticket}/customer-context', [CustomerContextController::class, 'show'])
+                ->middleware('can.capability:'.Capabilities::TICKET_READ)
+                ->whereUlid('ticket')
+                ->name('customer-context');
         });
 
         /*
@@ -343,6 +391,19 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/{id}/download', [AttachmentsController::class, 'download'])
                 ->whereUlid('id')->name('download');
         });
+
+        /*
+         * Quick replies, for the people who actually send them.
+         *
+         * The admin block above owns writing them — that is configuration. This
+         * is the read an agent's composer makes, gated on being allowed to
+         * reply rather than on being allowed to administer settings. Without
+         * it the picker would be empty for everyone except administrators,
+         * which is everyone who uses it.
+         */
+        Route::get('/quick-replies', [QuickRepliesController::class, 'index'])
+            ->middleware('can.capability:'.Capabilities::TICKET_UPDATE)
+            ->name('quick-replies.index');
 
         /*
          * The audit log: two GETs, and deliberately nothing else.

@@ -26,6 +26,25 @@ final class AppendMessageRequest extends FormRequest
         return [
             'body' => ['required', 'string', 'min:1', 'max:20000'],
             'direction' => ['sometimes', Rule::in(MessageDirection::values())],
+
+            /*
+             * Ids of files already uploaded against this ticket. Sent as a list
+             * rather than as the files themselves so a slow or refused upload
+             * never costs the agent the reply they typed.
+             */
+            'attachment_ids' => ['sometimes', 'array', 'max:10'],
+            'attachment_ids.*' => ['string', 'size:26'],
         ];
+    }
+
+    /** @return list<string> */
+    public function attachmentIds(): array
+    {
+        /** @var list<string> $ids */
+        $ids = $this->validated('attachment_ids', []);
+
+        // Duplicates would try to claim the same file twice and fail the
+        // all-or-nothing count, refusing a reply that was actually fine.
+        return array_values(array_unique($ids));
     }
 }

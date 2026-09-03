@@ -25,8 +25,18 @@ function entry(overrides: Partial<TimelineEntry> = {}): TimelineEntry {
 }
 
 const PAGE_ONE: TimelineEntry[] = [
-  entry({ id: "01E3", kind: "message_outbound", preview: "Looking into it now.", occurred_at: "2026-09-02T11:00:00Z" }),
-  entry({ id: "01E2", kind: "message_inbound", preview: "Any news?", occurred_at: "2026-09-02T10:00:00Z" }),
+  entry({
+    id: "01E3",
+    kind: "message_outbound",
+    preview: "Looking into it now.",
+    occurred_at: "2026-09-02T11:00:00Z",
+  }),
+  entry({
+    id: "01E2",
+    kind: "message_inbound",
+    preview: "Any news?",
+    occurred_at: "2026-09-02T10:00:00Z",
+  }),
 ];
 
 const PAGE_TWO: TimelineEntry[] = [entry({ id: "01E1" })];
@@ -184,9 +194,7 @@ describe("the customer timeline", () => {
 
     renderTimeline();
 
-    expect(
-      await screen.findByText("You do not have access to this history"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("You do not have access to this history")).toBeInTheDocument();
     expect(screen.queryByRole("list")).toBeNull();
   });
 
@@ -228,5 +236,79 @@ describe("the customer timeline", () => {
     // At 375 px a clipped line hides content with no way to reach it.
     expect(preview?.className).toContain("whitespace-pre-wrap");
     expect(preview?.className).not.toContain("truncate");
+  });
+});
+
+describe("coming back from a ticket", () => {
+  /*
+   * The pane is unmounted by the route change, so "restore" means rebuilding
+   * it: replay the pages the reader had loaded, then put the scroll position
+   * and the keyboard focus back where they were.
+   */
+  async function readTwoPagesThenOpenATicket() {
+    const user = userEvent.setup();
+    const first = renderTimeline();
+
+    await screen.findByText("Any news?");
+    await user.click(screen.getByRole("button", { name: /load more/i }));
+    await screen.findByText("Ticket opened");
+
+    const rows = within(screen.getByRole("list")).getAllByRole("listitem");
+    const target = within(rows[2]!).getByRole("button");
+
+    // Scrolled down, as a reader who walked the history would be.
+    screen.getByRole("list").scrollTop = 240;
+
+    await user.click(target);
+
+    first.unmount();
+
+    return user;
+  }
+
+  it("replays the pages that had been loaded", async () => {
+    await readTwoPagesThenOpenATicket();
+    requested = [];
+
+    renderTimeline();
+
+    // Both pages again — not one, which would strand the reader at the top of
+    // a history they had already scrolled past.
+    await waitFor(() => expect(requested).toHaveLength(2));
+    expect(requested[1]).toContain("cursor=");
+  });
+
+  it("puts focus back on the row that was opened", async () => {
+    await readTwoPagesThenOpenATicket();
+
+    renderTimeline();
+
+    await screen.findByText("Ticket opened");
+
+    await waitFor(() => {
+      const rows = within(screen.getByRole("list")).getAllByRole("listitem");
+
+      expect(within(rows[2]!).getByRole("button")).toHaveFocus();
+    });
+  });
+
+  it("restores the scroll position", async () => {
+    await readTwoPagesThenOpenATicket();
+
+    renderTimeline();
+
+    await screen.findByText("Ticket opened");
+
+    await waitFor(() => expect(screen.getByRole("list").scrollTop).toBe(240));
+  });
+
+  it("starts fresh for a reader who arrives directly", async () => {
+    renderTimeline();
+
+    await screen.findByText("Any news?");
+
+    // One page, and the list at the top: nothing to restore.
+    expect(requested).toHaveLength(1);
+    expect(screen.getByRole("list").scrollTop).toBe(0);
   });
 });

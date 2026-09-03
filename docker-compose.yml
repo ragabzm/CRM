@@ -78,6 +78,10 @@ services:
     environment:
       # Reached from the browser on the host, not from inside the network.
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+      # Reached from the Next.js server, which IS inside the network. The
+      # server-side session gate calls this one; `localhost` here would be the
+      # frontend container talking to itself.
+      API_INTERNAL_BASE_URL: http://backend-web:8000/api/v1
     ports:
       - "3000:3000"
     depends_on:

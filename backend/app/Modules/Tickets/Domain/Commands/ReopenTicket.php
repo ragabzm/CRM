@@ -7,7 +7,7 @@ namespace App\Modules\Tickets\Domain\Commands;
 use App\Modules\Tickets\Domain\Actor\Actor;
 use App\Modules\Tickets\Domain\Enum\TicketStatus;
 use App\Modules\Tickets\Domain\Ticket;
-use App\Modules\Tickets\Domain\TicketEvent;
+use App\Modules\Tickets\Domain\History\TicketEventKind;
 
 /**
  * Reopens a resolved or closed ticket.
@@ -31,7 +31,7 @@ final class ReopenTicket
             $ticketId,
             $submittedVersion,
             TicketStatus::Open,
-            TicketEvent::REOPENED,
+            TicketEventKind::Reopened,
             $reason !== null ? ['reason' => trim($reason)] : [],
         );
     }

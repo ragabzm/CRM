@@ -158,7 +158,9 @@ export function CustomerTimeline({ customerId, onOpenTicket }: CustomerTimelineP
      *
      * Once per customer: `restore` closes over stable callbacks.
      */
-    Promise.resolve().then(restore).catch(() => undefined);
+    Promise.resolve()
+      .then(restore)
+      .catch(() => undefined);
   }, [restore]);
 
   function openTicket(entry: TimelineEntry) {
@@ -235,10 +237,7 @@ export function CustomerTimeline({ customerId, onOpenTicket }: CustomerTimelineP
 
                   {/* Start-aligned in RTL by logical property, not by mirroring
                       code. Gregorian + Western digits come from useFormat. */}
-                  <time
-                    dateTime={entry.occurred_at}
-                    className="num ms-auto text-xs text-fg-muted"
-                  >
+                  <time dateTime={entry.occurred_at} className="num ms-auto text-xs text-fg-muted">
                     {format.dateTime(entry.occurred_at)}
                   </time>
                 </div>

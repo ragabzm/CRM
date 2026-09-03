@@ -11,8 +11,9 @@ use App\Modules\Tickets\Domain\Actor\Actor;
 use App\Modules\Tickets\Domain\Concurrency\VersionGuard;
 use App\Modules\Tickets\Domain\Enum\TicketStatus;
 use App\Modules\Tickets\Domain\Lifecycle\TicketLifecycle;
+use App\Modules\Tickets\Domain\History\TicketEventKind;
+use App\Modules\Tickets\Domain\History\TicketEventRecorder;
 use App\Modules\Tickets\Domain\Ticket;
-use App\Modules\Tickets\Domain\TicketEvent;
 use Illuminate\Database\ConnectionInterface;
 
 /**
@@ -24,15 +25,13 @@ use Illuminate\Database\ConnectionInterface;
  */
 final class UpdateTicketAttributes
 {
-    use AppendsEvents;
-
     /** Which event names which attribute change. */
     private const EVENT_FOR = [
-        'status' => TicketEvent::STATUS_CHANGED,
-        'priority' => TicketEvent::PRIORITY_CHANGED,
-        'category_id' => TicketEvent::CATEGORY_CHANGED,
-        'assignee_id' => TicketEvent::ASSIGNEE_CHANGED,
-        'department_id' => TicketEvent::DEPARTMENT_CHANGED,
+        'status' => TicketEventKind::StatusChanged,
+        'priority' => TicketEventKind::PriorityChanged,
+        'category_id' => TicketEventKind::CategoryChanged,
+        'assignee_id' => TicketEventKind::AssigneeChanged,
+        'department_id' => TicketEventKind::DepartmentChanged,
     ];
 
     public function __construct(
@@ -50,12 +49,13 @@ final class UpdateTicketAttributes
          */
         private readonly AuditLogger $audit,
         private readonly TicketLifecycle $lifecycle,
+        private readonly TicketEventRecorder $history,
     ) {}
 
     /**
-     * @param  string|null  $overrideEvent  Names the change more specifically —
-     *                                      `ticket.resolved` rather than a
-     *                                      generic status change.
+     * @param  TicketEventKind|null  $overrideEvent  Names the change more
+     *                                      specifically — `ticket.resolved`
+     *                                      rather than a generic status change.
      * @param  array<string, mixed>  $extraPayload
      */
     public function handle(
@@ -63,7 +63,7 @@ final class UpdateTicketAttributes
         string $ticketId,
         ?int $submittedVersion,
         TicketAttributeChanges $changes,
-        ?string $overrideEvent = null,
+        ?TicketEventKind $overrideEvent = null,
         array $extraPayload = [],
     ): Ticket {
         if ($changes->isEmpty()) {
@@ -134,12 +134,29 @@ final class UpdateTicketAttributes
              */
             $after = VersionGuard::contendedValues($ticket);
 
+            /*
+             * Changed fields only, never the whole row. Storing every contended
+             * value on every change would make the reader diff two blobs in
+             * their head to find the one value that moved — and would copy data
+             * that had nothing to do with the change into a store that can
+             * never be corrected.
+             */
+            $diff = TicketEventRecorder::diffChangedFields(
+                $before,
+                $after,
+                array_keys(VersionGuard::contendedValues($ticket)),
+            );
+
             if ($overrideEvent !== null) {
-                $this->appendEvent($ticket, $actor, $overrideEvent, [
-                    'before' => $before,
-                    'after' => $after,
-                    ...$extraPayload,
-                ]);
+                $this->history->record(
+                    (string) $ticket->getKey(),
+                    $overrideEvent,
+                    $actor,
+                    $diff['before'],
+                    $diff['after'],
+                    $extraPayload === [] ? null : $extraPayload,
+                    $ticket->version,
+                );
 
                 foreach (array_keys($columns) as $attribute) {
                     $this->auditFieldChange($actor, $ticket, $attribute, $before, $after);
@@ -149,11 +166,27 @@ final class UpdateTicketAttributes
             }
 
             foreach (array_keys($columns) as $attribute) {
-                $this->appendEvent($ticket, $actor, self::EVENT_FOR[$attribute] ?? 'ticket.changed', [
-                    'attribute' => $attribute,
-                    'from' => $before[$attribute] ?? null,
-                    'to' => $after[$attribute] ?? null,
-                ]);
+                /*
+                 * One event per changed attribute. "Priority changed" and
+                 * "assignee changed" are two facts a reader filters on
+                 * separately; collapsing them into one row makes the history
+                 * unfilterable.
+                 *
+                 * Skipped when the value did not actually move: a no-op event
+                 * is noise in a store nobody can prune.
+                 */
+                if (! array_key_exists($attribute, $diff['after'])) {
+                    continue;
+                }
+
+                $this->history->record(
+                    (string) $ticket->getKey(),
+                    self::EVENT_FOR[$attribute] ?? TicketEventKind::StatusChanged,
+                    $actor,
+                    [$attribute => $diff['before'][$attribute] ?? null],
+                    [$attribute => $diff['after'][$attribute] ?? null],
+                    versionAfter: $ticket->version,
+                );
 
                 $this->auditFieldChange($actor, $ticket, $attribute, $before, $after);
             }

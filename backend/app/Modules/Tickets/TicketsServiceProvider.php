@@ -23,6 +23,10 @@ use App\Modules\Tickets\Domain\Commands\UpdateTicketAttributes;
 use App\Modules\Tickets\Domain\Concurrency\VersionGuard;
 use App\Modules\Tickets\Domain\Events\CustomerReplyPosted;
 use App\Modules\Tickets\Domain\Lifecycle\TicketLifecycle;
+use App\Modules\Tickets\Contracts\TicketEventRecording;
+use App\Modules\Tickets\Domain\History\TicketEventRecorder;
+use App\Modules\Tickets\Domain\Query\TicketCounts;
+use App\Modules\Tickets\Domain\Query\TicketListQuery;
 use App\Modules\Tickets\Http\AssigneeDirectory;
 use App\Modules\Tickets\Listeners\ReopenOnCustomerReply;
 use App\Modules\Tickets\Domain\Query\DepartmentTicketUsage;
@@ -74,6 +78,19 @@ final class TicketsServiceProvider extends ServiceProvider implements RegistersS
         $this->app->singleton(VersionGuard::class);
         $this->app->singleton(TicketLifecycle::class);
         $this->app->singleton(AssigneeDirectory::class);
+
+        /*
+         * The one writer of ticket history. A singleton so that every command
+         * in a request shares it, and bound to the contract so the SLA module
+         * can record a breach without depending on the Tickets model.
+         */
+        $this->app->singleton(TicketEventRecorder::class);
+
+        // Stateless: they hold nothing per request, so one instance serves the
+        // whole application.
+        $this->app->singleton(TicketListQuery::class);
+        $this->app->singleton(TicketCounts::class);
+        $this->app->bind(TicketEventRecording::class, TicketEventRecorder::class);
 
         // Stateless, so one instance each. Every ticket mutation in the product
         // goes through one of these.

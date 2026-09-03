@@ -29,6 +29,23 @@ return Application::configure(basePath: dirname(__DIR__))
          */
         $middleware->statefulApi();
 
+        /*
+         * Never redirect a guest — answer them.
+         *
+         * Laravel's Authenticate middleware, when a request does not ask for
+         * JSON, resolves `route('login')` to build a redirect. This application
+         * has no such route: it serves an API and the sign-in PAGE belongs to
+         * the separate frontend deployment. The lookup therefore threw
+         * RouteNotFoundException from inside the middleware — BEFORE the
+         * AuthenticationException that the problem handler knows how to render
+         * — and an unauthenticated caller got `500 platform.internal_error`
+         * instead of `401 platform.unauthorized`.
+         *
+         * Returning null keeps the exception on the path the handler expects,
+         * whatever the caller sent in Accept.
+         */
+        $middleware->redirectGuestsTo(fn () => null);
+
         $middleware->prependToGroup('api', AssignRequestId::class);
         $middleware->appendToGroup('api', IdempotencyKey::class);
 

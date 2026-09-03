@@ -71,6 +71,17 @@ final class TicketEvent extends Model
     }
 
     /**
+     * Deliberately empty, and deliberately present.
+     *
+     * An observer or a model event on this table would be a second, invisible
+     * writer of history — the one place where "something else also changed the
+     * row" must be impossible. Declared so that adding one is a visible edit to
+     * this file rather than a new file nobody reviews, and `TicketEventsAppendOnlyTest`
+     * fails if a `TicketEvent::observe(` ever appears.
+     */
+    protected static function booted(): void {}
+
+    /**
      * @param  array<string, mixed>  $options
      */
     public function save(array $options = []): bool
@@ -82,7 +93,36 @@ final class TicketEvent extends Model
         return parent::save($options);
     }
 
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $options
+     */
+    public function update(array $attributes = [], array $options = []): bool
+    {
+        /*
+         * Every door, not just the front one. `save()` alone left `update()`,
+         * `updateOrFail()` and `forceDelete()` reaching the database directly —
+         * and an append-only store that can be edited through three of its four
+         * methods is not append-only, it is a convention.
+         */
+        throw new LogicException('Ticket events are append-only and cannot be updated.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $options
+     */
+    public function updateOrFail(array $attributes = [], array $options = []): bool
+    {
+        throw new LogicException('Ticket events are append-only and cannot be updated.');
+    }
+
     public function delete(): bool
+    {
+        throw new LogicException('Ticket events are append-only and cannot be deleted.');
+    }
+
+    public function forceDelete(): bool
     {
         throw new LogicException('Ticket events are append-only and cannot be deleted.');
     }

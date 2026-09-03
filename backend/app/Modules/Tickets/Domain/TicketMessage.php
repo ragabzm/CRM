@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Tickets\Domain;
 
+use App\Modules\Tickets\Domain\Enum\DeliveryState;
 use App\Modules\Tickets\Domain\Enum\MessageDirection;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,8 +37,33 @@ final class TicketMessage extends Model
     {
         return [
             'direction' => MessageDirection::class,
+            'delivery_state' => DeliveryState::class,
             'sent_at' => 'immutable_datetime',
         ];
+    }
+
+    /**
+     * Everything the customer is allowed to see.
+     *
+     * THE scope every customer-facing read must go through — the outbound mail
+     * composer above all. An internal note is a colleague's private remark
+     * about the person it would be emailed to, and there is no taking that
+     * back once it has been sent.
+     *
+     * A scope rather than a filter each caller writes, so there is one place
+     * to be right and `InternalNoteNotDeliveredTest` has one thing to watch.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<self>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<self>
+     */
+    public function scopeCustomerVisible(Builder $query): Builder
+    {
+        return $query->where('direction', '!=', MessageDirection::Internal->value);
+    }
+
+    public function isCustomerVisible(): bool
+    {
+        return $this->direction->isCustomerVisible();
     }
 
     public function newUniqueId(): string

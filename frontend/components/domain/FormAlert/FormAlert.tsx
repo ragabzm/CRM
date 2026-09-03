@@ -1,12 +1,21 @@
 import { CheckCircle2, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface FormAlertProps {
   tone: "error" | "success";
   children: ReactNode;
   className?: string;
+  /**
+   * A way out of the failure, rendered inside the banner.
+   *
+   * Here rather than beside it because a reader who has just been told
+   * something went wrong should not have to look elsewhere for the retry — and
+   * because a banner that reports a failure with no next step is a dead end.
+   */
+  action?: { label: string; onSelect: () => void };
 }
 
 /**
@@ -19,11 +28,11 @@ export interface FormAlertProps {
  * UX-03: the tone is carried by a glyph as well as colour, so it survives
  * greyscale.
  */
-export function FormAlert({ tone, children, className }: FormAlertProps) {
+export function FormAlert({ tone, children, className, action }: FormAlertProps) {
   const Glyph = tone === "error" ? TriangleAlert : CheckCircle2;
 
   return (
-    <p
+    <div
       role={tone === "error" ? "alert" : "status"}
       data-tone={tone}
       className={cn(
@@ -41,7 +50,15 @@ export function FormAlert({ tone, children, className }: FormAlertProps) {
           tone === "error" ? "text-state-danger" : "text-state-success",
         )}
       />
-      <span>{children}</span>
-    </p>
+      <span className="flex flex-wrap items-center gap-3">
+        <span>{children}</span>
+
+        {action && (
+          <Button variant="secondary" size="sm" onClick={action.onSelect}>
+            {action.label}
+          </Button>
+        )}
+      </span>
+    </div>
   );
 }

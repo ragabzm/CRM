@@ -81,6 +81,25 @@ enum TicketStatus: string
     }
 
     /** @return list<string> */
+    /**
+     * The states that still need someone's attention.
+     *
+     * "Open" in the sense a customer means it: their request has not been dealt
+     * with yet. Resolved and closed are finished — counting them in "open
+     * tickets" would tell an agent this person has eleven live problems when
+     * they have one.
+     *
+     * Here rather than as a literal list at each call site, because the list
+     * that gets forgotten when a state is added is the one that quietly starts
+     * lying.
+     *
+     * @return list<self>
+     */
+    public static function openStates(): array
+    {
+        return [self::Open, self::Pending];
+    }
+
     public static function values(): array
     {
         return array_map(static fn (self $case): string => $case->value, self::cases());

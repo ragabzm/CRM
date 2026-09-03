@@ -52,10 +52,13 @@ function renderInArabic() {
   host.setAttribute("lang", "ar");
   document.body.appendChild(host);
 
-  return render(<CustomerTimeline customerId="01AAAAAAAAAAAAAAAAAAAAAAAA" onOpenTicket={vi.fn()} />, {
-    locale: "ar",
-    container: host,
-  });
+  return render(
+    <CustomerTimeline customerId="01AAAAAAAAAAAAAAAAAAAAAAAA" onOpenTicket={vi.fn()} />,
+    {
+      locale: "ar",
+      container: host,
+    },
+  );
 }
 
 describe("the timeline in Arabic", () => {

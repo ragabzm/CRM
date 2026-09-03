@@ -12,8 +12,15 @@ export const REQUEST_ID_HEADER = "X-Request-Id";
 /** Methods the API treats as writes and therefore requires a key for. */
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-/** Problem code the API uses when a session has lapsed. */
-export const SESSION_EXPIRED_CODE = "security.session_expired";
+/**
+ * Problem codes that mean "your session is gone".
+ *
+ * Two, not one. Platform (T0) answers a missing session generically with
+ * `platform.unauthorized`, and Security narrows it to `security.session_expired`
+ * on its own authenticated routes. A frontend that recognised only the narrow
+ * one would ignore every 401 raised by the generic path — which is most of them.
+ */
+export const SESSION_EXPIRED_CODES = ["security.session_expired", "platform.unauthorized"];
 
 /** Fired when the API reports the session has ended. */
 export const SESSION_EXPIRED_EVENT = "auth:session-expired";

@@ -240,6 +240,22 @@ export interface paths {
         patch: operations["admin.categories.update"];
         trace?: never;
     };
+    "/tickets/{ticket}/customer-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tickets.customer-context"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/customers/duplicates/preview": {
         parameters: {
             query?: never;
@@ -620,6 +636,22 @@ export interface paths {
         patch: operations["admin.quick-replies.update"];
         trace?: never;
     };
+    "/quick-replies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["quick-replies.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/settings": {
         parameters: {
             query?: never;
@@ -654,6 +686,22 @@ export interface paths {
         patch: operations["admin.settings.update"];
         trace?: never;
     };
+    "/tickets/{ticket}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tickets.events.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tickets/{ticket}/messages": {
         parameters: {
             query?: never;
@@ -664,6 +712,28 @@ export interface paths {
         get: operations["tickets.messages.index"];
         put?: never;
         post: operations["tickets.messages.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{ticket}/messages/{message}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Puts a failed send back in the queue
+         * @description Retry rather than "send again": the message already exists and already
+         *     says who wrote it and when. Creating a second one would put the agent's
+         *     words in the thread twice for a failure that was never theirs.
+         */
+        post: operations["tickets.messages.retry"];
         delete?: never;
         options?: never;
         head?: never;
@@ -827,7 +897,13 @@ export interface components {
         AppendMessageRequest: {
             body: string;
             /** @enum {string} */
-            direction?: "inbound" | "outbound";
+            direction?: "inbound" | "outbound" | "internal";
+            /**
+             * @description Ids of files already uploaded against this ticket. Sent as a list
+             *     rather than as the files themselves so a slow or refused upload
+             *     never costs the agent the reply they typed.
+             */
+            attachment_ids?: string[];
         };
         /** AssignTicketRequest */
         AssignTicketRequest: {
@@ -1037,14 +1113,20 @@ export interface components {
         };
         /**
          * UpdateTicketAttributesRequest
-         * @description A partial change. Every attribute optional, `version` required.
+         * @description A partial change. Every attribute optional, the version required.
          *
-         *     `version` is required even though the guard would tolerate null, because a
+         *     The version is required even though the guard would tolerate null, because a
          *     caller who omitted it would be silently opting out of the protection this
          *     whole mechanism exists for.
+         *
+         *     It may arrive in the body as `version` or in an `If-Match` header — the same
+         *     number, spelled the way the caller finds natural. There is still ONE guard
+         *     reading ONE value; a second mechanism would be a second thing to get wrong,
+         *     and the one that is wrong is the one nobody tested.
          */
         UpdateTicketAttributesRequest: {
-            version: number;
+            /** @description Required only when the header did not carry it. */
+            version?: number;
             /** @enum {string} */
             status?: "open" | "pending" | "resolved" | "closed";
             /** @enum {string} */
@@ -1938,6 +2020,39 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "tickets.customer-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
             /** @description An RFC 9457 problem document. */
             default: {
                 headers: {
@@ -3488,6 +3603,47 @@ export interface operations {
             };
         };
     };
+    "quick-replies.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            id: string;
+                            label: {
+                                en: string;
+                                ar: string;
+                            };
+                            body: {
+                                en: string;
+                                ar: string;
+                            };
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "admin.settings.index": {
         parameters: {
             query?: never;
@@ -3588,6 +3744,45 @@ export interface operations {
             };
         };
     };
+    "tickets.events.index": {
+        parameters: {
+            query?: {
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                ticket: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        }[];
+                        next_cursor: string | null;
+                        has_more: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "tickets.messages.index": {
         parameters: {
             query?: never;
@@ -3662,6 +3857,61 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "tickets.messages.retry": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                ticket: string;
+                message: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
             425: {
                 headers: {
@@ -3784,7 +4034,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["UpdateTicketAttributesRequest"];
             };

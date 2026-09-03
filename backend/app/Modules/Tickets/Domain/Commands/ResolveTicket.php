@@ -7,7 +7,7 @@ namespace App\Modules\Tickets\Domain\Commands;
 use App\Modules\Tickets\Domain\Actor\Actor;
 use App\Modules\Tickets\Domain\Enum\TicketStatus;
 use App\Modules\Tickets\Domain\Ticket;
-use App\Modules\Tickets\Domain\TicketEvent;
+use App\Modules\Tickets\Domain\History\TicketEventKind;
 
 /**
  * Resolves a ticket, with a note saying what was actually done.
@@ -29,7 +29,7 @@ final class ResolveTicket
             TicketStatus::Resolved,
             // Named specifically, so "show me everything that was resolved
             // this week" is a filter rather than a scan of status changes.
-            TicketEvent::RESOLVED,
+            TicketEventKind::Resolved,
             ['resolution_note' => trim($resolutionNote)],
         );
     }

@@ -2,6 +2,19 @@
 
 > ملف تطوير محلي. مايتنشرش ومايتحطش في أي بيئة حقيقية.
 
+## الحسابات
+
+| الإيميل | الدور | الباسورد |
+|---|---|---|
+| `admin@ragab.test` | administrator | `Correct-Horse-9` |
+| `super@ragab.test` | supervisor | `Correct-Horse-9` |
+| `agent@ragab.test` | agent | `Correct-Horse-9` |
+
+**اتأكدت من التلاتة بتسجيل دخول فعلي — 2026-09-02.** كلهم رجّعوا 200 وبالدور
+الصح.
+
+`admin@ragab.test` هو الوحيد اللي بيشوف قسم Administration.
+
 ## العناوين
 
 | الحاجة | الرابط |
@@ -11,63 +24,42 @@
 | الـ API | http://localhost:8000/api/v1 |
 | Postgres | `127.0.0.1:5432` — قاعدة `ragab` / مستخدم `ragab` / باسورد `ragab` |
 
-## الحسابات الموجودة في قاعدة البيانات دلوقتي
+## الحسابات دي بقت في الـ seeder
 
-استخرجتهم بالاستعلام ده من الكونتينر:
+كانت اتعملت **يدوياً** قبل كده، فـ `migrate:fresh --seed` كان بيمسحهم ومايرجّعهمش.
+**وده حصل فعلاً:** الجدول اتلقى فاضي والملف ده لسه بيقول إنهم موجودين.
 
-```sql
-select u.email, u.name, r.name
-from users u
-left join model_has_roles mhr on mhr.model_id = u.id
-left join roles r on r.id = mhr.role_id;
+دلوقتي `DevAccountsSeeder` بيعملهم، و`DatabaseSeeder` بينده عليه. يعني
+`migrate:fresh --seed` بيرجّعهم.
+
+لو اتمسحوا لأي سبب:
+
+```bash
+docker compose exec backend-web php artisan db:seed --class=DevAccountsSeeder
 ```
 
-| الإيميل | الاسم | الدور | الباسورد |
-|---|---|---|---|
-| `admin@ragab.test` | Admin | administrator | `Correct-Horse-9` — موثّق في `README.md` سطر 228 |
-| `super@ragab.test` | Super | supervisor | **غير معروف** |
-| `agent@ragab.test` | Agent | agent | **غير معروف** |
+الـ seeder مكتفي بنفسه — بيعمل الأدوار الأول، فالأمر ده شغال لوحده من غير
+`--seed` كامل.
 
-**ابدأ بـ `admin@ragab.test`** — هو الوحيد اللي الباسورد بتاعه مكتوب في الريبو، وهو كمان الدور الوحيد اللي بيشوف قسم Administration.
+### ليه باسورد معروف مكتوب في ملف
 
-## ⚠️ الحسابات دي مش من الـ seeder
+`DevAccountsSeeder` **بيرفض يشتغل خارج `local` و `testing`**. مفيش بيئة
+الباسورد ده بيفتح فيها حاجة. لو الحارس ده اتشال، الباسورد لازم يتشال معاه.
 
-دوّرت في الريبو كله: **مفيش seeder بيعمل الحسابات التلاتة دي**.
+## لو الدخول رجّع 500 بدل ما يشتغل
 
-- `DatabaseSeeder.php` بيعمل حساب واحد بس: `test@example.com` عن طريق `User::factory()`
-- `UserFactory.php` سطر 31 بيحط الباسورد `password` لأي حساب بيعمله
-- `RolesAndPermissionsSeeder.php` بيعمل الأدوار والصلاحيات، مش مستخدمين
+`Session store not set on request.` معناها إن الطلب مجاش من نطاق مسجّل في
+`SANCTUM_STATEFUL_DOMAINS`. المتصفح على `localhost:3000` مظبوط. لو بتجرّب
+بـ `curl` لازم تبعت:
 
-يعني حسابات `@ragab.test` اتعملت **يدوياً** (tinker أو استعلام مباشر). النتيجة المهمة:
-
-> **`php artisan migrate:fresh --seed` هيمسحهم ومش هيرجّعهم.**
-
-لو شغّلت `./scripts/restart.sh` من غير `--no-fresh`، هتلاقي نفسك من غير أي حساب تدخل بيه غير `test@example.com` بباسورد `password`.
-
-## الحسابات بعد `migrate:fresh --seed`
-
-| الإيميل | الباسورد | الدور |
-|---|---|---|
-| `test@example.com` | `password` | **مفيش دور** — يعني مش هيشوف Administration |
-
-## لو عايز الحسابات التلاتة ترجع بعد كل fresh
-
-محتاج تضيفهم للـ seeder. **ما عملتش ده** — طلبت مني ما أصلحش أي كود. لو حبيت، ده اللي المفروض يتضاف في `DatabaseSeeder::run()`:
-
-```php
-foreach ([
-    ['Admin', 'admin@ragab.test', 'administrator'],
-    ['Super', 'super@ragab.test', 'supervisor'],
-    ['Agent', 'agent@ragab.test', 'agent'],
-] as [$name, $email, $role]) {
-    User::factory()->create(['name' => $name, 'email' => $email])->assignRole($role);
-}
+```
+-H 'Origin: http://localhost:3000'
 ```
 
-الباسورد ساعتها هيبقى `password` للتلاتة (من الـ factory).
+من غيرها Sanctum مابيشغّلش وضع الجلسة أصلاً.
 
 ## ملاحظة عن المتصفح
 
-صفحة `/sign-in` عندك بيملاها Chrome أوتوماتيك بـ `admin@pharmacy.local` وباسورد محفوظ — **دي بيانات مشروع تاني**، مش بتاعة المشروع ده، ومش هتشتغل. امسحها من الحقول قبل ما تكتب البيانات الصح.
-
-أنا **ما كتبتش أي باسورد في أي حقل** ومش هعمل كده — ده خط أحمر عندي حتى على بيئة محلية.
+صفحة `/sign-in` عندك بيملاها Chrome أوتوماتيك بـ `admin@pharmacy.local` وباسورد
+محفوظ — **دي بيانات مشروع تاني** ومش هتشتغل. امسحها من الحقول قبل ما تكتب
+البيانات الصح.

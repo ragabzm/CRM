@@ -93,15 +93,58 @@ final class AppendMessageTest extends TestCase
         $this->assertSame($before, Ticket::query()->findOrFail($this->ticket['id'])->version);
     }
 
-    public function test_appending_writes_no_ticket_event(): void
+    public function test_appending_records_that_a_reply_happened(): void
     {
         $before = \App\Modules\Tickets\Domain\TicketEvent::query()->count();
 
         $this->reply()->assertStatus(201);
 
-        // The thread IS the record of what was said; a parallel event row would
-        // be the same fact stored twice.
-        $this->assertSame($before, \App\Modules\Tickets\Domain\TicketEvent::query()->count());
+        /*
+         * REVERSED from Story 4.1, deliberately.
+         *
+         * This test used to assert the opposite — that appending wrote no event
+         * — on the reasoning that "the thread IS the record; a parallel event
+         * row would be the same fact stored twice." That objection was about
+         * copying the BODY, and it was right: a message corrected at source
+         * with a copy in an append-only store that can never be corrected is
+         * two versions of what someone said.
+         *
+         * The event written here carries no body. It carries a message id and
+         * a count, which makes it a pointer, not a copy. What it buys is the
+         * thing the history panel exists for: "assigned to Dana, replied,
+         * priority raised, replied again" read in one order. A history that
+         * omits every reply cannot answer "what happened to this ticket".
+         */
+        $event = \App\Modules\Tickets\Domain\TicketEvent::query()->orderByDesc('created_at')->orderByDesc('id')->firstOrFail();
+
+        $this->assertSame($before + 1, \App\Modules\Tickets\Domain\TicketEvent::query()->count());
+        $this->assertSame('ticket.message_sent', $event->event_type);
+        $this->assertArrayHasKey('message_id', $event->payload['meta']);
+    }
+
+    public function test_the_history_entry_does_not_copy_the_message_body(): void
+    {
+        $this->reply()->assertStatus(201);
+
+        $event = \App\Modules\Tickets\Domain\TicketEvent::query()->orderByDesc('created_at')->orderByDesc('id')->firstOrFail();
+
+        // The body lives on the message and nowhere else. Duplicating it here
+        // would put an uncorrectable copy of someone's words in a store that by
+        // design can never be edited.
+        $this->assertNull($event->payload['before']);
+        $this->assertNull($event->payload['after']);
+        $this->assertArrayNotHasKey('body', $event->payload['meta']);
+    }
+
+    public function test_appending_still_does_not_bump_the_version(): void
+    {
+        $before = Ticket::query()->findOrFail($this->ticket['id'])->version;
+
+        $this->reply()->assertStatus(201);
+
+        // The history entry records the version it observed; it does not move
+        // it. An append is not a change to contended state.
+        $this->assertSame($before, Ticket::query()->findOrFail($this->ticket['id'])->version);
     }
 
     public function test_a_reply_records_who_wrote_it(): void

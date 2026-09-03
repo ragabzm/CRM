@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { FormAlert } from "@/components/domain/FormAlert/FormAlert";
 import { FormField } from "@/components/domain/FormField/FormField";
@@ -26,16 +26,49 @@ export function ProfileScreen() {
   const [locale, setLocale] = useState<"en" | "ar">("en");
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  /**
+   * Loads the person's own details.
+   *
+   * The failure used to be swallowed with `.catch(() => undefined)`, which left
+   * the form standing there with empty Name and Email fields, no spinner and no
+   * message — indistinguishable from a profile that genuinely has no name. Type
+   * into it and Save would overwrite the real record with whatever was on
+   * screen. A form that cannot show what it is editing must say so.
+   */
+  const loadProfile = useCallback(() => {
+    let cancelled = false;
+
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+
+      setLoading(true);
+      setLoadFailed(false);
+    });
+
     getProfile()
       .then((profile) => {
+        if (cancelled) return;
+
         setUser(profile);
         setName(profile.name);
         setLocale(profile.preferred_locale === "ar" ? "ar" : "en");
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setLoadFailed(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  useEffect(loadProfile, [loadProfile]);
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,45 +105,65 @@ export function ProfileScreen() {
       {notice && <FormAlert tone="success">{notice}</FormAlert>}
       {error && <FormAlert tone="error">{error}</FormAlert>}
 
+      {loadFailed && (
+        <FormAlert tone="error" action={{ label: t("loadRetry"), onSelect: loadProfile }}>
+          {t("loadError")}
+        </FormAlert>
+      )}
+
+      {loading && (
+        <p role="status" className="text-sm text-fg-muted">
+          {t("loading")}
+        </p>
+      )}
+
+      {/*
+        Nothing to edit until the record is here.
+        `disabled` on the fieldset rather than a guard on submit: an enabled
+        Name field over an unloaded profile invites someone to type a
+        replacement for a value they were never shown, and Save would write it.
+      */}
       <form onSubmit={saveProfile} className="flex max-w-sm flex-col gap-4">
-        <FormField
-          label={t("name")}
-          name="name"
-          value={name}
-          maxLength={120}
-          onChange={(event) => setName(event.target.value)}
-        />
+        <fieldset disabled={user === null} className="flex flex-col gap-4 border-0 p-0">
+          <FormField
+            label={t("name")}
+            name="name"
+            value={name}
+            maxLength={120}
+            onChange={(event) => setName(event.target.value)}
+          />
 
-        {/* Read-only: changing the sign-in address is an identity change that
+          {/* Read-only: changing the sign-in address is an identity change that
             needs verification of the new address and notice to the old. */}
-        <FormField
-          label={t("email")}
-          name="email"
-          value={user?.email ?? ""}
-          readOnly
-          disabled
-          hint={t("emailHint")}
-        />
+          <FormField
+            label={t("email")}
+            name="email"
+            value={user?.email ?? ""}
+            readOnly
+            disabled
+            hint={t("emailHint")}
+          />
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-medium text-fg-default">{t("language")}</legend>
-          {/* Each language named in its own language: an endonym is what the
+          <fieldset className="flex flex-col gap-2">
+            <legend className="text-sm font-medium text-fg-default">{t("language")}</legend>
+            {/* Each language named in its own language: an endonym is what the
               reader recognises, translated names are not. */}
-          {(["en", "ar"] as const).map((option) => (
-            <label key={option} className="flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="preferred_locale"
-                value={option}
-                checked={locale === option}
-                onChange={() => setLocale(option)}
-              />
-              <span>{option === "en" ? t("languageEnglish") : t("languageArabic")}</span>
-            </label>
-          ))}
-        </fieldset>
+            {(["en", "ar"] as const).map((option) => (
+              <label key={option} className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="preferred_locale"
+                  value={option}
+                  checked={locale === option}
+                  onChange={() => setLocale(option)}
+                />
+                <span>{option === "en" ? t("languageEnglish") : t("languageArabic")}</span>
+              </label>
+            ))}
+          </fieldset>
 
-        <SubmitButton variant="primary">{t("save")}</SubmitButton>
+          <SubmitButton variant="primary">{t("save")}</SubmitButton>
+        </fieldset>
       </form>
 
       <ChangePasswordCard />

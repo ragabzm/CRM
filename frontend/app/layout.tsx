@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { IntlProvider } from "@/components/i18n/IntlProvider";
 import { SessionExpiryListener } from "@/components/auth/SessionExpiryListener";
-import { AppShell } from "@/components/shell/AppShell";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { INTL_TAG, directionFor, resolveLocale } from "@/lib/i18n/locale";
 import { loadMessages } from "@/lib/i18n/messages";
@@ -53,7 +52,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             {/* Redirects a lapsed session to sign-in WITHOUT clearing storage —
                 see the note in SessionExpiryListener about composer drafts. */}
             <SessionExpiryListener />
-            <AppShell>{children}</AppShell>
+            {/* No chrome here. It is mounted once, in `(app)/layout.tsx`, so
+                the sign-in routes render bare and no screen has to know
+                whether it is already inside a shell. */}
+            {children}
           </TooltipProvider>
         </IntlProvider>
       </body>

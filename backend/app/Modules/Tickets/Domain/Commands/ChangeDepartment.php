@@ -8,7 +8,7 @@ use App\Modules\Platform\Exceptions\ProblemException;
 use App\Modules\Security\Contracts\DepartmentDirectory;
 use App\Modules\Tickets\Domain\Actor\Actor;
 use App\Modules\Tickets\Domain\Ticket;
-use App\Modules\Tickets\Domain\TicketEvent;
+use App\Modules\Tickets\Domain\History\TicketEventKind;
 use App\Modules\Tickets\Http\AssigneeDirectory;
 
 /**
@@ -80,7 +80,7 @@ final class ChangeDepartment
             // guess, since this is our own follow-up write and not theirs.
             (int) $ticket->refresh()->version,
             TicketAttributeChanges::of(['assignee_id' => null]),
-            TicketEvent::ASSIGNEE_CHANGED,
+            TicketEventKind::AssigneeChanged,
             [
                 'reason' => 'department_changed',
                 'detail' => 'Unassigned automatically: the previous assignee is not in the ticket\'s new department.',

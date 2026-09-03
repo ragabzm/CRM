@@ -38,6 +38,29 @@ final class AssigneeDirectory
         return $userDepartment === null || (int) $userDepartment === $departmentId;
     }
 
+    /**
+     * Display names for a whole page of ids, in one query.
+     *
+     * Taking the list rather than one id at a time is the point: a ticket
+     * history is mostly the same few people repeated, and resolving names row
+     * by row turns a 200-event page into 200 queries.
+     *
+     * @param  list<string>  $userIds
+     * @return array<string, string>  id => name, missing for accounts that are gone
+     */
+    public function namesFor(array $userIds): array
+    {
+        if ($userIds === []) {
+            return [];
+        }
+
+        return User::query()
+            ->whereIn('id', $userIds)
+            ->pluck('name', 'id')
+            ->mapWithKeys(static fn (string $name, mixed $id): array => [(string) $id => $name])
+            ->all();
+    }
+
     public function departmentOf(int $userId): ?int
     {
         $value = User::query()->whereKey($userId)->value('department_id');

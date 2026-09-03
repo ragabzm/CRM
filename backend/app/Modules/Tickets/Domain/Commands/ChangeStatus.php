@@ -6,6 +6,7 @@ namespace App\Modules\Tickets\Domain\Commands;
 
 use App\Modules\Tickets\Domain\Actor\Actor;
 use App\Modules\Tickets\Domain\Enum\TicketStatus;
+use App\Modules\Tickets\Domain\History\TicketEventKind;
 use App\Modules\Tickets\Domain\Ticket;
 
 /**
@@ -23,7 +24,7 @@ final class ChangeStatus
         string $ticketId,
         ?int $submittedVersion,
         TicketStatus $status,
-        ?string $event = null,
+        ?TicketEventKind $event = null,
         array $payload = [],
     ): Ticket {
         return $this->update->handle(

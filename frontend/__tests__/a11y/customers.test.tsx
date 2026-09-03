@@ -114,10 +114,13 @@ describe.each(DIRECTIONS)("the customer timeline · dir=$dir", ({ dir, locale })
       "fetch",
       vi.fn(
         async () =>
-          new Response(JSON.stringify({ data: TIMELINE, next_cursor: "Y3Vyc29y", has_more: true }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          }),
+          new Response(
+            JSON.stringify({ data: TIMELINE, next_cursor: "Y3Vyc29y", has_more: true }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
       ),
     );
   });
