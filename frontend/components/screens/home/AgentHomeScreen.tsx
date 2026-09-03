@@ -14,8 +14,6 @@ import { CountsStrip } from "./CountsStrip";
 export interface AgentHomeScreenProps {
   currentUserId: number | null;
   onOpen: (id: string) => void;
-  assigneeNames?: Record<string, string>;
-  categoryNames?: Record<string, string>;
 }
 
 const REFETCH_MS = 30_000;
@@ -33,12 +31,7 @@ const REFETCH_MS = 30_000;
  * SLA module lands it becomes the first key — the sort is expressed as a
  * server-side sort so that change is one string, not a rewrite.
  */
-export function AgentHomeScreen({
-  currentUserId,
-  onOpen,
-  assigneeNames = {},
-  categoryNames = {},
-}: AgentHomeScreenProps) {
+export function AgentHomeScreen({ currentUserId, onOpen }: AgentHomeScreenProps) {
   const t = useTranslations("home");
   // The list's own copy for load states, so both surfaces say the same thing.
   const list = useTranslations("tickets");
@@ -70,6 +63,17 @@ export function AgentHomeScreen({
   });
 
   const rows = queue.data?.data ?? [];
+
+  /*
+   * The labels arrive with the rows they belong to.
+   *
+   * They used to be props, and no page ever passed them — so the Assignee and
+   * Category columns rendered a dash on every row, and an assigned ticket was
+   * indistinguishable from an unclaimed one. Reading them off the same
+   * response the rows came from is what makes that impossible to forget.
+   */
+  const assigneeNames = queue.data?.included?.assignees ?? {};
+  const categoryNames = queue.data?.included?.categories ?? {};
 
   return (
     <div className="flex flex-col gap-6" data-slot="agent-home">

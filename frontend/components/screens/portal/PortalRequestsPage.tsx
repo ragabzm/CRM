@@ -1,24 +1,22 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-
-import { EmptyState } from "@/components/domain/EmptyState/EmptyState";
+import { useRouter } from "next/navigation";
 
 import { PortalGate } from "./PortalGate";
+import { PortalRequestList } from "./PortalRequestList";
 
 /**
- * Where a customer's requests will be listed.
+ * Where a customer lands after signing in.
  *
- * Story 6.2 builds the list. This exists so the shell's first destination is a
- * real page rather than a 404 — the failure that made `/tickets` a dead link in
- * the staff navigation for weeks.
+ * Story 6.1 left this as an empty state so the shell's first destination was a
+ * real page rather than a 404. It now lists what they have actually asked.
  */
 export function PortalRequestsPage() {
-  const t = useTranslations("portal");
+  const router = useRouter();
 
   return (
     <PortalGate>
-      {() => <EmptyState headline={t("nav.requests")} description={t("auth.registerHint")} />}
+      {() => <PortalRequestList onOpen={(id) => router.push(`/portal/requests/${id}`)} />}
     </PortalGate>
   );
 }

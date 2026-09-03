@@ -32,6 +32,7 @@ use App\Modules\Tickets\Http\Controllers\CustomerContextController;
 use App\Modules\Tickets\Http\Controllers\NotificationsController;
 use App\Modules\Tickets\Http\Controllers\TicketEventsController;
 use App\Modules\Tickets\Http\Controllers\TicketMessagesController;
+use App\Modules\Tickets\Http\Controllers\TicketReferenceDataController;
 use App\Modules\Tickets\Http\Controllers\TicketsController;
 use App\Modules\Tickets\Http\Controllers\Admin\PrioritiesController;
 use Illuminate\Http\JsonResponse;
@@ -271,6 +272,23 @@ Route::prefix('v1')->group(function (): void {
                 ->middleware('can.capability:'.Capabilities::TICKET_READ)
                 ->whereUlid('ticket')
                 ->name('customer-context');
+        });
+
+        /*
+         * What the ticket workspace puts in its selects.
+         *
+         * Outside the `tickets/` prefix because they are not about one ticket,
+         * and gated on `ticket.read` rather than on managing the underlying
+         * lists: an agent who may not edit the category list still has to pick
+         * from it, and an agent who may not administer users still has to see
+         * who a ticket can go to.
+         */
+        Route::middleware('can.capability:'.Capabilities::TICKET_READ)->group(function (): void {
+            Route::get('/ticket-categories', [TicketReferenceDataController::class, 'categories'])
+                ->name('ticket-categories.index');
+
+            Route::get('/assignees', [TicketReferenceDataController::class, 'assignees'])
+                ->name('assignees.index');
         });
 
         /*

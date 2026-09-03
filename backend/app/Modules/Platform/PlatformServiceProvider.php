@@ -6,6 +6,7 @@ namespace App\Modules\Platform;
 
 use App\Modules\Platform\Console\Commands\OpenApiCheckCommand;
 use App\Modules\Platform\Console\Commands\OpenApiGenerateCommand;
+use App\Modules\Platform\Console\Commands\DatabaseCountsCommand;
 use App\Modules\Platform\Console\Commands\PruneIdempotencyKeysCommand;
 use App\Modules\Platform\Http\ProblemDetailsHandler;
 use App\Modules\Platform\Attachments\Application\AttachmentSettings;
@@ -125,6 +126,7 @@ final class PlatformServiceProvider extends ServiceProvider implements Registers
                 OpenApiGenerateCommand::class,
                 OpenApiCheckCommand::class,
                 PruneIdempotencyKeysCommand::class,
+                DatabaseCountsCommand::class,
             ]);
 
             $this->app->booted(function (): void {

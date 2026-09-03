@@ -750,6 +750,50 @@
       "resetExpired": "That link no longer works. Ask for a new one.",
       "error": "Those details did not match. Check them and try again.",
       "genericError": "Something went wrong. Try again."
+    },
+    "requests": {
+      "empty": "You have not asked us anything yet",
+      "emptyBody": "When you do, it will appear here so you can follow it.",
+      "status": {
+        "open": "With us",
+        "pending": "Waiting for you",
+        "resolved": "Answered",
+        "closed": "Closed"
+      },
+      "opened": "Opened",
+      "updated": "Last update",
+      "open": "Open",
+      "loadError": "We could not load your requests.",
+      "retry": "Try again"
+    },
+    "detail": {
+      "back": "All requests",
+      "thread": "Conversation",
+      "you": "You",
+      "support": "Support",
+      "reply": "Write a reply",
+      "replyPlaceholder": "Add anything that might help…",
+      "send": "Send",
+      "sent": "Sent.",
+      "sendError": "Your reply was not sent. Try again.",
+      "attach": "Attach a photo or file",
+      "reopen": "Reopen this request",
+      "reopened": "This request is open again.",
+      "reopenExpired": "This one closed too long ago to reopen.",
+      "startNew": "Ask again as a new request",
+      "notFound": "We could not find that request",
+      "notFoundBody": "It may have been removed, or the link may be wrong."
+    },
+    "new": {
+      "title": "Ask us something",
+      "subject": "What is it about?",
+      "subjectPlaceholder": "A short summary",
+      "description": "Tell us what happened",
+      "descriptionPlaceholder": "The more detail, the fewer questions back.",
+      "category": "Category",
+      "categoryAny": "I am not sure",
+      "submit": "Send the request",
+      "error": "We could not send that. Try again."
     }
   }
 }

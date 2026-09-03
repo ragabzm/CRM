@@ -379,6 +379,21 @@ export interface TicketListParams {
 export interface TicketListPage {
   data: Ticket[];
   meta: { total: number; per_page: number; current_page: number; last_page: number };
+  /**
+   * Labels for the ids on this page, keyed by id.
+   *
+   * A ticket ships `assignee_id` and `category_id`, and this is what turns
+   * them into something a person can read. It is side-loaded rather than
+   * repeated on every row because twenty-five tickets are mostly the same
+   * handful of agents.
+   *
+   * Optional on the type, not because the server omits it, but because a
+   * cached response from before it existed must not crash the table.
+   */
+  included?: {
+    assignees?: Record<string, string>;
+    categories?: Record<string, string>;
+  };
 }
 
 export interface TicketCounts {

@@ -8,7 +8,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { withIntl } from "@/__tests__/helpers/intl";
+import { PortalNewRequest } from "@/components/screens/portal/PortalNewRequest";
 import { PortalRegisterScreen } from "@/components/screens/portal/PortalRegisterScreen";
+import { PortalRequestDetail } from "@/components/screens/portal/PortalRequestDetail";
+import { PortalRequestList } from "@/components/screens/portal/PortalRequestList";
 import { PortalSignInScreen } from "@/components/screens/portal/PortalSignInScreen";
 import { PortalShell } from "@/components/shell/portal/PortalShell";
 import type { Locale } from "@/lib/i18n/locale";
@@ -20,10 +23,37 @@ const DIRECTIONS: Array<{ dir: "ltr" | "rtl"; locale: Locale }> = [
   { dir: "rtl", locale: "ar" },
 ];
 
+const DETAIL = {
+  id: "01R1",
+  reference: "TKT-000042",
+  subject: "My invoice is wrong",
+  status: "pending",
+  created_at: "2026-09-01T08:00:00Z",
+  updated_at: "2026-09-02T08:00:00Z",
+  description: "I was charged twice.",
+  messages: [
+    {
+      id: "01M1",
+      from: "support",
+      body: "Could you send the invoice number?",
+      sent_at: "2026-09-02T09:00:00Z",
+      attachments: [],
+    },
+  ],
+};
+
 beforeEach(() => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response("{}", { status: 200 })),
+    vi.fn(async (input: RequestInfo | URL) => {
+      // A detail URL ends with an id; the list URL ends with `requests`.
+      const detail = /\/requests\/[^/?]+$/.test(String(input));
+
+      return new Response(JSON.stringify(detail ? DETAIL : { data: [DETAIL] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }),
   );
 });
 
@@ -59,6 +89,32 @@ describe.each(DIRECTIONS)("the portal · dir=$dir", ({ dir, locale }) => {
 
   it("registration has no violations", async () => {
     const { container } = renderIn(<PortalRegisterScreen onRegistered={vi.fn()} />, dir, locale);
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("the request list has no violations", async () => {
+    const { container } = renderIn(<PortalRequestList onOpen={vi.fn()} />, dir, locale);
+
+    await screen.findByText("My invoice is wrong");
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("one request has no violations", async () => {
+    const { container } = renderIn(<PortalRequestDetail requestId="01R1" />, dir, locale);
+
+    await screen.findByText("Could you send the invoice number?");
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("the new-request form has no violations", async () => {
+    const { container } = renderIn(
+      <PortalNewRequest customerId="01C1" onSubmitted={vi.fn()} />,
+      dir,
+      locale,
+    );
 
     expect(await axe(container)).toHaveNoViolations();
   });

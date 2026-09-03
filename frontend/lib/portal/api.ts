@@ -85,3 +85,99 @@ export async function portalResetPassword(
     fetchImpl,
   });
 }
+
+/** What a customer is shown about their own request. Deliberately short. */
+export interface PortalRequestSummary {
+  id: string;
+  reference: string;
+  subject: string;
+  status: "open" | "pending" | "resolved" | "closed";
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface PortalMessage {
+  id: string;
+  /** `you` or `support` — never an agent's name. */
+  from: "you" | "support";
+  body: string;
+  sent_at: string | null;
+  attachments: Array<{ id: string; filename: string; byte_size: number }>;
+}
+
+export interface PortalRequestDetail extends PortalRequestSummary {
+  description: string;
+  messages: PortalMessage[];
+}
+
+export async function listPortalRequests(
+  fetchImpl: typeof fetch = fetch,
+): Promise<PortalRequestSummary[]> {
+  const body = await request<{ data: PortalRequestSummary[] }>("/portal/requests", {
+    method: "GET",
+    fetchImpl,
+  });
+
+  return body.data;
+}
+
+export function getPortalRequest(
+  id: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<PortalRequestDetail> {
+  return request<PortalRequestDetail>(`/portal/requests/${encodeURIComponent(id)}`, {
+    method: "GET",
+    fetchImpl,
+  });
+}
+
+export async function submitPortalRequest(
+  input: {
+    subject: string;
+    description: string;
+    category_id?: number | null;
+    attachment_ids?: string[];
+  },
+  fetchImpl: typeof fetch = fetch,
+): Promise<PortalRequestSummary> {
+  await getCsrf(fetchImpl);
+
+  return request<PortalRequestSummary>("/portal/requests", {
+    method: "POST",
+    body: JSON.stringify(input),
+    fetchImpl,
+  });
+}
+
+export async function replyToPortalRequest(
+  id: string,
+  body: string,
+  attachmentIds: string[] = [],
+  fetchImpl: typeof fetch = fetch,
+): Promise<PortalRequestDetail> {
+  await getCsrf(fetchImpl);
+
+  return request<PortalRequestDetail>(`/portal/requests/${encodeURIComponent(id)}/replies`, {
+    method: "POST",
+    body: JSON.stringify({ body, attachment_ids: attachmentIds }),
+    fetchImpl,
+  });
+}
+
+/**
+ * Reopens a closed request.
+ *
+ * Past the configured window the API refuses with a 409 that carries a
+ * `new_request_url` — the way forward, so a refusal is not a dead end.
+ */
+export async function reopenPortalRequest(
+  id: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<PortalRequestDetail> {
+  await getCsrf(fetchImpl);
+
+  return request<PortalRequestDetail>(`/portal/requests/${encodeURIComponent(id)}/reopen`, {
+    method: "POST",
+    fetchImpl,
+  });
+}

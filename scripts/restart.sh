@@ -57,6 +57,51 @@ warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
 die()  { printf '\n\033[31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
 
 # ---------------------------------------------------------------------------
+# Seeding
+#
+# One function, called from all three paths. It used to be `migrate:fresh
+# --seed` on one branch and a separate `db:seed` on another and nothing at all
+# on the third, which meant "did this path seed?" was a question you answered
+# by reading the script.
+#
+# It is also the difference between a stack that opens on a working product and
+# one that opens on twelve empty screens. `--no-seed` still means no seed.
+# ---------------------------------------------------------------------------
+run_seed() {
+  if [ "${DO_SEED}" -eq 0 ]; then
+    warn "skipping seed (--no-seed)"
+    return 0
+  fi
+
+  say "Backend — seed"
+
+  "${COMPOSE[@]}" exec -T backend-web php artisan db:seed --force \
+    >"${RUN_DIR}/seed.log" 2>&1 || {
+      tail -50 "${RUN_DIR}/seed.log"
+      die "SEED_FAILED — see ${RUN_DIR}/seed.log"
+    }
+
+  # An artisan command can print an exception and still exit 0 when the failure
+  # happened inside a seeder that swallowed it. The log is the source of truth.
+  if grep -qiE "SQLSTATE|Exception|Fatal error" "${RUN_DIR}/seed.log"; then
+    tail -50 "${RUN_DIR}/seed.log"
+    die "SEED_FAILED — see ${RUN_DIR}/seed.log"
+  fi
+
+  tail -20 "${RUN_DIR}/seed.log" | sed 's/^/  /'
+  ok "seeded"
+
+  seed_summary
+}
+
+# What actually landed. A seed that silently wrote nothing looks exactly like a
+# seed that worked, until somebody signs in.
+seed_summary() {
+  "${COMPOSE[@]}" exec -T backend-web php artisan db:counts 2>/dev/null | sed 's/^/  /' \
+    || warn "could not read row counts"
+}
+
+# ---------------------------------------------------------------------------
 # --logs is just a passthrough, and it must work without any of the checks
 # below — the whole point is to look at a stack that is already misbehaving.
 # ---------------------------------------------------------------------------
@@ -262,16 +307,16 @@ printf '\n'; ok "backend-web answering on ${BACKEND_PORT}"
 # ---------------------------------------------------------------------------
 if [ "${DO_FRESH}" -eq 1 ] && [ "${WIPE_VOLUME}" -eq 0 ]; then
   say "Backend — migrate:fresh"
-  if [ "${DO_SEED}" -eq 1 ]; then
-    "${COMPOSE[@]}" exec -T backend-web php artisan migrate:fresh --seed --force \
-      2>&1 | tee "${RUN_DIR}/migrate.log" | tail -6
-  else
-    "${COMPOSE[@]}" exec -T backend-web php artisan migrate:fresh --force \
-      2>&1 | tee "${RUN_DIR}/migrate.log" | tail -6
-  fi
+  # Deliberately NOT `migrate:fresh --seed`: seeding is its own step on every
+  # path, so a seed failure is reported as a seed failure rather than as part
+  # of a migration that actually succeeded.
+  "${COMPOSE[@]}" exec -T backend-web php artisan migrate:fresh --force \
+    2>&1 | tee "${RUN_DIR}/migrate.log" | tail -6
   grep -qiE "FAIL|SQLSTATE|Exception" "${RUN_DIR}/migrate.log" \
     && die "migrations failed — see ${RUN_DIR}/migrate.log"
-  ok "schema rebuilt$([ "${DO_SEED}" -eq 1 ] && echo ' and seeded')"
+  ok "schema rebuilt"
+
+  run_seed
 
   # The worker and the scheduler opened their connections against the old
   # schema. Restarted so neither is left holding a handle to a dropped table.
@@ -279,12 +324,13 @@ if [ "${DO_FRESH}" -eq 1 ] && [ "${WIPE_VOLUME}" -eq 0 ]; then
   ok "worker and scheduler restarted"
 elif [ "${WIPE_VOLUME}" -eq 1 ]; then
   say "Backend — schema built from scratch by the entrypoint (volume was wiped)"
-  if [ "${DO_SEED}" -eq 1 ]; then
-    "${COMPOSE[@]}" exec -T backend-web php artisan db:seed --force 2>&1 | tail -4
-    ok "seeded"
-  fi
+  run_seed
 else
   say "Backend — skipping migrate:fresh (--no-fresh)"
+  # Kept data still gets the seed. Every seeder is idempotent, so this is a
+  # no-op on a database that already has the demo rows and a repair on one
+  # that has drifted.
+  run_seed
 fi
 
 # ---------------------------------------------------------------------------

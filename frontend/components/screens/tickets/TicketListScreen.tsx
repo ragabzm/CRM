@@ -16,8 +16,6 @@ export interface TicketListScreenProps {
   params: TicketListParams;
   onParamsChange: (params: TicketListParams) => void;
   onOpen: (id: string) => void;
-  assigneeNames?: Record<string, string>;
-  categoryNames?: Record<string, string>;
 }
 
 /** How often the list catches up with the queue while an agent is looking at it. */
@@ -32,13 +30,7 @@ const REFETCH_MS = 30_000;
  * view, no localStorage, and no state that survives a reload the address bar
  * cannot explain.
  */
-export function TicketListScreen({
-  params,
-  onParamsChange,
-  onOpen,
-  assigneeNames = {},
-  categoryNames = {},
-}: TicketListScreenProps) {
+export function TicketListScreen({ params, onParamsChange, onOpen }: TicketListScreenProps) {
   const t = useTranslations("tickets");
 
   // The URL is the cache key: a filter change is a different query, and a
@@ -139,8 +131,10 @@ export function TicketListScreen({
           );
         }}
         onOpen={onOpen}
-        assigneeNames={assigneeNames}
-        categoryNames={categoryNames}
+        // From the same response as the rows — see AgentHomeScreen for why
+        // these are not props.
+        assigneeNames={data?.included?.assignees ?? {}}
+        categoryNames={data?.included?.categories ?? {}}
       />
 
       {loading && data === null && <p role="status">{t("title")}</p>}

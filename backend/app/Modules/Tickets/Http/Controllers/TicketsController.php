@@ -22,7 +22,9 @@ use App\Modules\Tickets\Domain\Query\TicketCounts;
 use App\Modules\Tickets\Domain\Query\TicketListQuery;
 use App\Modules\Tickets\Domain\Query\TicketVisibility;
 use App\Modules\Tickets\Domain\Ticket;
+use App\Modules\Tickets\Domain\Category;
 use App\Modules\Tickets\Http\ActorResolver;
+use App\Modules\Tickets\Http\AssigneeDirectory;
 use App\Modules\Tickets\Http\Requests\AssignTicketRequest;
 use App\Modules\Tickets\Http\Requests\ListTicketsRequest;
 use App\Modules\Tickets\Http\Requests\ChangeDepartmentRequest;
@@ -58,6 +60,13 @@ final class TicketsController extends Controller
          * off by swapping one binding.
          */
         private readonly SlaReader $sla,
+        /*
+         * Names for a whole page in one query. A ticket carries an
+         * `assignee_id`, and a list that shipped only the id left the client
+         * with nothing to render — the Assignee column showed a dash for every
+         * assigned ticket, which reads as "nobody has this".
+         */
+        private readonly AssigneeDirectory $people,
     ) {}
 
     /**
@@ -119,6 +128,26 @@ final class TicketsController extends Controller
                 'per_page' => $page->perPage(),
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
+            ],
+            /*
+             * Names for the ids on this page, resolved once.
+             *
+             * Side-loaded as maps rather than repeated on every row: a page of
+             * twenty-five tickets is mostly the same four agents and the same
+             * five categories, and the client already indexes by id.
+             *
+             * It is here rather than left to the client because the client
+             * cannot get it: `/users` and `/admin/categories` are both behind
+             * capabilities an ordinary agent does not hold, so a list that
+             * shipped only ids was a list an agent could never render.
+             */
+            'included' => [
+                'assignees' => $this->people->namesFor(array_values(array_unique(array_filter(
+                    array_map(static fn (Ticket $ticket): ?string => $ticket->assignee_id === null
+                        ? null
+                        : (string) $ticket->assignee_id, $tickets),
+                )))),
+                'categories' => self::categoryNames($tickets, $request->user()?->preferredLocale()),
             ],
         ]);
     }
@@ -285,5 +314,42 @@ final class TicketsController extends Controller
         );
 
         return new JsonResponse(TicketResource::toArray($updated));
+    }
+
+    /**
+     * Category labels for the ids on this page, in the reader's language.
+     *
+     * Localised HERE rather than shipping both columns, because a client that
+     * received `name_en` and `name_ar` would have to decide which to show —
+     * and every list that forgot would quietly show English to an Arabic
+     * reader.
+     *
+     * The language comes from the signed-in person's own preference, not from
+     * `app()->getLocale()`. Nothing in this application sets the application
+     * locale per request, so reading it would return the config default and
+     * hand every Arabic reader an English column — which is exactly what it
+     * did until this line named the right source.
+     *
+     * @param  list<Ticket>  $tickets
+     * @return array<string, string>
+     */
+    private static function categoryNames(array $tickets, ?string $locale): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map(
+            static fn (Ticket $ticket): ?int => $ticket->category_id,
+            $tickets,
+        ))));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $column = $locale === 'ar' ? 'name_ar' : 'name_en';
+
+        return Category::query()
+            ->whereIn('id', $ids)
+            ->pluck($column, 'id')
+            ->mapWithKeys(static fn (string $name, mixed $id): array => [(string) $id => $name])
+            ->all();
     }
 }

@@ -3917,6 +3917,77 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /ticket-categories:
+    get:
+      operationId: ticket-categories.index
+      tags:
+        - TicketReferenceData
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                      required:
+                        - id
+                        - name
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /assignees:
+    get:
+      operationId: assignees.index
+      summary: 'Who can be handed a ticket'
+      tags:
+        - TicketReferenceData
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                      required:
+                        - id
+                        - name
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /tickets:
     get:
       operationId: tickets.index
