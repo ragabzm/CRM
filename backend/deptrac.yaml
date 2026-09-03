@@ -47,7 +47,7 @@ deptrac:
     - name: Vendor
       collectors:
         - type: classNameRegex
-          value: '#^(Illuminate|Symfony|Laravel|Monolog|Psr|Dedoc|Carbon|Ramsey|Brick|Nesbot)\\.*#'
+          value: '#^(Illuminate|Symfony|Laravel|Monolog|Psr|Dedoc|Carbon|Ramsey|Brick|Nesbot|ZBateson)\\.*#'
     - name: AppShared
       collectors:
         - type: classNameRegex

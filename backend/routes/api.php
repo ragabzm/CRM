@@ -2,7 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Modules\Email\Http\Controllers\EmailTestSendController;
+use App\Modules\Email\Http\Controllers\InboundWebhookController;
+use App\Modules\Email\Http\Controllers\MailLogController;
+use App\Modules\Email\Http\Controllers\MailQuarantineController;
 use App\Modules\Platform\Http\Controllers\Admin\QuickRepliesController;
+use App\Modules\Sla\Http\Controllers\SlaPreviewController;
 use App\Modules\Customers\Http\Controllers\CustomerDuplicatesController;
 use App\Modules\Customers\Http\Controllers\CustomerNotesController;
 use App\Modules\Customers\Http\Controllers\CustomersController;
@@ -274,6 +279,52 @@ Route::prefix('v1')->group(function (): void {
                     ->where('key', '[A-Za-z0-9_.]+')
                     ->name('settings.update');
 
+                /*
+                 * The email channel: prove it works, and see what it did.
+                 *
+                 * Both behind `setting.manage` with the rest of the console —
+                 * the log names every address the system has written to, which
+                 * is not something an agent needs and is exactly what an
+                 * attacker with an agent account would want.
+                 */
+                Route::post('/email/test', [EmailTestSendController::class, 'store'])
+                    ->name('email.test');
+
+                /*
+                 * The mail nobody could turn into a ticket.
+                 *
+                 * Its own capabilities rather than `setting.manage`: reading a
+                 * quarantined message means reading the RAW source of a
+                 * customer's email, and replaying one can open a ticket and
+                 * email them. Those are different acts and deserve different
+                 * permissions.
+                 */
+                /*
+                 * What a target actually means against the schedule being
+                 * edited on the same screen. Answered by the same calculator
+                 * the timers use, so a preview cannot promise something the
+                 * engine will not deliver.
+                 */
+                Route::get('/sla/preview', [SlaPreviewController::class, 'show'])
+                    ->name('sla.preview');
+
+                Route::get('/email/quarantine', [MailQuarantineController::class, 'index'])
+                    ->middleware('can.capability:'.Capabilities::QUARANTINE_VIEW)
+                    ->name('email.quarantine.index');
+
+                Route::get('/email/quarantine/{id}', [MailQuarantineController::class, 'show'])
+                    ->middleware('can.capability:'.Capabilities::QUARANTINE_VIEW)
+                    ->whereUlid('id')
+                    ->name('email.quarantine.show');
+
+                Route::post('/email/quarantine/{id}/replay', [MailQuarantineController::class, 'replay'])
+                    ->middleware('can.capability:'.Capabilities::QUARANTINE_REPLAY)
+                    ->whereUlid('id')
+                    ->name('email.quarantine.replay');
+
+                Route::get('/email/log', [MailLogController::class, 'index'])
+                    ->name('email.log');
+
                 Route::get('/quick-replies', [QuickRepliesController::class, 'index'])->name('quick-replies.index');
                 Route::post('/quick-replies', [QuickRepliesController::class, 'store'])->name('quick-replies.store');
                 Route::post('/quick-replies/reorder', [QuickRepliesController::class, 'reorder'])
@@ -287,13 +338,6 @@ Route::prefix('v1')->group(function (): void {
                 Route::delete('/categories/{category}', [CategoriesController::class, 'destroy'])->name('categories.destroy');
 
                 Route::get('/priorities', [PrioritiesController::class, 'index'])->name('priorities.index');
-
-                /*
-                 * TODO(Story 5.1): actually send. 202 states the request was
-                 * accepted, which is honest — nothing has been delivered yet.
-                 */
-                Route::post('/email/test', fn () => new JsonResponse(['status' => 'accepted'], 202))
-                    ->name('email.test');
             });
 
         /*
@@ -440,6 +484,24 @@ Route::prefix('v1')->group(function (): void {
      * reach is decided by which routes live in this group, and each one scopes
      * to the account's own customer.
      */
+    /*
+     * Where a provider delivers a customer's email.
+     *
+     * THE ONE unauthenticated write in this system. It sits outside every auth
+     * group on purpose: the caller is a machine with no session, and putting it
+     * behind Sanctum would mean either giving a provider an account or
+     * exempting the route anyway.
+     *
+     * Its guard is a shared secret compared in constant time, checked in the
+     * controller. It is also exempt from the Idempotency-Key requirement —
+     * providers do not send one, and idempotency here is enforced on the
+     * message's own id, which is stronger: it survives a retry from a different
+     * provider process with a different header.
+     */
+    Route::post('/inbound/email', [InboundWebhookController::class, 'store'])
+        ->withoutMiddleware([IdempotencyKey::class])
+        ->name('inbound.email');
+
     Route::middleware('auth:portal')->prefix('portal')->name('portal.')->group(function (): void {
         Route::get('/tickets', [PortalTicketsController::class, 'index'])->name('tickets.index');
         Route::post('/tickets', [PortalTicketsController::class, 'store'])->name('tickets.store');

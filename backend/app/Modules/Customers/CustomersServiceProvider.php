@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Customers;
 
+use App\Modules\Customers\Contracts\CustomerDirectory;
+use App\Modules\Customers\Domain\Directory\EloquentCustomerDirectory;
+
 use App\Modules\Customers\Domain\CustomerSearch;
 use App\Modules\Customers\Domain\DuplicateDetector;
 use Illuminate\Support\ServiceProvider;
@@ -18,6 +21,10 @@ final class CustomersServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // How other modules find or create a customer without learning how one
+        // is stored. See CustomerDirectory.
+        $this->app->bind(CustomerDirectory::class, EloquentCustomerDirectory::class);
+
         $this->app->singleton(CustomerSearch::class);
         $this->app->singleton(DuplicateDetector::class);
     }

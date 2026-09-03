@@ -15,12 +15,33 @@
             <directory>tests/Architecture</directory>
         </testsuite>
     </testsuites>
+
+    <groups>
+        <!--
+            Excluded by default. Seeding fifty thousand rows and timing five
+            queries takes about three minutes, which is worth running
+            deliberately rather than on every save.
+
+            Run it with: php artisan test (space) (dash)(dash)group=performance
+        -->
+        <exclude>
+            <group>performance</group>
+        </exclude>
+    </groups>
     <source>
         <include>
             <directory>app</directory>
         </include>
     </source>
     <php>
+        <!--
+            The suite outgrew PHP's 128M default at around 800 tests: each
+            case boots the application and RefreshDatabase keeps a schema in
+            memory, and the total crept past the limit mid-run. The symptom is
+            a fatal error in whichever test happens to be running, which reads
+            like a bug in that test rather than a limit being reached.
+        -->
+        <ini name="memory_limit" value="512M"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>

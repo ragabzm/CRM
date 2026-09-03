@@ -158,6 +158,16 @@ final class CapabilitiesInSyncTest extends TestCase
             Capabilities::AUDIT_READ,
             Capabilities::SETTING_MANAGE,
             Capabilities::TICKET_REASSIGN,
+
+            /*
+             * Reading a quarantined message means reading the RAW source of a
+             * customer's email — their words, their address, their
+             * attachments — for mail that failed before any of the usual
+             * access rules could apply to it. Replaying one can open a ticket
+             * and email them.
+             */
+            Capabilities::QUARANTINE_VIEW,
+            Capabilities::QUARANTINE_REPLAY,
         ];
 
         foreach (Capabilities::all() as $capability) {

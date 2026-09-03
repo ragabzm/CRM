@@ -86,51 +86,6 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
-  /admin/email/test:
-    post:
-      operationId: admin.email.test
-      responses:
-        '202':
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    const: accepted
-                required:
-                  - status
-        '401':
-          $ref: '#/components/responses/AuthenticationException'
-        default:
-          description: 'An RFC 9457 problem document.'
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-        '409':
-          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-        '425':
-          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-      parameters:
-        -
-          name: Idempotency-Key
-          in: header
-          required: true
-          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
-          schema:
-            type: string
-            maxLength: 40
   /attachments:
     get:
       operationId: attachments.index
@@ -1855,6 +1810,58 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /admin/email/test:
+    post:
+      operationId: admin.email.test
+      tags:
+        - EmailTestSend
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  provider:
+                    type: string
+                  sent_to:
+                    type: string
+                required:
+                  - status
+                  - provider
+                  - sent_to
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
   /healthz:
     get:
       operationId: platform.healthz
@@ -1930,6 +1937,194 @@ paths:
           schema:
             type: string
             maxLength: 40
+  /inbound/email:
+    post:
+      operationId: inbound.email
+      tags:
+        - InboundWebhook
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  /admin/email/log:
+    get:
+      operationId: admin.email.log
+      tags:
+        - MailLog
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: {}
+                  meta:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                required:
+                  - data
+                  - meta
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /admin/email/quarantine:
+    get:
+      operationId: admin.email.quarantine.index
+      tags:
+        - MailQuarantine
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: {}
+                  meta:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                required:
+                  - data
+                  - meta
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/admin/email/quarantine/{id}':
+    get:
+      operationId: admin.email.quarantine.show
+      summary: 'One message, with its bytes'
+      tags:
+        - MailQuarantine
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/admin/email/quarantine/{id}/replay':
+    post:
+      operationId: admin.email.quarantine.replay
+      summary: 'Feeds the message back through intake'
+      tags:
+        - MailQuarantine
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /auth/password/forgot:
     post:
       operationId: auth.password.forgot
@@ -2752,6 +2947,8 @@ paths:
                         default: {}
                         secret:
                           type: boolean
+                        configured:
+                          type: boolean
                         summary:
                           type: string
                         allowed_values:
@@ -2766,6 +2963,7 @@ paths:
                         - value
                         - default
                         - secret
+                        - configured
                         - summary
                         - allowed_values
                 required:
@@ -2837,6 +3035,40 @@ paths:
                 $ref: '#/components/schemas/Problem'
         '425':
           description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /admin/sla/preview:
+    get:
+      operationId: admin.sla.preview
+      tags:
+        - SlaPreview
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  minutes:
+                    type: integer
+                  from:
+                    type: string
+                  due_at:
+                    type: string
+                  timezone:
+                    type: string
+                required:
+                  - minutes
+                  - from
+                  - due_at
+                  - timezone
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
           content:
             application/problem+json:
               schema:
@@ -3036,6 +3268,146 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
   /tickets:
+    get:
+      operationId: tickets.index
+      description: "Read-only, so no Idempotency-Key. Scoped by TicketVisibility before any\ncaller-supplied filter is applied — an agent who puts a colleague's id in\nthe URL gets their own tickets back rather than a refusal, because the\nfilter narrows what they may see and never widens it."
+      summary: 'The ticket list'
+      tags:
+        - Tickets
+      parameters:
+        -
+          name: 'status[]'
+          in: query
+          schema:
+            type: array
+            enum:
+              - open
+              - pending
+              - resolved
+              - closed
+            items:
+              type: string
+              enum:
+                - open
+                - pending
+                - resolved
+                - closed
+        -
+          name: 'priority[]'
+          in: query
+          schema:
+            type: array
+            enum:
+              - low
+              - normal
+              - high
+              - urgent
+            items:
+              type: string
+              enum:
+                - low
+                - normal
+                - high
+                - urgent
+        -
+          name: 'category_id[]'
+          in: query
+          schema:
+            type: array
+            items:
+              type: integer
+        -
+          name: 'assignee_id[]'
+          in: query
+          description: 'Either a user id or the "nobody has picked this up" sentinel.'
+          schema:
+            type: array
+            items:
+              type: string
+        -
+          name: 'department_id[]'
+          in: query
+          schema:
+            type: array
+            items:
+              type: integer
+        -
+          name: created_from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        -
+          name: created_to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        -
+          name: q
+          in: query
+          schema:
+            type:
+              - string
+              - 'null'
+            maxLength: 200.0
+        -
+          name: sort
+          in: query
+          schema:
+            type: string
+            enum:
+              - updated_at
+              - created_at
+              - priority
+              - reference
+              - status
+        -
+          name: direction
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+        -
+          name: per_page
+          in: query
+          description: "Capped rather than unbounded: a caller asking for ten thousand\nrows gets a page, not an outage."
+          schema:
+            type: integer
+            minimum: 1.0
+            maximum: 100.0
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: {}
+                  meta:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                required:
+                  - data
+                  - meta
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
     post:
       operationId: tickets.store
       tags:
@@ -3085,6 +3457,32 @@ paths:
           schema:
             type: string
             maxLength: 40
+  /tickets/counts:
+    get:
+      operationId: tickets.counts
+      description: "One aggregate query. Five round trips would be five times the load for a\nstrip of numbers, taken at five slightly different moments — so they\ncould disagree with each other and with the list they link to."
+      summary: "The five numbers on the agent's home screen"
+      tags:
+        - Tickets
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type:
+                    - integer
+                    - 'null'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   '/tickets/{ticket}':
     get:
       operationId: tickets.show

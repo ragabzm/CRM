@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@/__tests__/helpers/intl";
+import { render, screen, within } from "@/__tests__/helpers/intl";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

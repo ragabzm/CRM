@@ -29,6 +29,7 @@ Entry point for the **inti** feature. Stories execute in order by their `NN` pre
 | 20 | `20-story-511.md` | 5.4 Notifications — in-app and email, in the recipient's language | 511 | — |
 | 21 | `21-story-512.md` | 6.1 Portal identity — registration, sign-in, password reset and the portal shell | 512 | — |
 | 22 | `22-story-513.md` | 6.2 My requests — submit, track, view, reply and reopen | 513 | — |
+| 23 | `23-story-514.md` | 1.5 Demo data seeders — every module, idempotent, and wired into the restart script | 514 | — |
 
 ## Dependency notes
 

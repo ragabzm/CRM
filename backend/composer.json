@@ -14,7 +14,8 @@
         "laravel/framework": "^13.17",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
-        "spatie/laravel-permission": "^8.3"
+        "spatie/laravel-permission": "^8.3",
+        "zbateson/mail-mime-parser": "^4.0"
     },
     "require-dev": {
         "deptrac/deptrac": "^4.7",

@@ -153,19 +153,29 @@ final class SettingsRegistryTest extends TestCase
 
         $all = $registry->all();
 
-        // Never echoed back, not even to the administrator who set it.
-        $this->assertNotSame('hunter2-and-then-some', $all['email.mailbox.password']);
-        $this->assertSame('••••••••', $all['email.mailbox.password']);
+        /*
+         * Never echoed back, not even to the administrator who set it — and as
+         * NULL rather than a mask. A row of dots looks like a value: it invites
+         * a "reveal" control, it pastes into a config file as literal bullets,
+         * and on a screen share it announces that something is there.
+         */
+        $this->assertNull($all['email.mailbox.password']);
 
         // ...but the real value is still readable by the code that needs it.
         $this->assertSame('hunter2-and-then-some', $registry->get('email.mailbox.password'));
     }
 
-    public function test_an_unset_secret_redacts_to_null_not_to_dots(): void
+    public function test_a_set_and_an_unset_secret_both_read_as_null(): void
     {
-        // Otherwise the console would show "••••••••" for a password nobody has
-        // set, and an administrator would think the mailbox was configured.
-        $this->assertNull($this->registry()->all()['email.mailbox.password']);
+        // Which is why `configured` exists separately: the redacted value can
+        // no longer be used to infer whether a credential is set.
+        $registry = $this->registry();
+
+        $this->assertNull($registry->all()['email.mailbox.password']);
+
+        $registry->set('email.mailbox.password', 'hunter2', null);
+
+        $this->assertNull($registry->all()['email.mailbox.password']);
     }
 
     public function test_every_registered_key_resolves(): void
@@ -194,12 +204,23 @@ final class SettingsRegistryTest extends TestCase
          * changing it WITHOUT noticing is the failure mode.
          */
         $this->assertSame([
+            'email.acknowledgement.enabled',
             'email.acknowledgement_template',
+            'email.domain',
+            'email.enabled',
+            'email.from_address',
+            'email.from_name',
+            'email.inbound.enabled',
+            'email.inbound.provider',
+            'email.inbound.webhook_secret',
+            'email.log.retention_days',
             'email.mailbox.encryption',
             'email.mailbox.host',
             'email.mailbox.password',
             'email.mailbox.port',
             'email.mailbox.username',
+            'email.provider',
+            'email.provider_credential',
             'platform.attachments.allowed_mime_types',
             'platform.attachments.max_bytes',
             'platform.default_locale',
@@ -213,6 +234,7 @@ final class SettingsRegistryTest extends TestCase
             'sla.response_target_seconds.low',
             'sla.response_target_seconds.normal',
             'sla.response_target_seconds.urgent',
+            'sla.timezone',
             'sla.working_hours',
             'tickets.auto_close_hours',
             'tickets.auto_close_window_hours',

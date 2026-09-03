@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { FormAlert } from "@/components/domain/FormAlert/FormAlert";
-import { FormField } from "@/components/domain/FormField/FormField";
+import { SlaIndicator } from "@/components/domain/SlaIndicator/SlaIndicator";
 import {
   Select,
   SelectContent,
@@ -161,18 +161,18 @@ export function TicketPropertyRail({
       />
 
       {/*
-        Read-only, and said so. The service level is derived from the policy
-        that applies to this ticket; an agent who could type it could promise
-        the customer something the business never agreed to.
+        Read-only, and said so. The service level is DERIVED — from the targets,
+        the working-hours schedule and what has actually happened on the ticket.
+        An agent who could type it could promise the customer something the
+        business never agreed to.
       */}
-      <FormField
-        label={t("sla")}
-        name="sla"
-        value={t("slaReadOnly")}
-        readOnly
-        disabled
-        hint={t("slaReadOnly")}
-      />
+      <section aria-label={t("sla")} className="flex flex-col gap-1">
+        <h3 className="text-sm font-medium text-fg-default">{t("sla")}</h3>
+
+        <SlaIndicator sla={ticket.sla ?? null} variant="full" />
+
+        <p className="text-xs text-fg-muted">{t("slaReadOnly")}</p>
+      </section>
     </section>
   );
 }

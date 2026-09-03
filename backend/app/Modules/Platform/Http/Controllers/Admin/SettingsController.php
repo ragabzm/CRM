@@ -23,7 +23,7 @@ final class SettingsController extends Controller
     /**
      * Every setting with its type, current value, default and rule.
      *
-     * @response array{data: array<int, array{key:string,type:string,value:mixed,default:mixed,secret:bool,summary:string,allowed_values:array<int,string>|null}>}
+     * @response array{data: array<int, array{key:string,type:string,value:mixed,default:mixed,secret:bool,configured:bool,summary:string,allowed_values:array<int,string>|null}>}
      */
     public function index(): JsonResponse
     {
@@ -38,6 +38,13 @@ final class SettingsController extends Controller
                 // "reset to default" without a second round trip.
                 'default' => $definition->redactedValue($definition->default),
                 'secret' => $definition->secret,
+                /*
+                 * Whether a credential is set — the one fact about it a reader
+                 * legitimately needs. Without it an unset password and a set
+                 * one look identical, and the only way to tell them apart is
+                 * to break something.
+                 */
+                'configured' => $definition->isConfigured($this->registry->get($key)),
                 'summary' => $definition->summary,
                 'allowed_values' => $definition->allowedValues,
             ];

@@ -82,12 +82,31 @@ final class SettingDefinition
      * share, a browser cache, or a support session. The console shows whether
      * one is set, not what it is.
      */
+    /**
+     * What a reader is allowed to see.
+     *
+     * A secret becomes NULL, not a row of dots.
+     *
+     * A mask looks like a value: it invites a "reveal" control, it survives a
+     * copy-paste into a config file as literal bullets, and on a screen share
+     * it says "there is something here of about this length". Whether a
+     * credential is set is a separate, honest boolean — see `isConfigured()`.
+     */
     public function redactedValue(mixed $value): mixed
     {
-        if (! $this->secret) {
-            return $value;
-        }
+        return $this->secret ? null : $value;
+    }
 
-        return $value === null || $value === '' ? null : '••••••••';
+    /**
+     * Whether a secret has been given a value.
+     *
+     * The one fact an administrator legitimately needs about a credential they
+     * cannot read: is the channel going to work. Without it, an unset password
+     * and a set one look identical, and the only way to find out is to break
+     * something.
+     */
+    public function isConfigured(mixed $value): bool
+    {
+        return $value !== null && $value !== '' && $value !== [];
     }
 }

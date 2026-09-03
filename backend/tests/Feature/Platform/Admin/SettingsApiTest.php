@@ -74,12 +74,42 @@ final class SettingsApiTest extends TestCase
         $this->withIdempotencyKey()
             ->patchJson('/api/v1/admin/settings/email.mailbox.password', ['value' => 'hunter2'])
             ->assertOk()
-            ->assertJsonPath('value', '••••••••');
+            // Null, not a row of dots. A mask looks like a value: it invites a
+            // "reveal" control, it pastes into a config file as literal
+            // bullets, and on a screen share it says "there is something here".
+            ->assertJsonPath('value', null);
 
         $body = $this->getJson('/api/v1/admin/settings')->getContent();
 
         // Not in the row, and not anywhere else in the payload either.
         $this->assertStringNotContainsString('hunter2', (string) $body);
+        $this->assertStringNotContainsString('••••', (string) $body);
+    }
+
+    public function test_a_reader_can_still_tell_whether_a_credential_is_set(): void
+    {
+        $this->actingAsRole(Roles::ADMINISTRATOR);
+
+        $unset = collect($this->getJson('/api/v1/admin/settings')->json('data'))
+            ->firstWhere('key', 'email.mailbox.password');
+
+        $this->assertFalse($unset['configured']);
+
+        $this->withIdempotencyKey()
+            ->patchJson('/api/v1/admin/settings/email.mailbox.password', ['value' => 'hunter2'])
+            ->assertOk();
+
+        $set = collect($this->getJson('/api/v1/admin/settings')->json('data'))
+            ->firstWhere('key', 'email.mailbox.password');
+
+        /*
+         * The one fact about a credential a reader legitimately needs: is the
+         * channel going to work. Without it an unset password and a set one
+         * look identical, and the only way to tell them apart is to break
+         * something.
+         */
+        $this->assertTrue($set['configured']);
+        $this->assertNull($set['value']);
     }
 
     public function test_a_valid_write_takes_effect(): void

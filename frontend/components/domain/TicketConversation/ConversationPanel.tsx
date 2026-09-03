@@ -163,7 +163,20 @@ function MessageRow({
         )}
 
         {message.delivery_state !== null && (
-          <span data-slot="delivery-chip">{t(`delivery.${message.delivery_state}`)}</span>
+          <span
+            data-slot="delivery-chip"
+            data-state={message.delivery_state}
+            /*
+             * The failed state carries a colour AND a word, and the word is
+             * what a screen reader announces. A red dot alone tells a reader
+             * using assistive technology nothing at all, and tells everyone
+             * else nothing in greyscale.
+             */
+            className={failed ? "font-semibold text-state-danger" : undefined}
+            title={failed ? t("failedBody") : undefined}
+          >
+            {t(`delivery.${message.delivery_state}`)}
+          </span>
         )}
       </p>
 

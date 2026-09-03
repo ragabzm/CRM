@@ -232,6 +232,21 @@ describe("a send that failed", () => {
     expect(calls.filter((c) => c.startsWith("POST") && !c.includes("/retry"))).toHaveLength(0);
   });
 
+  it("marks the delivery chip so the failure survives greyscale", async () => {
+    failOne = true;
+    renderPanel();
+
+    await screen.findByRole("alert");
+
+    const chip = document.querySelector('[data-slot="delivery-chip"]')!;
+
+    // Colour alone says nothing to a screen reader and nothing in greyscale.
+    // The chip carries the word, the state, and an explanation on hover.
+    expect(chip).toHaveAttribute("data-state", "failed");
+    expect(chip).toHaveTextContent(en.ticket.conversation.delivery.failed);
+    expect(chip).toHaveAttribute("title", en.ticket.conversation.failedBody);
+  });
+
   it("hands the body back to the composer on edit", async () => {
     failOne = true;
     const onEdit = vi.fn();

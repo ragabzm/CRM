@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Modules\Tickets\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Modules\Platform\Attachments\Domain\Attachment;
 use App\Modules\Platform\Attachments\Domain\AttachmentOwnerType;
 use App\Modules\Platform\Exceptions\ProblemException;
 use App\Modules\Tickets\Domain\Commands\AppendMessage;
@@ -18,6 +17,7 @@ use App\Modules\Tickets\Http\ActorResolver;
 use App\Modules\Tickets\Http\Requests\AppendMessageRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The ticket thread.
@@ -145,13 +145,19 @@ final class TicketMessagesController extends Controller
      */
     private function attachmentsOf(TicketMessage $message): array
     {
-        return Attachment::query()
+        /*
+         * Through the query builder, not Platform's Attachment model.
+         * Reading another module's TABLE is narrow and greppable; reading its
+         * model couples this controller to an aggregate's behaviour and breaks
+         * it whenever that aggregate changes.
+         */
+        return DB::table('attachments')
             ->where('owner_type', AttachmentOwnerType::Message->value)
             ->where('owner_id', $message->getKey())
             ->orderBy('id')
             ->get()
-            ->map(static fn (Attachment $a): array => [
-                'id' => (string) $a->getKey(),
+            ->map(static fn (object $a): array => [
+                'id' => (string) $a->id,
                 'filename' => $a->filename,
                 'byte_size' => (int) $a->byte_size,
                 // Server-sniffed, never the client's claim.

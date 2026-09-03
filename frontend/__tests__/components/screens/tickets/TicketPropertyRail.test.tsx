@@ -102,12 +102,27 @@ describe("the property rail", () => {
   it("shows the service level without letting anyone type it", () => {
     renderRail();
 
-    // Derived from the policy. An agent who could type it could promise the
-    // customer something the business never agreed to.
-    const sla = screen.getByLabelText("Service level");
+    /*
+     * Derived — from the targets, the working-hours schedule and what actually
+     * happened on the ticket. An agent who could type it could promise the
+     * customer something the business never agreed to, so it is rendered as a
+     * reading rather than as a field.
+     */
+    const sla = screen.getByRole("region", { name: "Service level" });
 
-    expect(sla).toBeDisabled();
-    expect(sla).toHaveAttribute("readonly");
+    expect(sla).toBeInTheDocument();
+    expect(within(sla).queryByRole("textbox")).toBeNull();
+    expect(within(sla).queryByRole("combobox")).toBeNull();
+  });
+
+  it("shows a dash for a ticket nothing is tracking", () => {
+    renderRail();
+
+    const sla = screen.getByRole("region", { name: "Service level" });
+
+    // Never "on track": this fixture carries no SLA block, and a green badge
+    // would be a claim the system cannot support.
+    expect(within(sla).getByText("Not tracked")).toBeInTheDocument();
   });
 
   it("sends the version it was loaded with, as If-Match", async () => {

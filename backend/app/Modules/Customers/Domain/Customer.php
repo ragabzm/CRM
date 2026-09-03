@@ -24,7 +24,7 @@ final class Customer extends Model
     protected $table = 'customers';
 
     protected $fillable = [
-        'reference', 'full_name', 'department_id', 'state', 'preferred_channel', 'notes',
+        'reference', 'full_name', 'department_id', 'state', 'preferred_channel', 'preferred_locale', 'notes',
     ];
 
     /**

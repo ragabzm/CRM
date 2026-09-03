@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\Sla;
 
+use App\Modules\Sla\Console\Commands\SweepSlaBreachesCommand;
+use App\Modules\Tickets\Contracts\SlaReader;
+use App\Modules\Sla\Domain\SlaClock;
+use App\Modules\Sla\Domain\SlaReaderService;
+use App\Modules\Sla\Domain\TicketTimelineLoader;
+use App\Modules\Sla\Domain\WorkingHoursCalculator;
 use App\Modules\Platform\Support\Settings\RegistersSettings;
 use App\Modules\Platform\Support\Settings\SettingDefinition;
 use App\Modules\Platform\Support\Settings\SettingType;
@@ -36,12 +42,27 @@ final class SlaServiceProvider extends ServiceProvider implements RegistersSetti
 
     public function register(): void
     {
+        $this->app->singleton(WorkingHoursCalculator::class);
+        $this->app->singleton(TicketTimelineLoader::class);
+        $this->app->singleton(SlaClock::class);
+
+        /*
+         * Bound here, in Sla, so Tickets can depend on the CONTRACT without
+         * reaching up a tier. A deployment that wanted the engine off would
+         * swap this for NullSlaReader and nothing in Tickets would change.
+         */
+        $this->app->singleton(SlaReader::class, SlaReaderService::class);
+
         //
     }
 
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/Database/Migrations');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([SweepSlaBreachesCommand::class]);
+        }
     }
 
     public function registerSettings(SettingsRegistry $registry): void
@@ -68,6 +89,22 @@ final class SlaServiceProvider extends ServiceProvider implements RegistersSetti
                 summary: "Resolution target for {$priority} priority.",
             ));
         }
+
+        $registry->register(new SettingDefinition(
+            key: 'sla.timezone',
+            type: SettingType::String,
+            default: 'Asia/Riyadh',
+            validator: static fn (mixed $v): true|string => is_string($v) && in_array($v, timezone_identifiers_list(), true)
+                ? true
+                : 'Must be an IANA timezone name, e.g. Asia/Riyadh.',
+            /*
+             * Without this, "09:00" is not a time. Everything is stored and
+             * computed in UTC; this is the one place that says which local
+             * mornings the clock is counting — and getting it wrong shifts
+             * every target by hours without changing a single number on screen.
+             */
+            summary: 'The timezone the working-hours schedule is written in.',
+        ));
 
         $registry->register(new SettingDefinition(
             key: 'sla.working_hours',

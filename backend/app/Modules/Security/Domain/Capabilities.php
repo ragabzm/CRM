@@ -39,6 +39,25 @@ final class Capabilities
 
     public const SETTING_MANAGE = 'setting.manage';
 
+    /**
+     * Reading the mail nobody could turn into a ticket.
+     *
+     * Administrator-only: quarantined messages carry the RAW source of a
+     * customer's email — their words, their address, and whatever they
+     * attached — for mail that failed before any of the usual access rules
+     * could apply to it.
+     */
+    public const QUARANTINE_VIEW = 'quarantine.view';
+
+    /**
+     * Feeding a quarantined message back through intake.
+     *
+     * Separate from viewing, because it WRITES: a replay can open a ticket and
+     * email a customer. Somebody diagnosing a parser bug needs to read; only
+     * somebody deciding to act needs this.
+     */
+    public const QUARANTINE_REPLAY = 'quarantine.replay';
+
     public const TICKET_READ = 'ticket.read';
 
     public const TICKET_CREATE = 'ticket.create';

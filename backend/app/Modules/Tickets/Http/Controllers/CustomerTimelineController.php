@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\Tickets\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Modules\Customers\Domain\Customer;
 use App\Modules\Platform\Exceptions\ProblemException;
 use App\Modules\Tickets\Application\Timeline\CustomerTimelineQuery;
 use App\Modules\Tickets\Http\Requests\CustomerTimelineRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 /**
  * A customer's whole interaction history, newest first.
@@ -35,7 +35,7 @@ final class CustomerTimelineController extends Controller
          * "this customer has no history" rather than "there is no such
          * customer", and sends the agent looking for a bug that is not there.
          */
-        if (! Customer::query()->whereKey($customer)->exists()) {
+        if (! DB::table('customers')->where('id', $customer)->exists()) {
             throw ProblemException::make(
                 'customers.not_found',
                 'Customer not found',

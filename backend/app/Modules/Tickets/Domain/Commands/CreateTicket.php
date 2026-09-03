@@ -7,12 +7,14 @@ namespace App\Modules\Tickets\Domain\Commands;
 use App\Modules\Platform\Exceptions\ProblemException;
 use App\Modules\Tickets\Domain\Actor\Actor;
 use App\Modules\Tickets\Domain\Enum\TicketStatus;
+use App\Modules\Tickets\Domain\Events\TicketOpened;
 use App\Modules\Tickets\Domain\Priority;
 use App\Modules\Tickets\Domain\Reference\TicketReferenceAllocator;
 use App\Modules\Tickets\Domain\History\TicketEventKind;
 use App\Modules\Tickets\Domain\History\TicketEventRecorder;
 use App\Modules\Tickets\Domain\Ticket;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Database\QueryException;
 
 /**
@@ -36,7 +38,7 @@ final class CreateTicket
          * `ticket.created` event is a ticket whose history starts mid-story,
          * and there is no later moment at which that could be repaired.
          */
-        return $this->db->transaction(function () use ($actor, $input): Ticket {
+        $ticket = $this->db->transaction(function () use ($actor, $input): Ticket {
             $ticket = $this->insert($actor, $input);
 
             /*
@@ -63,6 +65,18 @@ final class CreateTicket
 
             return $ticket;
         });
+
+        /*
+         * After the transaction, deliberately.
+         *
+         * A listener that sends an acknowledgement must not run inside the
+         * write: it would be sending mail about a ticket that could still be
+         * rolled back, and the customer would have an email for something that
+         * never happened.
+         */
+        Event::dispatch(new TicketOpened((string) $ticket->getKey(), $input->suppressAcknowledgement));
+
+        return $ticket;
     }
 
     private function insert(Actor $actor, CreateTicketInput $input): Ticket

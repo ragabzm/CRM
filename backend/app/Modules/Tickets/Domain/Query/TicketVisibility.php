@@ -81,6 +81,43 @@ final class TicketVisibility
         return $query->whereRaw('1 = 0');
     }
 
+    /**
+     * Narrows to named people, the unassigned pool, or both.
+     *
+     * Here rather than in TicketListQuery because this file owns what
+     * "unassigned" MEANS. It is not the absence of an assignee filter — it is
+     * the pool an agent picks their next ticket from, and it is the same
+     * concept the agent rule above uses. A second `orWhereNull('assignee_id')`
+     * elsewhere would be a second thing to get wrong, and the wrong one is the
+     * one nobody tested. `NoGlobalScopesTest` enforces that there is only one.
+     *
+     * Wrapped in a closure so the OR cannot escape and widen a WHERE the caller
+     * already applied — including the visibility scope itself.
+     *
+     * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
+     * @param  list<int>  $userIds
+     */
+    public static function scopeToAssignees(Builder $query, array $userIds, bool $includeUnassigned): Builder
+    {
+        if ($userIds === [] && ! $includeUnassigned) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $scoped) use ($userIds, $includeUnassigned): void {
+            if ($userIds !== []) {
+                $scoped->whereIn(self::ASSIGNEE_COLUMN, $userIds);
+            }
+
+            if (! $includeUnassigned) {
+                return;
+            }
+
+            $userIds === []
+                ? $scoped->whereNull(self::ASSIGNEE_COLUMN)
+                : $scoped->orWhereNull(self::ASSIGNEE_COLUMN);
+        });
+    }
+
     private static function hasRole(Authenticatable $actor, string $role): bool
     {
         return method_exists($actor, 'hasRole') && $actor->hasRole($role);

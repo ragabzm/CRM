@@ -41,12 +41,24 @@ final class ReopenOnCustomerReply
          */
         $ticket->forceFill(['last_customer_activity_at' => now()])->save();
 
-        if ($ticket->status !== TicketStatus::Resolved) {
-            /*
-             * Only `resolved` reopens automatically. A CLOSED ticket needs a
-             * person: closing is an agreed ending, and a stray "thanks!" three
-             * weeks later should not silently restart it.
-             */
+        /*
+         * `resolved` and `pending` both reopen; `closed` does not.
+         *
+         * The two that reopen have the same shape: the ball was not in our
+         * court, and the customer has just put it back. A Pending ticket is
+         * literally "waiting on the customer" — leaving it Pending after they
+         * answer drops it out of every queue and every count, and the person
+         * waiting is the one who did what we asked.
+         *
+         * CLOSED needs a person. Closing is an agreed ending, and a stray
+         * "thanks!" three weeks later should not silently restart it — Story
+         * 4.2's reopen window is the deliberate path for that.
+         *
+         * `pending` was previously not considered here at all: the rule was
+         * written when the only automatic transition anybody had in mind was
+         * resolved → open.
+         */
+        if (! in_array($ticket->status, [TicketStatus::Resolved, TicketStatus::Pending], true)) {
             return;
         }
 

@@ -17,6 +17,7 @@ use App\Modules\Tickets\Domain\Commands\TicketAttributeChanges;
 use App\Modules\Tickets\Domain\Commands\UpdateTicketAttributes;
 use App\Modules\Tickets\Domain\Enum\TicketChannel;
 use App\Modules\Tickets\Domain\Priority;
+use App\Modules\Tickets\Contracts\SlaReader;
 use App\Modules\Tickets\Domain\Query\TicketCounts;
 use App\Modules\Tickets\Domain\Query\TicketListQuery;
 use App\Modules\Tickets\Domain\Query\TicketVisibility;
@@ -50,6 +51,13 @@ final class TicketsController extends Controller
         private readonly ResolveTicket $resolve,
         private readonly ReopenTicket $reopen,
         private readonly ChangeDepartment $department,
+        /*
+         * Through the CONTRACT, not the Sla module's classes. Sla is T4 and
+         * this is T3; depending on the interface is what keeps the dependency
+         * pointing downward, and it means a deployment can switch the engine
+         * off by swapping one binding.
+         */
+        private readonly SlaReader $sla,
     ) {}
 
     /**
@@ -89,10 +97,22 @@ final class TicketsController extends Controller
     {
         $page = $query->paginate($request->toFilters(), $request->user());
 
+        /** @var list<Ticket> $tickets */
+        $tickets = $page->items();
+
+        // One call for the page, not one per row.
+        $sla = $this->sla->forTickets(array_map(
+            static fn (Ticket $ticket): string => (string) $ticket->getKey(),
+            $tickets,
+        ));
+
         return new JsonResponse([
             'data' => array_map(
-                static fn (Ticket $ticket): array => TicketResource::toArray($ticket),
-                $page->items(),
+                static fn (Ticket $ticket): array => TicketResource::toArray(
+                    $ticket,
+                    $sla[(string) $ticket->getKey()] ?? null,
+                ),
+                $tickets,
             ),
             'meta' => [
                 'total' => $page->total(),
@@ -160,7 +180,9 @@ final class TicketsController extends Controller
          * equivalent without being byte-identical (timestamps of related rows
          * can differ).
          */
-        return (new JsonResponse(TicketResource::toArray($found)))
+        $sla = $this->sla->forTickets([(string) $found->getKey()]);
+
+        return (new JsonResponse(TicketResource::toArray($found, $sla[(string) $found->getKey()] ?? null)))
             ->setEtag(self::etagFor($found->version), weak: true);
     }
 

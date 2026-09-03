@@ -217,9 +217,18 @@ export function SettingRow({ setting, label, onSave, className }: SettingRowProp
       <p id={describedBy} className="text-xs text-fg-muted">
         {setting.summary}
         {setting.secret && (
-          // Distinguishes "a password is saved" from "no password is set".
-          // Without this the console shows an empty box in both cases.
-          <> {setting.value === null ? t("secretUnset") : t("secretSet")}</>
+          /*
+           * Distinguishes "a password is saved" from "no password is set".
+           * Without this the console shows an empty box in both cases.
+           *
+           * Read from `configured`, NOT from `value`. The server used to send a
+           * row of dots for a set secret and null for an unset one, so `value`
+           * carried the answer; it now sends null either way, because a mask is
+           * a value-shaped thing that invites a reveal control and pastes into
+           * config files as literal bullets. Reading `value` here would have
+           * quietly reported every credential as unset.
+           */
+          <> {setting.configured ? t("secretSet") : t("secretUnset")}</>
         )}
       </p>
 

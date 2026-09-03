@@ -34,10 +34,17 @@ final class TicketListQuery
     /**
      * A reference, rather than words.
      *
-     * Long enough not to catch a one-word subject; loose enough to match a
-     * fragment read off a previous email.
+     * Must contain a digit. The first version of this only required three
+     * word-characters, which meant every ordinary single-word search —
+     * "duplicate", "invoice" — took the trigram branch and matched against
+     * reference alone, so searching a word found nothing at all. Caught by
+     * running against a real Postgres; the SQLite fallback has no branch and
+     * could never have shown it.
+     *
+     * References in this system look like `TKT-000042`, so a digit is the one
+     * thing they always have and a word never does.
      */
-    private const REFERENCE_LIKE = '/^[A-Za-z0-9\-]{3,}$/';
+    private const REFERENCE_LIKE = '/^(?=[A-Za-z0-9\-]*\d)[A-Za-z0-9\-]{3,}$/';
 
     public function paginate(TicketListFilters $filters, ?Authenticatable $actor): LengthAwarePaginator
     {
@@ -75,24 +82,18 @@ final class TicketListQuery
         }
 
         if ($filters->assigneeIds !== []) {
-            $named = $filters->namedAssignees();
-
             /*
-             * "Unassigned" is a real answer, not the absence of one — it is the
-             * pool an agent picks their next ticket from. Wrapped so the OR
-             * cannot escape and widen the visibility scope applied above.
+             * Through TicketVisibility, which owns what "unassigned" means.
+             * It is not the absence of a filter — it is the pool an agent picks
+             * their next ticket from, and that is the same concept the row-level
+             * rule uses. Expressing it a second time here would be a second
+             * thing to get wrong.
              */
-            $query->where(function (Builder $scoped) use ($filters, $named): void {
-                if ($named !== []) {
-                    $scoped->whereIn('assignee_id', $named);
-                }
-
-                if ($filters->wantsUnassigned()) {
-                    $named === []
-                        ? $scoped->whereNull('assignee_id')
-                        : $scoped->orWhereNull('assignee_id');
-                }
-            });
+            TicketVisibility::scopeToAssignees(
+                $query,
+                $filters->namedAssignees(),
+                $filters->wantsUnassigned(),
+            );
         }
 
         if ($filters->createdFrom !== null) {

@@ -23,7 +23,20 @@
   },
   "home": {
     "title": "Home",
-    "placeholder": "Your assigned work will appear here."
+    "placeholder": "Your assigned work will appear here.",
+    "counts": {
+      "assignedToMe": "Assigned to me",
+      "unassigned": "Unassigned",
+      "atRisk": "At risk",
+      "breached": "Breached",
+      "pendingCustomerReply": "Waiting on the customer",
+      "notKnownHint": "Not tracked yet"
+    },
+    "queue": {
+      "title": "Your queue",
+      "empty": "Nothing is waiting on you",
+      "emptyBody": "Unassigned tickets are one click away."
+    }
   },
   "errors": {
     "missingTranslation": "Missing translation: {key}",
@@ -42,7 +55,8 @@
     "activeFilters": "Active filters",
     "pageOf": "Page <num>{page}</num> of <num>{pageCount}</num>",
     "previous": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "rowActions": "Row actions"
   },
   "states": {
     "noResults": "No results",
@@ -211,7 +225,59 @@
       "testQueued": "Test message queued.",
       "testFailed": "The test message could not be queued.",
       "log": "Mail log",
-      "logPlaceholder": "Sent and failed messages will be listed here once email is live."
+      "logPlaceholder": "Sent and failed messages will be listed here once email is live.",
+      "channel": "Channel",
+      "channelHint": "Whether the application sends and receives email at all.",
+      "provider": "Provider",
+      "providerHint": "Swapping providers needs no code change.",
+      "credentialSet": "Configured",
+      "credentialUnset": "Not configured",
+      "sendTestTo": "Send a test to",
+      "sendTestToHint": "Leave blank to send to yourself.",
+      "testSent": "Test email sent to {address}.",
+      "testFailedTitle": "The test email could not be sent",
+      "testRetryable": "Trying again may help.",
+      "testPermanent": "Trying again will not help — the configuration needs changing.",
+      "logHint": "Every attempt to send or receive, newest first.",
+      "logEmpty": "Nothing has been sent yet",
+      "logEmptyBody": "Attempts will appear here once the channel is used.",
+      "logColumns": {
+        "occurredAt": "When",
+        "direction": "Direction",
+        "address": "Address",
+        "subject": "Subject",
+        "status": "Status",
+        "provider": "Provider",
+        "duration": "Took",
+        "error": "Error"
+      },
+      "logFilter": {
+        "all": "All",
+        "failed": "Failed only"
+      },
+      "inbound": "Inbound",
+      "inboundHint": "Where a customer's email arrives, and what to do when one cannot be read.",
+      "quarantine": "Quarantine",
+      "quarantineHint": "Mail that could not be turned into a ticket. Nothing here has reached an agent.",
+      "quarantineEmpty": "Nothing is waiting",
+      "quarantineEmptyBody": "Every message so far became a ticket or a reply.",
+      "quarantineColumns": {
+        "receivedAt": "Received",
+        "from": "From",
+        "subject": "Subject",
+        "reason": "Why it failed",
+        "size": "Size",
+        "state": "State"
+      },
+      "quarantineOutstanding": "Outstanding",
+      "quarantineAll": "All",
+      "quarantineResolved": "Handled",
+      "quarantineUnresolved": "Needs a look",
+      "replay": "Try again",
+      "replayHint": "Feeds the message back through, as if it had just arrived.",
+      "replayed": "The message was accepted.",
+      "replayFailed": "It still could not be read.",
+      "viewRaw": "View source"
     },
     "platform": {
       "attachments": "Attachments",
@@ -484,6 +550,57 @@
       "reassignForbidden": "A colleague is working on this ticket. A supervisor can move it.",
       "assigneeInvalid": "That person can't take this ticket.",
       "departmentInvalid": "That department doesn't exist."
+    },
+    "title": "Tickets",
+    "search": {
+      "label": "Search tickets",
+      "placeholder": "Reference, subject or description"
+    },
+    "columns": {
+      "reference": "Reference",
+      "subject": "Subject",
+      "status": "Status",
+      "priority": "Priority",
+      "sla": "SLA",
+      "assignee": "Assignee",
+      "category": "Category",
+      "updated": "Updated"
+    },
+    "filters": {
+      "status": "Status",
+      "priority": "Priority",
+      "assignee": "Assignee",
+      "department": "Department",
+      "any": "Any",
+      "unassigned": "Unassigned"
+    },
+    "empty": {
+      "title": "No tickets match these filters",
+      "body": "Try a wider status or clear the search."
+    },
+    "forbidden": {
+      "title": "You do not have access to tickets",
+      "body": "Ask a supervisor if you need it."
+    },
+    "loadError": "Tickets could not be loaded.",
+    "stale": "Showing the last result — reconnecting.",
+    "retry": "Retry",
+    "open": "Open ticket",
+    "sla": {
+      "label": "Service level",
+      "state": {
+        "on_track": "On track",
+        "at_risk": "At risk",
+        "breached": "Breached",
+        "met": "Met",
+        "paused": "Paused"
+      },
+      "notTracked": "Not tracked",
+      "remaining": "{minutes} min left",
+      "over": "{minutes} min over",
+      "pausedHint": "Waiting on the customer — the clock is stopped.",
+      "response": "First reply",
+      "resolution": "Resolution"
     }
   },
   "timeline": {

@@ -17,10 +17,18 @@ export type SettingType = "bool" | "int" | "string" | "json" | "duration_seconds
 export interface Setting {
   key: string;
   type: SettingType;
-  /** Redacted to a dot-string for secrets, and null when a secret is unset. */
+  /** Always null for a secret — see `configured` for whether one is set. */
   value: unknown;
   default: unknown;
   secret: boolean;
+  /**
+   * Whether a secret has a value.
+   *
+   * The one fact about a credential a reader legitimately needs. Without it an
+   * unset key and a set one look identical, and the only way to find out is to
+   * break something.
+   */
+  configured: boolean;
   summary: string;
   allowed_values: string[] | null;
 }
@@ -260,10 +268,111 @@ export function getAuditEntry(
 
 /* --- email --- */
 
-export async function sendTestEmail(fetchImpl: typeof fetch = fetch): Promise<{ status: string }> {
+export interface TestSendResult {
+  status: string;
+  provider: string;
+  sent_to: string;
+}
+
+/**
+ * Proves the channel works by actually sending something.
+ *
+ * Synchronous, unlike every other outbound email: the whole value is the
+ * immediate answer. An administrator who has just changed a credential wants to
+ * know now, not to go and read a log.
+ */
+export async function sendTestEmail(
+  to?: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<TestSendResult> {
   await getCsrf(fetchImpl);
 
-  return request("/admin/email/test", { method: "POST", fetchImpl });
+  return request("/admin/email/test", {
+    method: "POST",
+    body: JSON.stringify(to === undefined || to === "" ? {} : { to }),
+    fetchImpl,
+  });
+}
+
+export interface MailLogRow {
+  id: string;
+  direction: string;
+  provider: string;
+  address: string;
+  subject: string | null;
+  status: string;
+  attempt: number;
+  duration_ms: number | null;
+  /** The provider's own words. A generic message gives an admin nothing to act on. */
+  error: string | null;
+  provider_code: string | null;
+  ticket_id: string | null;
+  message_id: string | null;
+  occurred_at: string | null;
+}
+
+export async function listMailLog(
+  options: { status?: string } = {},
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ data: MailLogRow[]; meta: { total: number } }> {
+  const query = options.status ? `?status=${encodeURIComponent(options.status)}` : "";
+
+  return request(`/admin/email/log${query}`, { method: "GET", fetchImpl });
 }
 
 export { ApiError } from "./request";
+
+export interface QuarantinedMail {
+  id: string;
+  provider: string;
+  from_address: string | null;
+  subject: string | null;
+  /** The parser's own words — the only thing that makes a failure diagnosable. */
+  reason: string;
+  received_at: string | null;
+  resolved_at: string | null;
+  /** Size only. The raw source is fetched one at a time, deliberately. */
+  raw_bytes: number;
+}
+
+export interface QuarantinedMailDetail extends Omit<QuarantinedMail, "raw_bytes"> {
+  /** A customer's entire email. Fetched by somebody diagnosing, never listed. */
+  raw: string;
+}
+
+export async function listQuarantine(
+  options: { outstandingOnly?: boolean } = {},
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ data: QuarantinedMail[]; meta: { total: number } }> {
+  const query = options.outstandingOnly ? "?resolved=false" : "";
+
+  return request(`/admin/email/quarantine${query}`, { method: "GET", fetchImpl });
+}
+
+export function getQuarantinedMail(
+  id: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<QuarantinedMailDetail> {
+  return request(`/admin/email/quarantine/${encodeURIComponent(id)}`, {
+    method: "GET",
+    fetchImpl,
+  });
+}
+
+/**
+ * Feeds a quarantined message back through intake.
+ *
+ * The point of keeping the bytes: once the fault that stopped it is fixed, the
+ * customer's email gets the second chance it would otherwise never have had.
+ */
+export async function replayQuarantinedMail(
+  id: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ status: string; ticket_id?: string; reason?: string }> {
+  await getCsrf(fetchImpl);
+
+  return request(`/admin/email/quarantine/${encodeURIComponent(id)}/replay`, {
+    method: "POST",
+    fetchImpl,
+  });
+}

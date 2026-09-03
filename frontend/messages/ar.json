@@ -23,7 +23,20 @@
   },
   "home": {
     "title": "الرئيسية",
-    "placeholder": "سيظهر العمل المسند إليك هنا."
+    "placeholder": "سيظهر العمل المسند إليك هنا.",
+    "counts": {
+      "assignedToMe": "مخصّصة ليّا",
+      "unassigned": "مش مخصّصة",
+      "atRisk": "قربت تتأخر",
+      "breached": "اتأخرت",
+      "pendingCustomerReply": "مستنية العميل",
+      "notKnownHint": "لسه مش متتبّعة"
+    },
+    "queue": {
+      "title": "طابورك",
+      "empty": "مفيش حاجة مستنياك",
+      "emptyBody": "التذاكر المش مخصّصة على بعد ضغطة."
+    }
   },
   "errors": {
     "missingTranslation": "ترجمة مفقودة: {key}",
@@ -42,7 +55,8 @@
     "activeFilters": "عوامل التصفية النشطة",
     "pageOf": "صفحة <num>{page}</num> من <num>{pageCount}</num>",
     "previous": "السابق",
-    "next": "التالي"
+    "next": "التالي",
+    "rowActions": "إجراءات الصف"
   },
   "states": {
     "noResults": "لا توجد نتائج",
@@ -211,7 +225,59 @@
       "testQueued": "أُدرجت رسالة الاختبار في قائمة الإرسال.",
       "testFailed": "تعذر إدراج رسالة الاختبار.",
       "log": "سجل البريد",
-      "logPlaceholder": "ستُعرض هنا الرسائل المُرسلة والفاشلة بعد تفعيل البريد."
+      "logPlaceholder": "ستُعرض هنا الرسائل المُرسلة والفاشلة بعد تفعيل البريد.",
+      "channel": "القناة",
+      "channelHint": "هل التطبيق يبعت ويستقبل بريد أصلاً.",
+      "provider": "المزوّد",
+      "providerHint": "تبديل المزوّد مش محتاج تغيير في الكود.",
+      "credentialSet": "متظبّط",
+      "credentialUnset": "مش متظبّط",
+      "sendTestTo": "ابعت تجربة إلى",
+      "sendTestToHint": "سيبها فاضية علشان تتبعت لك.",
+      "testSent": "اتبعتت رسالة تجريبية إلى {address}.",
+      "testFailedTitle": "تعذّر إرسال الرسالة التجريبية",
+      "testRetryable": "المحاولة تاني ممكن تنفع.",
+      "testPermanent": "المحاولة تاني مش هتنفع — الإعدادات محتاجة تتغيّر.",
+      "logHint": "كل محاولة إرسال أو استقبال، الأحدث الأول.",
+      "logEmpty": "مفيش حاجة اتبعتت لسه",
+      "logEmptyBody": "المحاولات هتظهر هنا أول ما القناة تتستخدم.",
+      "logColumns": {
+        "occurredAt": "إمتى",
+        "direction": "الاتجاه",
+        "address": "العنوان",
+        "subject": "الموضوع",
+        "status": "الحالة",
+        "provider": "المزوّد",
+        "duration": "استغرقت",
+        "error": "الخطأ"
+      },
+      "logFilter": {
+        "all": "الكل",
+        "failed": "الفاشل فقط"
+      },
+      "inbound": "الوارد",
+      "inboundHint": "بريد العميل بيوصل فين، وبنعمل إيه لما رسالة ماتتقريش.",
+      "quarantine": "الحجر",
+      "quarantineHint": "بريد ماقدرناش نحوّله لتذكرة. مفيش حاجة هنا وصلت لوكيل.",
+      "quarantineEmpty": "مفيش حاجة مستنية",
+      "quarantineEmptyBody": "كل رسالة لحد دلوقتي بقت تذكرة أو رد.",
+      "quarantineColumns": {
+        "receivedAt": "وصلت",
+        "from": "من",
+        "subject": "الموضوع",
+        "reason": "سبب الفشل",
+        "size": "الحجم",
+        "state": "الحالة"
+      },
+      "quarantineOutstanding": "المعلّقة",
+      "quarantineAll": "الكل",
+      "quarantineResolved": "اتعاملنا معاها",
+      "quarantineUnresolved": "محتاجة نظرة",
+      "replay": "حاول تاني",
+      "replayHint": "بيعيد الرسالة من الأول، كأنها لسه واصلة.",
+      "replayed": "الرسالة اتقبلت.",
+      "replayFailed": "لسه ماقدرناش نقراها.",
+      "viewRaw": "عرض المصدر"
     },
     "platform": {
       "attachments": "المرفقات",
@@ -484,6 +550,57 @@
       "reassignForbidden": "فيه زميل شغال على التذكرة دي. المشرف يقدر ينقلها.",
       "assigneeInvalid": "الشخص دة مش ممكن ياخد التذكرة دي.",
       "departmentInvalid": "القسم دة مش موجود."
+    },
+    "title": "التذاكر",
+    "search": {
+      "label": "بحث في التذاكر",
+      "placeholder": "المرجع أو الموضوع أو الوصف"
+    },
+    "columns": {
+      "reference": "المرجع",
+      "subject": "الموضوع",
+      "status": "الحالة",
+      "priority": "الأولوية",
+      "sla": "مستوى الخدمة",
+      "assignee": "المسؤول",
+      "category": "التصنيف",
+      "updated": "آخر تحديث"
+    },
+    "filters": {
+      "status": "الحالة",
+      "priority": "الأولوية",
+      "assignee": "المسؤول",
+      "department": "القسم",
+      "any": "الكل",
+      "unassigned": "مش مخصّصة"
+    },
+    "empty": {
+      "title": "مفيش تذاكر مطابقة للفلاتر دي",
+      "body": "جرّب حالة أوسع أو امسح البحث."
+    },
+    "forbidden": {
+      "title": "مفيش عندك صلاحية على التذاكر",
+      "body": "اسأل مشرف لو محتاجها."
+    },
+    "loadError": "تعذّر تحميل التذاكر.",
+    "stale": "دي آخر نتيجة وصلت — بيحاول يتصل تاني.",
+    "retry": "إعادة المحاولة",
+    "open": "فتح التذكرة",
+    "sla": {
+      "label": "مستوى الخدمة",
+      "state": {
+        "on_track": "في الوقت",
+        "at_risk": "قربت تتأخر",
+        "breached": "اتأخرت",
+        "met": "اتحققت",
+        "paused": "متوقّفة"
+      },
+      "notTracked": "مش متتبّعة",
+      "remaining": "فاضل {minutes} دقيقة",
+      "over": "متأخرة {minutes} دقيقة",
+      "pausedHint": "مستنية العميل — الساعة واقفة.",
+      "response": "أول رد",
+      "resolution": "الحل"
     }
   },
   "timeline": {

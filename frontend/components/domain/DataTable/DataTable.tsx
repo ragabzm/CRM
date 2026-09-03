@@ -342,6 +342,21 @@ export function DataTable<Row>({
                         <span>{column.header}</span>
                         <SortGlyph state={sortState} />
                       </button>
+                    ) : column.header === "" ? (
+                      /*
+                       * A column header is never allowed to be empty.
+                       *
+                       * The actions column has no visible heading — a word
+                       * above a row of icon buttons is noise — but a screen
+                       * reader announcing "column 9, blank" tells its reader
+                       * nothing about what is in it. So the name is present and
+                       * only visually hidden.
+                       *
+                       * Fixed here rather than at each call site because every
+                       * table in this application has an actions column, and
+                       * every one of them was affected.
+                       */
+                      <span className="sr-only">{t("rowActions")}</span>
                     ) : (
                       column.header
                     )}

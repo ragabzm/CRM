@@ -6,6 +6,25 @@ export type TicketStatus = "open" | "pending" | "resolved" | "closed" | "reopene
 export type TicketPriority = "low" | "normal" | "high" | "urgent";
 export type TicketChannel = "agent" | "portal" | "email" | "system";
 
+/** Where a timer stands. `paused` and `met` are not "on track". */
+export type SlaStateValue = "on_track" | "at_risk" | "breached" | "met" | "paused";
+
+export interface SlaTimer {
+  state: SlaStateValue;
+  elapsed_minutes: number;
+  target_minutes: number;
+  /** Negative once breached — by how much is what a supervisor asks about. */
+  remaining_minutes: number;
+  due_at: string | null;
+}
+
+export interface SlaBlock {
+  /** The worse of the two timers: a list has room for one badge. */
+  state: SlaStateValue;
+  response: SlaTimer;
+  resolution: SlaTimer;
+}
+
 export interface Ticket {
   id: string;
   reference: string;
@@ -24,6 +43,11 @@ export interface Ticket {
   version: number;
   created_at: string | null;
   updated_at: string | null;
+  /**
+   * Null means the engine is not tracking, which is NOT the same as fine.
+   * A deployment with SLA switched off knows nothing about its targets.
+   */
+  sla: SlaBlock | null;
 }
 
 export interface CreateTicketInput {
@@ -334,4 +358,76 @@ export async function updateTicketProperties(
     body: JSON.stringify(changes),
     fetchImpl,
   });
+}
+
+export interface TicketListParams {
+  status?: string[];
+  priority?: string[];
+  category_id?: number[];
+  /** Accepts the `unassigned` sentinel alongside user ids. */
+  assignee_id?: Array<number | "unassigned">;
+  department_id?: number[];
+  created_from?: string;
+  created_to?: string;
+  q?: string;
+  sort?: string;
+  direction?: "asc" | "desc";
+  per_page?: number;
+  page?: number;
+}
+
+export interface TicketListPage {
+  data: Ticket[];
+  meta: { total: number; per_page: number; current_page: number; last_page: number };
+}
+
+export interface TicketCounts {
+  assigned_to_me: number;
+  unassigned: number;
+  /** Null until the SLA module exists — "not known", not "none". */
+  at_risk: number | null;
+  breached: number | null;
+  pending_customer_reply: number;
+}
+
+/**
+ * Turns list params into the query string the API and the address bar share.
+ *
+ * Comma-separated rather than repeated keys, so a link in the counts strip is
+ * something an agent can read and edit in the address bar — and so the URL a
+ * count links to is literally the filter it stands for.
+ */
+export function ticketListQuery(params: TicketListParams): string {
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === "") continue;
+
+    if (Array.isArray(value)) {
+      if (value.length === 0) continue;
+
+      query.set(key, value.join(","));
+    } else {
+      query.set(key, String(value));
+    }
+  }
+
+  return query.toString();
+}
+
+export function listTickets(
+  params: TicketListParams = {},
+  fetchImpl: typeof fetch = fetch,
+): Promise<TicketListPage> {
+  const query = ticketListQuery(params);
+
+  return request<TicketListPage>(`/tickets${query === "" ? "" : `?${query}`}`, {
+    method: "GET",
+    fetchImpl,
+  });
+}
+
+/** The five numbers on the agent's home screen. One aggregate query, server-side. */
+export function ticketCounts(fetchImpl: typeof fetch = fetch): Promise<TicketCounts> {
+  return request<TicketCounts>("/tickets/counts", { method: "GET", fetchImpl });
 }

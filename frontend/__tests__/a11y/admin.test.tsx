@@ -1,11 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
   usePathname: () => "/admin/ticketing",
 }));
 
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 import { withIntl } from "@/__tests__/helpers/intl";
 import { CategoryList } from "@/components/domain/CategoryList/CategoryList";
@@ -13,6 +13,9 @@ import { DestructiveConfirm } from "@/components/domain/DestructiveConfirm/Destr
 import { QuickReplyEditor } from "@/components/domain/QuickReplyEditor/QuickReplyEditor";
 import { QuickReplyList } from "@/components/domain/QuickReplyList/QuickReplyList";
 import { RuleBlockedRefusal } from "@/components/domain/RuleBlockedRefusal/RuleBlockedRefusal";
+import { EmailTestSend } from "@/components/domain/EmailTestSend/EmailTestSend";
+import { MailLogTable } from "@/components/domain/MailLogTable/MailLogTable";
+import { MailQuarantineTable } from "@/components/domain/MailQuarantine/MailQuarantineTable";
 import { SettingRow } from "@/components/domain/SettingRow/SettingRow";
 import { SectionIndex } from "@/components/screens/admin/SectionIndex";
 import type { Category, QuickReply, Setting } from "@/lib/api/admin";
@@ -52,6 +55,7 @@ const SETTINGS: Setting[] = [
     value: 168,
     default: 168,
     secret: false,
+    configured: false,
     summary: "Hours a resolved ticket waits before closing itself.",
     allowed_values: null,
   },
@@ -61,6 +65,7 @@ const SETTINGS: Setting[] = [
     value: "en",
     default: "en",
     secret: false,
+    configured: false,
     summary: "Language for people who have not chosen one.",
     allowed_values: ["en", "ar"],
   },
@@ -70,6 +75,7 @@ const SETTINGS: Setting[] = [
     value: null,
     default: null,
     secret: true,
+    configured: false,
     summary: "Mailbox password.",
     allowed_values: null,
   },
@@ -79,6 +85,7 @@ const SETTINGS: Setting[] = [
     value: [],
     default: [],
     secret: false,
+    configured: false,
     summary: "Dates the clock does not run.",
     allowed_values: null,
   },
@@ -220,6 +227,49 @@ describe.each(DIRECTIONS)("the configuration console · dir=$dir", ({ dir, local
 
   it("the rule-blocked refusal has no violations", async () => {
     const { container } = renderIn(<RuleBlockedRefusal problem={BLOCKED} />, dir, locale);
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe.each(DIRECTIONS)("the email console · dir=$dir", ({ dir, locale }) => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ data: [], meta: { total: 0 } }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+      ),
+    );
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("the test-send form has no WCAG 2.1 AA violations", async () => {
+    const { container } = renderIn(<EmailTestSend />, dir, locale);
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("the quarantine list has no violations", async () => {
+    const { container } = renderIn(<MailQuarantineTable />, dir, locale);
+
+    // Empty is the state an administrator sees first, and the one a bare
+    // table would fail on.
+    await screen.findByRole("table");
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("the mail log has no violations", async () => {
+    const { container } = renderIn(<MailLogTable />, dir, locale);
+
+    // Empty is the state an administrator sees first, and the one a bare
+    // table would fail on.
+    await screen.findByRole("table");
 
     expect(await axe(container)).toHaveNoViolations();
   });

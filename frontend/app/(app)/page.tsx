@@ -1,6 +1,12 @@
-import { HomeScreen } from "@/components/screens/home/HomeScreen";
+import { AgentHomePage } from "@/components/screens/home/AgentHomePage";
 
-/** The Home destination. Chrome and the session gate come from the group layout. */
+/**
+ * Where a signed-in agent lands.
+ *
+ * It used to be a static welcome panel. An agent opening the application wants
+ * to know how much is waiting and what to do first, not to be greeted.
+ * Chrome and the session gate come from the group layout.
+ */
 export default function Page() {
-  return <HomeScreen />;
+  return <AgentHomePage />;
 }

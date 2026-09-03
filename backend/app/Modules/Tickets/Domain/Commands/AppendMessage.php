@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace App\Modules\Tickets\Domain\Commands;
 
-use App\Modules\Platform\Attachments\Domain\Attachment;
 use App\Modules\Platform\Attachments\Domain\AttachmentOwnerType;
 use App\Modules\Platform\Exceptions\ProblemException;
 use App\Modules\Tickets\Domain\Actor\Actor;
 use App\Modules\Tickets\Domain\Enum\DeliveryState;
 use App\Modules\Tickets\Domain\Enum\MessageDirection;
+use App\Modules\Tickets\Domain\Events\AgentReplyPosted;
+use App\Modules\Tickets\Domain\Events\CustomerReplyPosted;
 use App\Modules\Tickets\Domain\History\TicketEventKind;
 use App\Modules\Tickets\Domain\History\TicketEventRecorder;
 use App\Modules\Tickets\Domain\Ticket;
 use App\Modules\Tickets\Domain\TicketMessage;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 
 /**
  * Adds a message to a ticket.
@@ -60,7 +63,7 @@ final class AppendMessage
             );
         }
 
-        return $this->db->transaction(function () use ($actor, $ticketId, $direction, $body, $attachmentIds): TicketMessage {
+        $message = $this->db->transaction(function () use ($actor, $ticketId, $direction, $body, $attachmentIds): TicketMessage {
             // Read, not locked: nothing here contends with anything.
             $ticket = Ticket::query()->whereKey($ticketId)->first();
 
@@ -140,6 +143,38 @@ final class AppendMessage
 
             return $message;
         });
+
+        /*
+         * Announced after the transaction, and ONLY for an outbound message.
+         *
+         * The direction check lives here, at the dispatch, rather than in
+         * whatever listens: an internal note is a colleague's private remark
+         * about the customer it would otherwise be emailed to, and that is the
+         * one failure in this area that cannot be taken back. A listener that
+         * forgot to check would be one file away from causing it; an event that
+         * is never fired cannot.
+         */
+        if ($direction === MessageDirection::Outbound) {
+            Event::dispatch(new AgentReplyPosted($ticketId, (string) $message->getKey()));
+        }
+
+        if ($direction === MessageDirection::Inbound) {
+            /*
+             * Announced here rather than by whoever received the message.
+             *
+             * A customer reply has consequences beyond the thread — a Pending
+             * ticket becomes Open again, and the auto-close sweep stops
+             * counting silence. Those rules live in ReopenOnCustomerReply, and
+             * they must apply whether the reply arrived by email, through the
+             * portal, or by an agent logging a phone call. Dispatching at each
+             * of those call sites would mean three places to remember, and the
+             * one that forgets leaves a customer waiting on a ticket that has
+             * dropped out of every queue.
+             */
+            Event::dispatch(new CustomerReplyPosted($ticketId, (string) $message->getKey()));
+        }
+
+        return $message;
     }
 
     /**
@@ -162,7 +197,7 @@ final class AppendMessage
             return;
         }
 
-        $moved = Attachment::query()
+        $moved = DB::table('attachments')
             ->whereIn('id', $attachmentIds)
             ->where('owner_type', AttachmentOwnerType::Ticket->value)
             ->where('owner_id', $ticketId)

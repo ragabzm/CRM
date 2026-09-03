@@ -12,6 +12,7 @@ function setting(overrides: Partial<Setting> = {}): Setting {
     value: 168,
     default: 168,
     secret: false,
+    configured: false,
     summary: "Hours a resolved ticket waits before closing itself.",
     allowed_values: null,
     ...overrides,
@@ -128,7 +129,14 @@ describe("SettingRow renders a setting by its declared type", () => {
   it("distinguishes a saved secret from an unset one", () => {
     const { rerender } = render(
       <SettingRow
-        setting={setting({ key: "s", type: "string", value: null, default: null, secret: true })}
+        setting={setting({
+          key: "s",
+          type: "string",
+          value: null,
+          default: null,
+          secret: true,
+          configured: false,
+        })}
         label="Password"
         onSave={vi.fn()}
       />,
@@ -142,9 +150,12 @@ describe("SettingRow renders a setting by its declared type", () => {
           setting={setting({
             key: "s",
             type: "string",
-            value: "••••••••",
+            // Null either way now: the server no longer sends a mask, because
+            // a mask is a value-shaped thing. `configured` carries the answer.
+            value: null,
             default: null,
             secret: true,
+            configured: true,
           })}
           label="Password"
           onSave={vi.fn()}
