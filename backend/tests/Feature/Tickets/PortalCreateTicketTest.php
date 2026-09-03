@@ -8,6 +8,7 @@ use App\Modules\Portal\Domain\PortalAccount;
 use App\Modules\Tickets\Domain\Ticket;
 use App\Modules\Tickets\Domain\TicketEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\Feature\Security\InteractsWithSpaSession;
 use Tests\TestCase;
@@ -104,13 +105,24 @@ final class PortalCreateTicketTest extends TestCase
     {
         $this->signInAsPortal($this->customerId);
 
-        $ticket = $this->submit()->assertStatus(201)->json();
+        $body = $this->submit()->assertStatus(201)->json();
 
-        $this->assertSame('portal', $ticket['channel']);
-        $this->assertSame('portal', $ticket['creator_type']);
-        $this->assertSame($this->customerId, $ticket['customer_id']);
-        $this->assertSame('open', $ticket['status']);
-        $this->assertSame(1, $ticket['version']);
+        // What the CUSTOMER is shown: a reference, a subject, a status.
+        $this->assertSame('open', $body['status']);
+        $this->assertNotEmpty($body['reference']);
+
+        /*
+         * The rest is asserted against the row rather than the response,
+         * because the portal shape deliberately publishes none of it — no
+         * channel, no version, no creator. Checking what was STORED is the
+         * stronger test anyway: it survives the response shape changing again.
+         */
+        $stored = DB::table('tickets')->where('id', $body['id'])->first();
+
+        $this->assertSame('portal', $stored->channel);
+        $this->assertSame('portal', $stored->creator_type);
+        $this->assertSame($this->customerId, $stored->customer_id);
+        $this->assertSame(1, (int) $stored->version);
     }
 
     public function test_a_portal_ticket_gets_the_same_reference_and_event_treatment(): void
@@ -135,10 +147,13 @@ final class PortalCreateTicketTest extends TestCase
         // A customer_id in the body is ignored entirely. Honouring it would let
         // any portal user open — and then read back — a ticket against anybody
         // else's record.
-        $ticket = $this->submit(['customer_id' => 'SOMEONEELSESCUSTOMERID0001'])
+        $body = $this->submit(['customer_id' => 'SOMEONEELSESCUSTOMERID0001'])
             ->assertStatus(201)->json();
 
-        $this->assertSame($this->customerId, $ticket['customer_id']);
+        $this->assertSame(
+            $this->customerId,
+            DB::table('tickets')->where('id', $body['id'])->value('customer_id'),
+        );
     }
 
     public function test_the_channel_cannot_be_claimed(): void
@@ -147,26 +162,37 @@ final class PortalCreateTicketTest extends TestCase
 
         // A portal submission claiming `agent` would misreport where the work
         // came from.
-        $ticket = $this->submit(['channel' => 'agent'])->assertStatus(201)->json();
+        $body = $this->submit(['channel' => 'agent'])->assertStatus(201)->json();
 
-        $this->assertSame('portal', $ticket['channel']);
+        $this->assertSame(
+            'portal',
+            DB::table('tickets')->where('id', $body['id'])->value('channel'),
+        );
     }
 
     public function test_a_customer_cannot_set_their_own_priority_or_assignee(): void
     {
         $this->signInAsPortal($this->customerId);
 
-        $ticket = $this->submit([
+        $body = $this->submit([
             'priority' => 'urgent',
             'assignee_id' => 1,
             'department_id' => $this->departmentId,
         ])->assertStatus(201)->json();
 
+        $stored = DB::table('tickets')->where('id', $body['id'])->first();
+
         // Every customer would mark their own ticket urgent, and the field
         // would stop meaning anything.
-        $this->assertSame('normal', $ticket['priority']);
-        $this->assertNull($ticket['assignee_id']);
-        $this->assertNull($ticket['department_id']);
+        $this->assertSame('normal', $stored->priority);
+        $this->assertNull($stored->assignee_id);
+        $this->assertNull($stored->department_id);
+
+        // And none of it is echoed back either: a customer reading "low" hears
+        // "we do not care", and a named assignee turns a desk into a set of
+        // personal queues.
+        $this->assertArrayNotHasKey('priority', $body);
+        $this->assertArrayNotHasKey('assignee_id', $body);
     }
 
     public function test_an_unlinked_account_is_refused_rather_than_guessed(): void
@@ -176,7 +202,7 @@ final class PortalCreateTicketTest extends TestCase
         $response = $this->submit()->assertStatus(403);
 
         // Guessing would attach a stranger's message to somebody's record.
-        $response->assertJsonPath('code', 'tickets.portal_account_unlinked');
+        $response->assertJsonPath('code', 'portal.account_unlinked');
         $this->assertDatabaseCount('tickets', 0);
     }
 

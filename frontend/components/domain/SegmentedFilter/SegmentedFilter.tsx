@@ -39,6 +39,15 @@ export function SegmentedFilter<T extends string>({
       {options.map((option) => (
         <Button
           key={option.value}
+          /*
+           * `type="button"`, explicitly.
+           *
+           * A <button> with no type is a SUBMIT button. Every one of these
+           * inside a form would submit it — so choosing a language on the
+           * registration form sent the form, twice. The default is a browser
+           * behaviour nobody expects and nothing else here would have caught.
+           */
+          type="button"
           variant={option.value === value ? "primary" : "secondary"}
           aria-pressed={option.value === value}
           onClick={() => onChange(option.value)}

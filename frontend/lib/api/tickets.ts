@@ -431,3 +431,40 @@ export function listTickets(
 export function ticketCounts(fetchImpl: typeof fetch = fetch): Promise<TicketCounts> {
   return request<TicketCounts>("/tickets/counts", { method: "GET", fetchImpl });
 }
+
+export interface NotificationRow {
+  id: string;
+  /**
+   * Already translated, in the language the recipient had when it was sent.
+   * Deliberately not re-translated on read: a notification is a record of
+   * something that was said to this person.
+   */
+  text: string;
+  reference: string | null;
+  ticket_id: string | null;
+  kind: string | null;
+  read: boolean;
+  created_at: string | null;
+}
+
+export interface NotificationPage {
+  data: NotificationRow[];
+  /** Counted separately from the list, which is capped. */
+  unread_count: number;
+}
+
+export function listNotifications(fetchImpl: typeof fetch = fetch): Promise<NotificationPage> {
+  return request<NotificationPage>("/notifications", { method: "GET", fetchImpl });
+}
+
+export async function markNotificationRead(
+  id: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  await getCsrf(fetchImpl);
+
+  await request(`/notifications/${encodeURIComponent(id)}/read`, {
+    method: "POST",
+    fetchImpl,
+  });
+}

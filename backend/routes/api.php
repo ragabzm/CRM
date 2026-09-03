@@ -25,8 +25,11 @@ use App\Modules\Security\Http\Controllers\UsersController;
 use App\Modules\Tickets\Domain\Category;
 use App\Modules\Tickets\Http\Controllers\Admin\CategoriesController;
 use App\Modules\Tickets\Http\Controllers\CustomerTimelineController;
-use App\Modules\Tickets\Http\Controllers\PortalTicketsController;
+use App\Modules\Portal\Http\Controllers\PortalAuthController;
+use App\Modules\Portal\Http\Controllers\PortalPasswordController;
+use App\Modules\Portal\Http\Controllers\PortalRequestsController;
 use App\Modules\Tickets\Http\Controllers\CustomerContextController;
+use App\Modules\Tickets\Http\Controllers\NotificationsController;
 use App\Modules\Tickets\Http\Controllers\TicketEventsController;
 use App\Modules\Tickets\Http\Controllers\TicketMessagesController;
 use App\Modules\Tickets\Http\Controllers\TicketsController;
@@ -160,6 +163,17 @@ Route::prefix('v1')->group(function (): void {
          * Every write also passes the Idempotency-Key middleware the api group
          * applies, so a retried create cannot produce two tickets.
          */
+        /*
+         * The bell. No capability gate: these are the signed-in person's own
+         * notifications, and holding any staff role is exactly the permission
+         * needed to read what was sent to you.
+         */
+        Route::get('/notifications', [NotificationsController::class, 'index'])
+            ->name('notifications.index');
+
+        Route::post('/notifications/{id}/read', [NotificationsController::class, 'markRead'])
+            ->name('notifications.read');
+
         Route::prefix('tickets')->name('tickets.')->group(function (): void {
             /*
              * The list and the counts strip. Read-only, so no Idempotency-Key.
@@ -502,8 +516,59 @@ Route::prefix('v1')->group(function (): void {
         ->withoutMiddleware([IdempotencyKey::class])
         ->name('inbound.email');
 
+    /*
+     * The portal's unauthenticated doors.
+     *
+     * Outside `auth:portal` by necessity — somebody registering or recovering
+     * an account has no session yet — and rate-limited because of it. Each
+     * limiter is named and registered in PortalServiceProvider::boot.
+     */
+    Route::prefix('portal/auth')->name('portal.auth.')->group(function (): void {
+        Route::post('/register', [PortalAuthController::class, 'register'])
+            ->middleware('throttle:portal-register')
+            ->name('register');
+
+        Route::post('/login', [PortalAuthController::class, 'login'])
+            ->middleware('throttle:portal-login')
+            ->name('login');
+
+        Route::post('/password/forgot', [PortalPasswordController::class, 'forgot'])
+            ->middleware('throttle:portal-password')
+            ->name('password.forgot');
+
+        Route::post('/password/reset', [PortalPasswordController::class, 'reset'])
+            ->middleware('throttle:portal-password')
+            ->name('password.reset');
+    });
+
     Route::middleware('auth:portal')->prefix('portal')->name('portal.')->group(function (): void {
-        Route::get('/tickets', [PortalTicketsController::class, 'index'])->name('tickets.index');
-        Route::post('/tickets', [PortalTicketsController::class, 'store'])->name('tickets.store');
+        Route::post('/auth/logout', [PortalAuthController::class, 'logout'])->name('auth.logout');
+        Route::get('/auth/me', [PortalAuthController::class, 'me'])->name('auth.me');
+
+        /*
+         * The customer's own requests.
+         *
+         * `requests`, not `tickets`: the URL is the one piece of internal
+         * vocabulary a customer actually sees, and "ticket" is what the desk
+         * calls it. Somebody who asked about their invoice did not file a
+         * ticket.
+         *
+         * The older `/portal/tickets` pair is kept below so nothing already
+         * pointing at it breaks; it answers from the same gateway.
+         */
+        Route::get('/requests', [PortalRequestsController::class, 'index'])->name('requests.index');
+        Route::post('/requests', [PortalRequestsController::class, 'store'])->name('requests.store');
+
+        Route::get('/requests/{id}', [PortalRequestsController::class, 'show'])
+            ->whereUlid('id')->name('requests.show');
+
+        Route::post('/requests/{id}/replies', [PortalRequestsController::class, 'reply'])
+            ->whereUlid('id')->name('requests.reply');
+
+        Route::post('/requests/{id}/reopen', [PortalRequestsController::class, 'reopen'])
+            ->whereUlid('id')->name('requests.reopen');
+
+        Route::get('/tickets', [PortalRequestsController::class, 'index'])->name('tickets.index');
+        Route::post('/tickets', [PortalRequestsController::class, 'store'])->name('tickets.store');
     });
 });

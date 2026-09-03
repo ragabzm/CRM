@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
@@ -21,7 +22,7 @@ use App\Modules\Security\Notifications\StaffPasswordReset;
  * scaffolding reference it here, and relocating it is a change with its own
  * blast radius.
  */
-class User extends Authenticatable
+class User extends Authenticatable implements HasLocalePreference
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
@@ -48,6 +49,16 @@ class User extends Authenticatable
      * add_preferred_locale migration has not been applied yet — the two
      * migrations in this story are independently additive and can land in
      * either order.
+     */
+    /**
+     * Declared through `HasLocalePreference`, not just as a method.
+     *
+     * The interface is what makes Laravel wrap every notification send to this
+     * person in THEIR language — the method alone was only being called by code
+     * that remembered to. A supervisor working in English assigning a ticket to
+     * a colleague working in Arabic must not send them an English email, and
+     * that mistake is invisible to the person making it because their own
+     * screen looks right.
      */
     public function preferredLocale(): string
     {

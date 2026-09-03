@@ -9,7 +9,9 @@ use App\Modules\Platform\Support\Settings\SettingDefinition;
 use App\Modules\Platform\Support\Settings\SettingType;
 use App\Modules\Platform\Support\Settings\SettingsRegistry;
 use App\Modules\Security\Contracts\DepartmentUsageProbe;
+use App\Modules\Tickets\Application\Portal\CustomerRequests;
 use App\Modules\Tickets\Contracts\CategoryUsageProbe;
+use App\Modules\Tickets\Contracts\CustomerRequestGateway;
 use App\Modules\Tickets\Domain\CategoryUsage;
 use App\Modules\Tickets\Domain\Commands\AppendMessage;
 use App\Modules\Tickets\Console\Commands\TicketsAutoCloseCommand;
@@ -22,6 +24,10 @@ use App\Modules\Tickets\Domain\Commands\ResolveTicket;
 use App\Modules\Tickets\Domain\Commands\UpdateTicketAttributes;
 use App\Modules\Tickets\Domain\Concurrency\VersionGuard;
 use App\Modules\Tickets\Domain\Events\CustomerReplyPosted;
+use App\Modules\Tickets\Domain\Events\TicketAssigned;
+use App\Modules\Tickets\Listeners\NotifyOnCustomerReply;
+use App\Modules\Tickets\Listeners\NotifyOnTicketAssigned;
+use App\Modules\Tickets\Notifications\TicketNotifier;
 use App\Modules\Tickets\Domain\Lifecycle\TicketLifecycle;
 use App\Modules\Tickets\Contracts\TicketEventRecording;
 use App\Modules\Tickets\Domain\History\TicketEventRecorder;
@@ -85,6 +91,14 @@ final class TicketsServiceProvider extends ServiceProvider implements RegistersS
          * can record a breach without depending on the Tickets model.
          */
         $this->app->singleton(TicketEventRecorder::class);
+        $this->app->singleton(TicketNotifier::class);
+
+        /*
+         * The narrow surface the portal reads through. Bound here, in Tickets,
+         * so the portal depends on a contract rather than on this module's
+         * commands, models and rules.
+         */
+        $this->app->singleton(CustomerRequestGateway::class, CustomerRequests::class);
 
         // Stateless: they hold nothing per request, so one instance serves the
         // whole application.
@@ -119,6 +133,16 @@ final class TicketsServiceProvider extends ServiceProvider implements RegistersS
          * the conversation story only has to fire the event.
          */
         Event::listen(CustomerReplyPosted::class, ReopenOnCustomerReply::class);
+
+        /*
+         * Three notification triggers, and no others.
+         *
+         * Listeners rather than calls inside the commands: a trigger can be
+         * switched off by removing one line, and a command stays about the
+         * change it makes rather than about who hears of it.
+         */
+        Event::listen(TicketAssigned::class, NotifyOnTicketAssigned::class);
+        Event::listen(CustomerReplyPosted::class, NotifyOnCustomerReply::class);
     }
 
     public function registerSettings(SettingsRegistry $registry): void

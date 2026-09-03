@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Sla\Console\Commands;
 
+use App\Modules\Tickets\Notifications\SlaWarning;
+use App\Modules\Tickets\Notifications\TicketNotifier;
 use App\Modules\Sla\Domain\SlaClock;
 use App\Modules\Sla\Domain\SlaState;
 use App\Modules\Sla\Domain\TicketTimelineLoader;
@@ -36,6 +38,11 @@ final class SweepSlaBreachesCommand extends Command
     /** Enough to keep one pass short; the sweep runs again in a minute. */
     private const BATCH = 500;
 
+    public function __construct(private readonly TicketNotifier $notifier)
+    {
+        parent::__construct();
+    }
+
     public function handle(TicketTimelineLoader $loader, SlaClock $clock): int
     {
         $now = CarbonImmutable::now('UTC');
@@ -59,12 +66,36 @@ final class SweepSlaBreachesCommand extends Command
                     $seen++;
 
                     foreach ($clock->read($timeline, $now) as $target => $reading) {
+                        /*
+                         * At-risk warns; breached records AND warns.
+                         *
+                         * The at-risk notification is the one that matters: a
+                         * warning that arrives with the breach is not a
+                         * warning, it is a report. It is deliberately NOT
+                         * persisted — an at-risk ticket that gets answered was
+                         * never a problem, and a row saying otherwise would
+                         * make the reporting look worse than the service was.
+                         */
+                        if ($reading->state === SlaState::AtRisk) {
+                            $this->warn_($timeline, $target, $reading, SlaWarning::AT_RISK);
+
+                            continue;
+                        }
+
                         if ($reading->state !== SlaState::Breached) {
                             continue;
                         }
 
+                        /*
+                         * Only the FIRST sweep that sees a breach notifies.
+                         * The insert losing on the unique index is what makes
+                         * that true — without it the sweep would email the
+                         * assignee once a minute for as long as the ticket
+                         * stayed late.
+                         */
                         if ($this->record($timeline->ticketId, $target, $timeline->priority, $reading, $now)) {
                             $recorded++;
+                            $this->warn_($timeline, $target, $reading, SlaWarning::BREACHED);
                         }
                     }
                 }
@@ -73,6 +104,46 @@ final class SweepSlaBreachesCommand extends Command
         $this->info(sprintf('Examined %d live tickets; recorded %d new breaches.', $seen, $recorded));
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Tells whoever needs to know.
+     *
+     * On a BREACH the department's supervisors hear about it as well as the
+     * assignee: an at-risk ticket is the assignee's to save, while a missed
+     * target is the team's problem and somebody has to be able to reassign it.
+     */
+    private function warn_(
+        \App\Modules\Sla\Domain\TicketTimeline $timeline,
+        string $target,
+        \App\Modules\Sla\Domain\TimerReading $reading,
+        string $state,
+    ): void {
+        $facts = $this->notifier->ticketFacts($timeline->ticketId);
+
+        if ($facts === null) {
+            return;
+        }
+
+        $notification = new SlaWarning(
+            $facts['id'],
+            $facts['reference'],
+            $facts['subject'],
+            $state,
+            $target,
+            abs($reading->remainingMinutes),
+        );
+
+        // No actor: nobody did this, a deadline passed.
+        $this->notifier->notifyAssignee($facts['assignee_id'], null, $notification);
+
+        if ($state === SlaWarning::BREACHED) {
+            $this->notifier->notifyDepartmentSupervisors(
+                $facts['department_id'],
+                $facts['assignee_id'],
+                $notification,
+            );
+        }
     }
 
     private function record(

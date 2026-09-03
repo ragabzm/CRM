@@ -2,6 +2,7 @@
 
 import { Menu } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ import { UserMenu } from "./UserMenu";
  * only one list of destinations to keep correct.
  */
 export function TopBar() {
+  const router = useRouter();
   const t = useTranslations("shell");
   const [localeError, setLocaleError] = useState<string | null>(null);
 
@@ -59,7 +61,8 @@ export function TopBar() {
         <div className="flex-1" />
 
         <LanguageToggle onError={setLocaleError} />
-        <NotificationBell />
+        {/* Clicking a notification opens the ticket it is about. */}
+        <NotificationBell onOpenTicket={(id) => router.push(`/tickets/${id}`)} />
         <UserMenu />
       </header>
 

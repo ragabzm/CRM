@@ -10,11 +10,13 @@ use App\Modules\Platform\Support\Audit\AuditLogger;
 use App\Modules\Tickets\Domain\Actor\Actor;
 use App\Modules\Tickets\Domain\Concurrency\VersionGuard;
 use App\Modules\Tickets\Domain\Enum\TicketStatus;
+use App\Modules\Tickets\Domain\Events\TicketAssigned;
 use App\Modules\Tickets\Domain\Lifecycle\TicketLifecycle;
 use App\Modules\Tickets\Domain\History\TicketEventKind;
 use App\Modules\Tickets\Domain\History\TicketEventRecorder;
 use App\Modules\Tickets\Domain\Ticket;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Support\Facades\Event;
 
 /**
  * Changes any subset of a ticket's contended attributes, atomically.
@@ -75,8 +77,10 @@ final class UpdateTicketAttributes
             );
         }
 
-        return $this->db->transaction(function () use (
-            $actor, $ticketId, $submittedVersion, $changes, $overrideEvent, $extraPayload
+        $assigneeChanged = false;
+
+        $ticket = $this->db->transaction(function () use (
+            $actor, $ticketId, $submittedVersion, $changes, $overrideEvent, $extraPayload, &$assigneeChanged
         ): Ticket {
             /*
              * Locked for the whole transaction. Without the lock two requests
@@ -103,9 +107,21 @@ final class UpdateTicketAttributes
                 $ticket,
                 $submittedVersion,
                 $columns,
-                // The sweep and the reply listener act on the ticket's own
-                // state, not on a screen somebody read.
-                exempt: $actor->kind() === 'system',
+                /*
+                 * Exempt when nobody read a version to be stale against.
+                 *
+                 * The sweep and the reply listener act on the ticket's own
+                 * state rather than on a screen somebody read. So does a
+                 * CUSTOMER: the portal shows them a subject and a status, never
+                 * a version, and there is nothing for them to have submitted.
+                 * Holding them to a version would refuse every reopen — which
+                 * is exactly what happened until this line named them.
+                 *
+                 * Staff are NOT exempt. The guard exists to stop one person
+                 * silently overwriting another's edit, and two agents on one
+                 * ticket is the situation it was built for.
+                 */
+                exempt: in_array($actor->kind(), ['system', 'portal'], true),
             );
 
             $stamps = [];
@@ -146,6 +162,8 @@ final class UpdateTicketAttributes
                 $after,
                 array_keys(VersionGuard::contendedValues($ticket)),
             );
+
+            $assigneeChanged = array_key_exists('assignee_id', $diff['after']);
 
             if ($overrideEvent !== null) {
                 $this->history->record(
@@ -193,6 +211,28 @@ final class UpdateTicketAttributes
 
             return $ticket;
         });
+
+        /*
+         * Announced after the transaction, and only when the assignee actually
+         * moved. Reassigning a ticket to the person who already has it has
+         * changed nothing, and telling them teaches them to ignore the
+         * notification that mattered.
+         *
+         * Dispatched from HERE rather than from AssignTicket, because a ticket
+         * can be reassigned by a plain attribute PATCH too — and a trigger
+         * wired to only one of the two doors is a trigger that misses half the
+         * assignments.
+         */
+        if ($assigneeChanged) {
+            Event::dispatch(new TicketAssigned(
+                $ticketId,
+                $ticket->assignee_id === null ? null : (int) $ticket->assignee_id,
+                $actor->id(),
+                $actor->label(),
+            ));
+        }
+
+        return $ticket;
     }
 
     /**

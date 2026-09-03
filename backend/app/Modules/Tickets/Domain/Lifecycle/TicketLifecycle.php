@@ -103,11 +103,34 @@ final class TicketLifecycle
                  */
                 'new_request_hint' => [
                     'action' => 'create_ticket',
-                    'path' => '/tickets/new?from='.$ticket->getKey(),
+                    'path' => $this->newRequestPath($ticket, $actor),
                     'customer_id' => (string) $ticket->customer_id,
                 ],
+
+                /*
+                 * The same way forward, under the name the portal reads.
+                 *
+                 * A customer who is told "no" with nothing else on the screen
+                 * has been given a dead end — and the next thing they do is
+                 * email support about not being able to email support.
+                 */
+                'new_request_url' => $this->newRequestPath($ticket, $actor),
             ],
         );
+    }
+
+    /**
+     * Where "raise a new one" actually goes.
+     *
+     * Different surfaces, different routes. Handing a customer `/tickets/new`
+     * would send them to a staff screen they cannot open — a dead end dressed
+     * as a way forward, which is worse than no link at all.
+     */
+    private function newRequestPath(Ticket $ticket, Actor $actor): string
+    {
+        return $actor->kind() === 'portal'
+            ? '/portal/requests/new?from='.$ticket->getKey()
+            : '/tickets/new?from='.$ticket->getKey();
     }
 
     /**

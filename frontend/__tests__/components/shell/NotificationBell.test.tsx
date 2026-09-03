@@ -11,10 +11,25 @@ import { NotificationBell } from "@/components/shell/NotificationBell";
 
 import { ar, en, withIntl } from "./helpers";
 
-const ITEMS = [
-  { id: "1", text: "Ticket assigned to you", reference: "TKT-000123" },
-  { id: "2", text: "SLA at risk" },
-  { id: "3", text: "Customer replied" },
+import type { NotificationRow } from "@/lib/api/tickets";
+
+function row(overrides: Partial<NotificationRow> = {}): NotificationRow {
+  return {
+    id: "1",
+    text: "Ticket assigned to you",
+    reference: null,
+    ticket_id: "01T1",
+    kind: "notifications.assigned",
+    read: false,
+    created_at: "2026-09-03T09:00:00Z",
+    ...overrides,
+  };
+}
+
+const ITEMS: NotificationRow[] = [
+  row({ id: "1", reference: "TKT-000123" }),
+  row({ id: "2", text: "SLA at risk", read: true }),
+  row({ id: "3", text: "Customer replied" }),
 ];
 
 describe("NotificationBell", () => {
@@ -67,14 +82,86 @@ describe("NotificationBell", () => {
     expect(reference).toHaveAttribute("dir", "ltr");
   });
 
-  it("shows no unread badge — a count it cannot honour would be a lie", async () => {
+  it("shows the unread count, now that there is a real one", async () => {
+    render(withIntl(<NotificationBell items={ITEMS} unreadCount={2} />));
+
+    /*
+     * Story 1.3 deliberately shipped no badge, on the grounds that a number the
+     * product could not honour would be a lie. There is a real count now — from
+     * a single indexed query — so the badge is honest and the reason is met.
+     */
+    expect(screen.getByTestId("notification-bell")).toHaveTextContent("2");
+  });
+
+  it("counts the unread, not the length of the list", async () => {
+    // The list is capped at twenty server-side; a badge reading "3" when there
+    // were ninety would be worse than none, because it would look precise.
+    render(withIntl(<NotificationBell items={ITEMS} unreadCount={90} />));
+
+    expect(screen.getByTestId("notification-bell")).toHaveTextContent("9+");
+  });
+
+  it("puts the count in the accessible name, not only in the badge", () => {
+    render(withIntl(<NotificationBell items={ITEMS} unreadCount={2} />));
+
+    // A screen reader hearing a bare "2" next to "Open notifications" learns
+    // nothing about what the 2 counts.
+    expect(screen.getByRole("button", { name: /2/ })).toBeInTheDocument();
+  });
+
+  it("shows no badge when there is nothing unread", () => {
+    render(withIntl(<NotificationBell items={ITEMS} unreadCount={0} />));
+
+    expect(screen.getByTestId("notification-bell")).toHaveTextContent("");
+  });
+
+  it("distinguishes read from unread by weight, not colour alone", async () => {
     const user = userEvent.setup();
-    render(withIntl(<NotificationBell items={ITEMS} />));
+    render(withIntl(<NotificationBell items={ITEMS} unreadCount={2} />));
 
-    const trigger = screen.getByTestId("notification-bell");
-    expect(trigger.textContent).toBe("");
+    await user.click(screen.getByTestId("notification-bell"));
 
-    await user.click(trigger);
-    expect(await screen.findByTestId("notification-list")).toBeInTheDocument();
+    const rows = await screen.findAllByRole("listitem");
+
+    // This list is scanned at a glance, and colour alone does not survive
+    // greyscale.
+    expect(rows[0]).toHaveAttribute("data-read", "false");
+    expect(rows[1]).toHaveAttribute("data-read", "true");
+  });
+
+  it("opens the ticket a notification is about", async () => {
+    const user = userEvent.setup();
+    const onOpenTicket = vi.fn();
+
+    render(withIntl(<NotificationBell items={ITEMS} onOpenTicket={onOpenTicket} />));
+
+    await user.click(screen.getByTestId("notification-bell"));
+    await user.click(await screen.findByRole("button", { name: /Ticket assigned to you/ }));
+
+    // A notification you cannot act on just makes somebody go and find the
+    // ticket by hand.
+    expect(onOpenTicket).toHaveBeenCalledWith("01T1");
+  });
+
+  it("drops the badge as soon as an item is opened", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 204 })),
+    );
+
+    const user = userEvent.setup();
+    render(withIntl(<NotificationBell items={ITEMS} unreadCount={2} />));
+
+    await user.click(screen.getByTestId("notification-bell"));
+    await user.click(await screen.findByRole("button", { name: /Ticket assigned to you/ }));
+
+    /*
+     * Optimistically. The badge dropping the instant somebody looks is what
+     * they expect; waiting for a round trip makes the bell feel broken, and a
+     * failure costs nothing because the next refetch puts the count back.
+     */
+    expect(screen.getByTestId("notification-bell")).toHaveTextContent("1");
+
+    vi.unstubAllGlobals();
   });
 });

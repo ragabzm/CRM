@@ -18,7 +18,10 @@
     },
     "notifications": {
       "heading": "Notifications",
-      "empty": "No notifications."
+      "empty": "No notifications.",
+      "unread": "{count} unread",
+      "markRead": "Mark as read",
+      "loadError": "Notifications could not be loaded."
     }
   },
   "home": {
@@ -714,5 +717,39 @@
       "openRecord": "Open full customer record"
     },
     "loading": "Loading the ticket…"
+  },
+  "portal": {
+    "brand": "Support",
+    "nav": {
+      "requests": "My requests",
+      "new": "New request",
+      "account": "Account"
+    },
+    "auth": {
+      "signIn": "Sign in",
+      "signOut": "Sign out",
+      "register": "Create an account",
+      "registerHint": "So you can follow your requests and reply without an email thread.",
+      "name": "Your name",
+      "email": "Email address",
+      "password": "Password",
+      "passwordConfirm": "Confirm password",
+      "passwordHint": "At least 10 characters. Length matters more than symbols.",
+      "language": "Language",
+      "haveAccount": "Already have an account?",
+      "noAccount": "New here?",
+      "forgot": "Forgotten your password?",
+      "forgotTitle": "Reset your password",
+      "forgotHint": "We will email you a link. It works once, and expires.",
+      "forgotSent": "If that address has an account, a link is on its way.",
+      "send": "Send the link",
+      "resetTitle": "Choose a new password",
+      "newPassword": "New password",
+      "reset": "Save the new password",
+      "resetDone": "Your password has been changed. You can sign in now.",
+      "resetExpired": "That link no longer works. Ask for a new one.",
+      "error": "Those details did not match. Check them and try again.",
+      "genericError": "Something went wrong. Try again."
+    }
   }
 }
