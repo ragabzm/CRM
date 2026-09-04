@@ -93,6 +93,7 @@ const renderScreen = (props = {}) =>
       departments={DEPARTMENTS}
       categories={CATEGORIES}
       onCreated={onCreated}
+      onCancel={() => {}}
       {...props}
     />,
   );

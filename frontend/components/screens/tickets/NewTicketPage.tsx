@@ -74,6 +74,9 @@ export function NewTicketPage() {
        */
       {...(search.get("customer") === null ? {} : { customerId: String(search.get("customer")) })}
       onCreated={(ticketId) => router.push(`/tickets/${ticketId}`)}
+      // Back to the queue, not `history.back()`: somebody who arrived here
+      // from a link has no history to go back to.
+      onCancel={() => router.push("/tickets")}
     />
   );
 }

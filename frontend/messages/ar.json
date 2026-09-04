@@ -348,7 +348,15 @@
       "cannotDelete": "لا يمكن الحذف: ما زالت {count} تذكرة تستخدمه.",
       "viewThem": "عرضها"
     },
-    "context": "{people} موظف · {departments} أقسام"
+    "context": "{people} موظف · {departments} أقسام",
+    "counts": {
+      "organisation": "{people} موظف · {departments} أقسام",
+      "ticketing": "{categories} تصنيفات",
+      "serviceLevels": "{targets} أهداف",
+      "email": "{settings} إعدادات",
+      "platform": "{settings} إعدادات",
+      "auditLog": "{entries} قيد"
+    }
   },
   "audit": {
     "title": "سجل التدقيق",
@@ -641,13 +649,18 @@
         "paused": "متوقّفة"
       },
       "notTracked": "مش متتبّعة",
-      "remaining": "فاضل {duration}",
-      "over": "متأخرة {duration}",
+      "remaining": "فاضل <duration></duration>",
+      "over": "متأخرة <duration></duration>",
       "pausedHint": "مستنية العميل — الساعة واقفة.",
       "response": "أول رد",
       "resolution": "الحل",
-      "elapsedPercent": "عدّى {percent}%",
-      "dueAt": "الموعد {at}"
+      "elapsedPercent": "عدّى <percent></percent>%",
+      "dueAt": "الموعد {at}",
+      "units": {
+        "days": " ي",
+        "hours": " س",
+        "minutes": " د"
+      }
     },
     "loading": "بنحمّل التذاكر…",
     "channel": {

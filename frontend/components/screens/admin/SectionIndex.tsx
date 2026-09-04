@@ -7,7 +7,13 @@ import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { listCategories, listDepartments, listStaff } from "@/lib/api/admin";
+import {
+  listAuditEntries,
+  listCategories,
+  listDepartments,
+  listSettings,
+  listStaff,
+} from "@/lib/api/admin";
 
 import { ADMIN_SECTIONS, SECTION_PATHS, type AdminSection } from "./sections";
 
@@ -25,7 +31,7 @@ export function SectionIndex({ className }: { className?: string }) {
   const pathname = usePathname() ?? "";
 
   return (
-    <nav aria-label={t("indexLabel")} className={cn("flex flex-col gap-1", className)}>
+    <nav aria-label={t("indexLabel")} className={cn("flex flex-col gap-2", className)}>
       {ADMIN_SECTIONS.map((section) => {
         const href = SECTION_PATHS[section];
         const isCurrent = pathname === href || pathname.startsWith(`${href}/`);
@@ -36,7 +42,8 @@ export function SectionIndex({ className }: { className?: string }) {
             href={href}
             aria-current={isCurrent ? "page" : undefined}
             className={cn(
-              "rounded-md px-3 py-2 text-sm transition-colors",
+              // 44px rows, for the same reason as the shell sidebar.
+              "flex min-h-11 items-center rounded-md px-3 py-2 text-sm transition-colors",
               isCurrent
                 ? "bg-accent-subtle font-semibold text-accent-text"
                 : "font-medium text-fg-muted hover:bg-surface-hover hover:text-fg-default",
@@ -56,7 +63,15 @@ export function SectionIndex({ className }: { className?: string }) {
                 in it.
               */}
               {counts[section] !== undefined && (
-                <span className="num ms-auto text-xs font-normal text-fg-subtle" dir="ltr">
+                /*
+                 * NAMED, and split by kind.
+                 * The first version printed one bare number — `Organisation 9`
+                 * — which was six people plus three departments added
+                 * together. Two different things summed into a figure nobody
+                 * could take apart, next to four sections with no counter at
+                 * all, so half the column read as empty.
+                 */
+                <span className="ms-auto text-xs font-normal text-fg-subtle">
                   {counts[section]}
                 </span>
               )}
@@ -79,25 +94,44 @@ export function SectionIndex({ className }: { className?: string }) {
  * would be a number nobody can act on, and "Platform: 4 settings" says nothing
  * about the platform.
  */
-function useSectionCounts(): Partial<Record<AdminSection, number>> {
-  const [counts, setCounts] = useState<Partial<Record<AdminSection, number>>>({});
+function useSectionCounts(): Partial<Record<AdminSection, string>> {
+  const t = useTranslations("admin.counts");
+
+  const [counts, setCounts] = useState<Partial<Record<AdminSection, string>>>({});
 
   useEffect(() => {
     let cancelled = false;
 
     void (async () => {
       try {
-        const [staff, departments, categories] = await Promise.all([
+        const [staff, departments, categories, settings, entries] = await Promise.all([
           listStaff(),
           listDepartments(),
           listCategories(),
+          listSettings(),
+          listAuditEntries({}),
         ]);
 
         if (cancelled) return;
 
+        const slaTargets = settings.filter((s) => s.key.startsWith("sla.")).length;
+        const emailSettings = settings.filter((s) => s.key.startsWith("email.")).length;
+        const platformSettings = settings.filter((s) => s.key.startsWith("platform.")).length;
+
+        /*
+         * All six, or none. A counter on half the list reads as "these four
+         * sections are empty" — which is worse than no counters at all.
+         */
         setCounts({
-          organisation: staff.length + departments.length,
-          ticketing: categories.length,
+          organisation: t("organisation", {
+            people: staff.length,
+            departments: departments.length,
+          }),
+          ticketing: t("ticketing", { categories: categories.length }),
+          serviceLevels: t("serviceLevels", { targets: slaTargets }),
+          email: t("email", { settings: emailSettings }),
+          platform: t("platform", { settings: platformSettings }),
+          auditLog: t("auditLog", { entries: entries.meta.total }),
         });
       } catch {
         /*
@@ -112,7 +146,7 @@ function useSectionCounts(): Partial<Record<AdminSection, number>> {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   return counts;
 }

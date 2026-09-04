@@ -101,6 +101,19 @@ export interface DataTableProps<Row> {
    */
   mode?: CollapseMode;
   rows: Row[];
+  /**
+   * Splits the rows into labelled groups inside ONE table.
+   *
+   * Rendering a table per group gives each one its own search box, its own
+   * column picker and its own header row, and lets the columns settle to
+   * different widths — so a grouped queue reads as several unrelated tables
+   * rather than one list sorted by why each ticket needs attention.
+   *
+   * The heading is a spanning row instead: a divider, not the start of a new
+   * table.
+   */
+  groups?: Array<{ id: string; label: string; note?: string; rowIds: string[] }>;
+
   /** Stable identity for a row, used for keys and focus retention. */
   getRowId: (row: Row) => string;
 

@@ -41,12 +41,33 @@ function groupKeyFor(ticket: Ticket): GroupKey {
   return "rest";
 }
 
-/** Only the groups that have something in them — an empty heading is noise. */
-function groupsOf(tickets: Ticket[]): Array<{ key: GroupKey; tickets: Ticket[] }> {
-  return GROUPS.map((key) => ({
+/**
+ * The queue in group order, plus the headings to draw inside it.
+ *
+ * Empty groups are dropped — a heading with nothing under it is noise.
+ */
+function groupedQueue(
+  tickets: Ticket[],
+  label: (key: GroupKey) => string,
+  note: (key: GroupKey) => string,
+): {
+  rows: Ticket[];
+  groups: Array<{ id: string; label: string; note: string; rowIds: string[] }>;
+} {
+  const groups = GROUPS.map((key) => ({
     key,
     tickets: tickets.filter((ticket) => groupKeyFor(ticket) === key),
   })).filter((group) => group.tickets.length > 0);
+
+  return {
+    rows: groups.flatMap((group) => group.tickets),
+    groups: groups.map((group) => ({
+      id: group.key,
+      label: label(group.key),
+      note: note(group.key),
+      rowIds: group.tickets.map((ticket) => ticket.id),
+    })),
+  };
 }
 
 /**
@@ -106,6 +127,12 @@ export function AgentHomeScreen({ currentUserId, onOpen }: AgentHomeScreenProps)
   const now = useMemo(() => new Date(), [counts.data, queue.data]);
 
   const rows = queue.data?.data ?? [];
+
+  const grouped = groupedQueue(
+    rows,
+    (key) => t(`queue.groups.${key}`),
+    (key) => t(`queue.groupNotes.${key}`),
+  );
 
   /*
    * The labels arrive with the rows they belong to.
@@ -174,34 +201,21 @@ export function AgentHomeScreen({ currentUserId, onOpen }: AgentHomeScreenProps)
           <EmptyState headline={t("queue.empty")} description={t("queue.emptyBody")} />
         ) : (
           /*
-            GROUPED BY WHY IT NEEDS ATTENTION, not one flat table.
-            Home used to render exactly the same table as /tickets, in the same
-            order, with the same columns — a second filtered list rather than a
-            screen with a job. The product owner's line in the mockup is
-            explicit: "I want it practical, showing what needs the user's
-            attention now." A heading saying "Breached — act now" does that;
-            a sorted table leaves the agent to work it out.
+            ONE table with spanning group headings.
+            Rendering a DataTable per group gave each group its own search box
+            and its own column picker, let the columns settle to different
+            widths, and repeated the header row — so a grouped queue read as
+            two unrelated tables instead of one list ordered by why each
+            ticket needs attention.
           */
-          <div className="flex flex-col gap-6">
-            {groupsOf(rows).map((group) => (
-              <div key={group.key} className="flex flex-col gap-2" data-queue-group={group.key}>
-                <div className="flex flex-wrap items-baseline gap-2">
-                  <h3 className="text-sm font-semibold text-fg-default">
-                    {t(`queue.groups.${group.key}`)}
-                  </h3>
-                  <p className="text-xs text-fg-muted">{t(`queue.groupNotes.${group.key}`)}</p>
-                </div>
-
-                <TicketListTable
-                  tickets={group.tickets}
-                  caption={t(`queue.groups.${group.key}`)}
-                  onOpen={onOpen}
-                  assigneeNames={assigneeNames}
-                  categoryNames={categoryNames}
-                />
-              </div>
-            ))}
-          </div>
+          <TicketListTable
+            tickets={grouped.rows}
+            caption={t("queue.title")}
+            onOpen={onOpen}
+            assigneeNames={assigneeNames}
+            categoryNames={categoryNames}
+            groups={grouped.groups}
+          />
         )}
       </section>
     </div>

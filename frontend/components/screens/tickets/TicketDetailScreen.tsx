@@ -225,7 +225,16 @@ export function TicketDetailScreen({
         column 1 in both writing modes and the browser decides which edge that
         is, so there is no second stylesheet for Arabic.
       */}
-      <div className="hidden gap-6 tablet:grid tablet:grid-cols-[16rem_1fr_16rem]">
+      <div /*
+          The rail is 20rem, not 16.
+          At 256px the live-state band puts status and service level side by
+          side inside it, and "43d 7h over" broke across three lines while
+          "due Sep 4, 2026, 5:39 AM" broke across two. The workspace mockup
+          gives the rail ~340px for exactly this reason. The customer panel
+          stays at 16rem: it holds a name and four short readings.
+        */
+        className="hidden gap-6 tablet:grid tablet:grid-cols-[20rem_1fr_16rem]"
+      >
         {rail}
         <div className="min-w-0">{conversation}</div>
         {customer}

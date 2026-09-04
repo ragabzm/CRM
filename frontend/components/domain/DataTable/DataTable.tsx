@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { TOUCH_TARGET, cn } from "@/lib/utils";
 
 import { ariaSortFor, nextSortState, sortAnnouncement } from "./DataTable.aria";
 import type { ActiveFilters, ColumnDef, DataTableProps } from "./DataTable.types";
@@ -43,6 +43,7 @@ export function DataTable<Row>({
   columns,
   rows,
   getRowId,
+  groups,
   caption,
   mode = "fold",
   sort = null,
@@ -67,6 +68,34 @@ export function DataTable<Row>({
     () => columns.filter((column) => column.identity || !hiddenColumns.includes(column.id)),
     [columns, hiddenColumns],
   );
+
+  /**
+   * The rows in render order, each carrying the heading that precedes it.
+   *
+   * Grouped rows keep their original index so the roving-focus grid maths and
+   * every `cellProps` call stay correct — a heading is a row of the table, not
+   * a break in it.
+   */
+  const orderedRows = React.useMemo(() => {
+    const withIndex = rows.map((row, rowIndex) => ({ row, rowIndex }));
+
+    if (groups === undefined || groups.length === 0) {
+      return withIndex.map((entry) => ({ ...entry, groupHeading: undefined }));
+    }
+
+    const byId = new Map(withIndex.map((entry) => [getRowId(entry.row), entry]));
+
+    return groups.flatMap((group) =>
+      group.rowIds
+        .map((id) => byId.get(id))
+        .filter((entry): entry is (typeof withIndex)[number] => entry !== undefined)
+        .map((entry, indexInGroup) => ({
+          ...entry,
+          // Only the first row of a group carries the heading.
+          groupHeading: indexInGroup === 0 ? group : undefined,
+        })),
+    );
+  }, [rows, groups, getRowId]);
 
   /** Columns that fold away below the desktop band, in declaration order. */
   const foldedColumns = React.useMemo(
@@ -276,7 +305,10 @@ export function DataTable<Row>({
                   <button
                     type="button"
                     aria-label={t("removeFilter", { label: filter?.label ?? filterId })}
-                    className="rounded-full p-0.5 text-fg-muted hover:bg-surface-active hover:text-fg-default"
+                    className={cn(
+                      "rounded-full p-0.5 text-fg-muted hover:bg-surface-active hover:text-fg-default",
+                      TOUCH_TARGET,
+                    )}
                     onClick={() => setFilter(filterId, "")}
                   >
                     <X aria-hidden="true" className="size-3" />
@@ -337,7 +369,11 @@ export function DataTable<Row>({
                       <button
                         type="button"
                         onClick={() => handleSort(column)}
-                        className="inline-flex items-center gap-1.5 rounded-sm text-fg-muted hover:text-fg-default"
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-sm text-fg-muted hover:text-fg-default",
+                          // A 15px-tall target on a phone. See TOUCH_TARGET.
+                          TOUCH_TARGET,
+                        )}
                       >
                         <span>{column.header}</span>
                         <SortGlyph state={sortState} />
@@ -374,56 +410,82 @@ export function DataTable<Row>({
                 </td>
               </tr>
             ) : (
-              rows.map((row, rowIndex) => (
-                <tr
-                  key={getRowId(row)}
-                  className="border-b border-border-subtle last:border-b-0 hover:bg-surface-hover"
-                >
-                  {visibleColumns.map((column, columnIndex) => (
-                    <td
-                      key={column.id}
-                      data-column-type={column.type ?? "text"}
-                      data-pinned={mode === "scroll" && column.pinned ? "true" : undefined}
-                      className={cn(
-                        "h-(--row-height) px-3 align-middle text-fg-default",
-                        mode === "fold" && column.secondary && "hidden desktop:table-cell",
-                        mode === "scroll" &&
-                          column.pinned &&
-                          "sticky start-0 z-10 bg-surface-raised shadow-[1px_0_0_var(--border-subtle)]",
-                        column.type === "number" && "text-end",
-                      )}
-                      {...cellProps(rowIndex, columnIndex)}
-                    >
-                      {column.cell(row)}
+              orderedRows.map(({ row, rowIndex, groupHeading }) => (
+                <React.Fragment key={getRowId(row)}>
+                  {groupHeading !== undefined && (
+                    /*
+                     * A spanning heading INSIDE the table, in the rail's
+                     * band-head voice. One table means one search box, one
+                     * column picker, one header row, and columns that line up
+                     * down the whole queue.
+                     */
+                    <tr data-slot="group-heading" data-group={groupHeading.id}>
+                      <th
+                        scope="colgroup"
+                        colSpan={visibleColumns.length}
+                        className="border-b border-border-subtle bg-surface-sunken px-3 py-2 text-start"
+                      >
+                        <span className="flex flex-wrap items-baseline gap-2">
+                          <span className="text-[13px] font-semibold text-fg-default">
+                            {groupHeading.label}
+                          </span>
+                          {groupHeading.note !== undefined && (
+                            <span className="text-xs font-normal text-fg-muted">
+                              {groupHeading.note}
+                            </span>
+                          )}
+                        </span>
+                      </th>
+                    </tr>
+                  )}
 
-                      {/*
+                  <tr className="border-b border-border-subtle last:border-b-0 hover:bg-surface-hover">
+                    {visibleColumns.map((column, columnIndex) => (
+                      <td
+                        key={column.id}
+                        data-column-type={column.type ?? "text"}
+                        data-pinned={mode === "scroll" && column.pinned ? "true" : undefined}
+                        className={cn(
+                          "h-(--row-height) px-3 align-middle text-fg-default",
+                          mode === "fold" && column.secondary && "hidden desktop:table-cell",
+                          mode === "scroll" &&
+                            column.pinned &&
+                            "sticky start-0 z-10 bg-surface-raised shadow-[1px_0_0_var(--border-subtle)]",
+                          column.type === "number" && "text-end",
+                        )}
+                        {...cellProps(rowIndex, columnIndex)}
+                      >
+                        {column.cell(row)}
+
+                        {/*
  The fold's other half. Every column hidden above is
  reprinted here, labelled, below the desktop band — the
  value is MOVED, never dropped. It rides in the first
  visible cell so the row stays one <tr> and the table
  keeps real row/column semantics.
                       */}
-                      {columnIndex === 0 && foldedColumns.length > 0 && (
-                        <dl
-                          data-slot="row-meta"
-                          className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-fg-muted desktop:hidden"
-                        >
-                          {foldedColumns.map((folded) => (
-                            <div key={folded.id} className="flex items-center gap-1">
-                              <dt className="sr-only">{folded.header}</dt>
-                              <dd
-                                data-column-id={folded.id}
-                                data-column-type={folded.type ?? "text"}
-                              >
-                                {folded.cell(row)}
-                              </dd>
-                            </div>
-                          ))}
-                        </dl>
-                      )}
-                    </td>
-                  ))}
-                </tr>
+                        {columnIndex === 0 && foldedColumns.length > 0 && (
+                          <dl
+                            data-slot="row-meta"
+                            className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-fg-muted desktop:hidden"
+                          >
+                            {foldedColumns.map((folded) => (
+                              <div key={folded.id} className="flex items-center gap-1">
+                                <dt className="sr-only">{folded.header}</dt>
+                                <dd
+                                  data-column-id={folded.id}
+                                  data-column-type={folded.type ?? "text"}
+                                >
+                                  {folded.cell(row)}
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                </React.Fragment>
               ))
             )}
           </tbody>

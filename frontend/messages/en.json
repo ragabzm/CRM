@@ -348,7 +348,15 @@
       "cannotDelete": "Cannot delete: {count} tickets still use it.",
       "viewThem": "View them"
     },
-    "context": "{people} people · {departments} departments"
+    "context": "{people} people · {departments} departments",
+    "counts": {
+      "organisation": "{people} people · {departments} teams",
+      "ticketing": "{categories} categories",
+      "serviceLevels": "{targets} targets",
+      "email": "{settings} settings",
+      "platform": "{settings} settings",
+      "auditLog": "{entries} entries"
+    }
   },
   "audit": {
     "title": "Audit log",
@@ -641,13 +649,18 @@
         "paused": "Paused"
       },
       "notTracked": "Not tracked",
-      "remaining": "{duration} left",
-      "over": "{duration} over",
+      "remaining": "<duration></duration> left",
+      "over": "<duration></duration> over",
       "pausedHint": "Waiting on the customer — the clock is stopped.",
       "response": "First reply",
       "resolution": "Resolution",
-      "elapsedPercent": "{percent}% elapsed",
-      "dueAt": "due {at}"
+      "elapsedPercent": "<percent></percent>% elapsed",
+      "dueAt": "due {at}",
+      "units": {
+        "days": "d",
+        "hours": "h",
+        "minutes": "m"
+      }
     },
     "loading": "Loading tickets…",
     "channel": {

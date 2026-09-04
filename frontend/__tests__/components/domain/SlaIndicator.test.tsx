@@ -74,7 +74,9 @@ describe("the SLA indicator", () => {
     render(<SlaIndicator sla={block("breached", { response: timer("breached", -75) })} />);
 
     // How far past is what a supervisor actually asks about.
-    expect(screen.getByText(/1h 15m over/)).toBeInTheDocument();
+    // Split across elements now — each number sits in its own `bdi` so the
+    // isolation lands on the digits rather than on the sentence.
+    expect(document.querySelector('[data-slot="sla-indicator"]')).toHaveTextContent("1h 15m over");
   });
 
   it("says a long overrun in units somebody can read", () => {
@@ -83,7 +85,7 @@ describe("the SLA indicator", () => {
     // to be scanned.
     render(<SlaIndicator sla={block("breached", { response: timer("breached", -20880) })} />);
 
-    expect(screen.getByText(/43d 4h over/)).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="sla-indicator"]')).toHaveTextContent("43d 4h over");
     expect(screen.queryByText(/20,880/)).toBeNull();
   });
 
@@ -142,11 +144,28 @@ describe("the SLA indicator", () => {
     // The Arabic copy, not the English.
     expect(screen.getByText(ar.tickets.sla.state.on_track)).toBeInTheDocument();
 
-    // A duration is a figure: isolated so it does not reverse inside Arabic
-    // prose.
-    expect(document.querySelector('[data-slot="sla-indicator"] .num')).toHaveAttribute(
-      "dir",
-      "ltr",
-    );
+    /*
+     * READING ORDER, not the presence of an attribute.
+     *
+     * The previous version of this test asserted `dir="ltr"` on `.num` — and
+     * passed while the screen said `4 hفاضل`, because that attribute was
+     * exactly what caused the damage: it had been put around the whole Arabic
+     * phrase "فاضل {duration}", which reordered it. A test that checks the
+     * mechanism cannot tell you the mechanism is pointed at the wrong thing.
+     *
+     * So: the Arabic word comes first, the unit is Arabic too, and the
+     * isolation wraps the digits alone.
+     */
+    const badge = document.querySelector('[data-slot="sla-indicator"]');
+    const text = badge?.textContent ?? "";
+
+    expect(text.indexOf("فاضل")).toBeLessThan(text.indexOf("40"));
+    expect(text).toContain(ar.tickets.sla.units.minutes.trim());
+    expect(text).not.toMatch(/[a-z]/i);
+
+    // Every isolated run is a bare number — never a phrase.
+    for (const isolated of badge?.querySelectorAll("[dir='ltr']") ?? []) {
+      expect(isolated.textContent?.trim()).toMatch(/^[\d\u0660-\u0669٬,.]+$/);
+    }
   });
 });

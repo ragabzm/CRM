@@ -16,6 +16,7 @@ import {
   type TicketListParams,
 } from "@/lib/api/tickets";
 import { useFreshQuery } from "@/lib/data/useFreshQuery";
+import { TOUCH_TARGET, cn } from "@/lib/utils";
 
 interface Named {
   id: number;
@@ -122,7 +123,10 @@ export function TicketListScreen({
            * "Columns". The `+` is the other half — it says "make one" without
            * reading the label.
            */
-          className="inline-flex items-center gap-1.5 rounded-md bg-accent-default px-3 py-2 text-sm font-semibold text-accent-fg transition-colors hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md bg-accent-default px-3 py-2 text-sm font-semibold text-accent-fg transition-colors hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus",
+            TOUCH_TARGET,
+          )}
         >
           <span aria-hidden="true">+</span>
           {tNew("title")}
@@ -341,7 +345,10 @@ function Pager({
           type="button"
           disabled={meta.current_page <= 1}
           onClick={() => onPage(meta.current_page - 1)}
-          className="rounded-md border border-border-default px-3 py-1.5 text-sm text-fg-default disabled:opacity-50 hover:enabled:bg-surface-hover"
+          className={cn(
+            "rounded-md border border-border-default px-3 py-1.5 text-sm text-fg-default disabled:opacity-50 hover:enabled:bg-surface-hover",
+            TOUCH_TARGET,
+          )}
         >
           {previousLabel}
         </button>
@@ -350,7 +357,10 @@ function Pager({
           type="button"
           disabled={meta.current_page >= meta.last_page}
           onClick={() => onPage(meta.current_page + 1)}
-          className="rounded-md border border-border-default px-3 py-1.5 text-sm text-fg-default disabled:opacity-50 hover:enabled:bg-surface-hover"
+          className={cn(
+            "rounded-md border border-border-default px-3 py-1.5 text-sm text-fg-default disabled:opacity-50 hover:enabled:bg-surface-hover",
+            TOUCH_TARGET,
+          )}
         >
           {nextLabel}
         </button>
@@ -436,7 +446,10 @@ function ActiveFilters({
             data-slot="active-filter"
             data-filter={chip.id}
             onClick={chip.clear}
-            className="inline-flex items-center gap-2 rounded-full border border-border-default bg-surface-sunken px-3 py-1 text-xs text-fg-default hover:bg-surface-hover"
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full border border-border-default bg-surface-sunken px-3 py-1 text-xs text-fg-default hover:bg-surface-hover",
+              TOUCH_TARGET,
+            )}
           >
             <span className="text-fg-muted">{chip.label}</span>
             <span dir="auto">{chip.value}</span>

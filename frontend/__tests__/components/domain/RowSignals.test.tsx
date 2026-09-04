@@ -135,9 +135,17 @@ describe("the SLA cell", () => {
       />,
     );
 
-    // 200 of 240 minutes. The API has sent this since Story 5.3 and nothing
-    // rendered it, so "At risk" was a colour with no argument behind it.
-    expect(screen.getAllByText(/83% elapsed/).length).toBeGreaterThan(0);
+    /*
+     * 200 of 240 minutes. The API has sent this since Story 5.3 and nothing
+     * rendered it, so "At risk" was a colour with no argument behind it.
+     *
+     * Split across elements: the figure sits in its own `bdi` so the
+     * isolation lands on the digits and not on the Arabic sentence around
+     * them.
+     */
+    expect(document.querySelector('[data-slot="sla-indicator-full"]')).toHaveTextContent(
+      "83% elapsed",
+    );
   });
 
   it("still says nothing rather than something when the engine is off", () => {

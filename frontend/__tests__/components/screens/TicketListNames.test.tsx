@@ -62,7 +62,13 @@ describe("the ticket queue", () => {
     render(<AgentHomeScreen currentUserId={4} onOpen={() => {}} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Hana Support")).toBeInTheDocument();
+      /*
+       * `getAllBy`: the assignee column folds below desktop, and DataTable's
+       * fold MOVES the value rather than dropping it — so the name is in the
+       * DOM twice, once in its cell and once in the row's folded meta, with
+       * CSS deciding which is visible at the current width.
+       */
+      expect(screen.getAllByText("Hana Support").length).toBeGreaterThan(0);
     });
   });
 
@@ -70,7 +76,7 @@ describe("the ticket queue", () => {
     render(<AgentHomeScreen currentUserId={4} onOpen={() => {}} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Billing")).toBeInTheDocument();
+      expect(screen.getAllByText("Billing").length).toBeGreaterThan(0);
     });
 
     expect(screen.queryByText("2")).not.toBeInTheDocument();

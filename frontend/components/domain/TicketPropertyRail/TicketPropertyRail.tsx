@@ -171,10 +171,14 @@ export function TicketPropertyRail({
           ]}
           onChange={pick("assignee_id")}
         >
-          {/* Who, as a face and a name, not only as the selected option. */}
+          {/*
+            The FACE only. The select above already prints the name, so
+            rendering it again underneath put the same fact twice in fifty
+            pixels. The circle adds what the dropdown cannot — who this is at
+            a glance, and a shape that says "nobody" when it is nobody.
+          */}
           <AvatarChip
             name={assignees.find((a) => a.id === ticket.assignee_id)?.name ?? null}
-            showName
             unassignedLabel={t("unassigned")}
           />
         </RailSelect>

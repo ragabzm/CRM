@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ActionBar } from "@/components/domain/ActionBar/ActionBar";
 import { DataTable } from "@/components/domain/DataTable/DataTable";
+import { RowSkeleton } from "@/components/domain/RowSkeleton/RowSkeleton";
 import type { ColumnDef } from "@/components/domain/DataTable/DataTable.types";
 import { FormAlert } from "@/components/domain/FormAlert/FormAlert";
 import { FormField } from "@/components/domain/FormField/FormField";
@@ -94,14 +95,23 @@ export function OrganisationSection() {
       )}
 
       <Panel title={t("departments")} hint={t("departmentsBody")}>
-        <DepartmentList departments={departments} onChanged={load} />
+        {/*
+          The same rule the ticket list follows: a table that is fetching draws
+          placeholder rows, never an empty header row and never the word
+          "Loading". This screen drew `Name | State` with nothing under it and
+          the users panel wrote `Loading…` as prose — the fix landed in one
+          place and not the other.
+        */}
+        {loading && departments.length === 0 ? (
+          <RowSkeleton label={t("loading")} rows={3} />
+        ) : (
+          <DepartmentList departments={departments} onChanged={load} />
+        )}
       </Panel>
 
       <Panel title={t("users")} hint={t("usersBody")}>
         {loading && staff.length === 0 ? (
-          <p role="status" className="text-sm text-fg-muted">
-            {t("loading")}
-          </p>
+          <RowSkeleton label={t("loading")} rows={5} />
         ) : (
           <StaffList
             staff={staff}

@@ -49,7 +49,13 @@ describe("the way in", () => {
 describe("the new-ticket form", () => {
   it("says so when its options could not be loaded", () => {
     render(
-      <NewTicketScreen categories={[]} departments={[]} referenceFailed onCreated={() => {}} />,
+      <NewTicketScreen
+        categories={[]}
+        departments={[]}
+        referenceFailed
+        onCreated={() => {}}
+        onCancel={() => {}}
+      />,
     );
 
     /*
@@ -67,6 +73,7 @@ describe("the new-ticket form", () => {
         categories={[{ id: 1, name: "Billing" }]}
         departments={[{ id: 1, name: "Support" }]}
         onCreated={() => {}}
+        onCancel={() => {}}
       />,
     );
 
@@ -79,6 +86,7 @@ describe("the new-ticket form", () => {
         categories={[{ id: 7, name: "Billing" }]}
         departments={[{ id: 3, name: "Support" }]}
         onCreated={() => {}}
+        onCancel={() => {}}
       />,
     );
 

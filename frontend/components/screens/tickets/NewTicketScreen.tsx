@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
+import { ActionBar } from "@/components/domain/ActionBar/ActionBar";
 import { FormAlert } from "@/components/domain/FormAlert/FormAlert";
 import { FormField } from "@/components/domain/FormField/FormField";
 import { SubmitButton } from "@/components/domain/SubmitButton/SubmitButton";
@@ -15,6 +16,8 @@ export interface NewTicketScreenProps {
   departments: Array<{ id: number; name: string }>;
   categories: Array<{ id: number; name: string }>;
   onCreated: (ticketId: string) => void;
+  /** Leaves the form without creating anything. */
+  onCancel: () => void;
   /** Pre-selects the customer when opened from their profile. */
   customerId?: string;
   /**
@@ -43,6 +46,7 @@ export function NewTicketScreen({
   departments,
   categories,
   onCreated,
+  onCancel,
   customerId,
   referenceFailed = false,
 }: NewTicketScreenProps) {
@@ -129,7 +133,16 @@ export function NewTicketScreen({
   }
 
   return (
-    <form onSubmit={submit} className="flex max-w-2xl flex-col gap-4">
+    /*
+      In a panel, like every other screen in the product.
+      The fields used to sit loose on the application background with no
+      surface and no border, while Departments, Users and every admin section
+      are inside one — so the screen read as unfinished.
+    */
+    <form
+      onSubmit={submit}
+      className="flex max-w-2xl flex-col gap-4 rounded-lg border border-border-default bg-surface-base p-5"
+    >
       <h1 className="text-xl font-semibold text-fg-default">{t("title")}</h1>
 
       {referenceFailed && <FormAlert tone="error">{t("referenceError")}</FormAlert>}
@@ -237,9 +250,19 @@ export function NewTicketScreen({
 
       {error && <FormAlert tone="error">{error}</FormAlert>}
 
-      <SubmitButton pending={busy} className="w-fit">
-        {busy ? t("submitting") : t("submit")}
-      </SubmitButton>
+      <div className="flex flex-wrap items-center gap-3">
+        <SubmitButton pending={busy} className="w-fit">
+          {busy ? t("submitting") : t("submit")}
+        </SubmitButton>
+
+        {/*
+          The way out. `tickets.new.cancel` was translated into both languages
+          and read by nothing, and the only route back to the list was the
+          sidebar — on a phone, where the sidebar is behind a menu, there was
+          no way back at all.
+        */}
+        <ActionBar actions={[{ id: "cancel", label: t("cancel"), onSelect: onCancel }]} />
+      </div>
     </form>
   );
 }

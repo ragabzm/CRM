@@ -56,7 +56,7 @@ export function Sidebar({ className }: { className?: string }) {
   return (
     <nav
       aria-label={t("label")}
-      className={cn("flex flex-col gap-1 p-3", className)}
+      className={cn("flex flex-col gap-2 p-3", className)}
       data-slot="sidebar"
     >
       {visible.map(({ key, href, icon: Icon }) => {
@@ -70,7 +70,14 @@ export function Sidebar({ className }: { className?: string }) {
             href={href}
             aria-current={isCurrent ? "page" : undefined}
             className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+              /*
+               * `min-h-11` — a real 44px, not a pseudo-element.
+               * These stack vertically at `gap-1` (4px), so invisible hit
+               * areas would overlap each other and a tap near an edge would
+               * land on the wrong destination. Growing the rows for real keeps
+               * the 8px separation R-05 asks for alongside the 44px minimum.
+               */
+              "flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
               isCurrent
                 ? "bg-accent-subtle font-semibold text-accent-text"
                 : "font-medium text-fg-muted hover:bg-surface-hover hover:text-fg-default",

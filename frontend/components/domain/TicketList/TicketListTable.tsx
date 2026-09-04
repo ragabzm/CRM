@@ -13,10 +13,24 @@ import { SlaIndicator } from "@/components/domain/SlaIndicator/SlaIndicator";
 import { StatusBadge, type TicketStatusName } from "@/components/domain/StatusBadge/StatusBadge";
 import { UrgencyMeter, type UrgencyName } from "@/components/domain/UrgencyMeter/UrgencyMeter";
 import type { Ticket } from "@/lib/api/tickets";
+import { TOUCH_TARGET, cn } from "@/lib/utils";
 import { useFormat } from "@/lib/format/useFormat";
 
 /** What "not tracked yet" looks like. A rendering choice, not translatable copy. */
 export const NOT_KNOWN = "—";
+
+/**
+ * The channel's colour, from the `source-*` family.
+ *
+ * `system` has no colour of its own in the palette — nothing generated it, so
+ * it takes the muted foreground rather than borrowing a channel's identity.
+ */
+const SOURCE_DOT: Record<string, string> = {
+  email: "bg-source-email",
+  portal: "bg-source-webform",
+  agent: "bg-source-livechat",
+  system: "bg-fg-subtle",
+};
 
 export interface TicketListTableProps {
   tickets: Ticket[];
@@ -28,6 +42,8 @@ export interface TicketListTableProps {
   onOpen: (id: string) => void;
   assigneeNames: Record<string, string>;
   categoryNames: Record<string, string>;
+  /** Labelled groups, rendered as spanning headings inside the one table. */
+  groups?: Array<{ id: string; label: string; note?: string; rowIds: string[] }>;
 }
 
 /**
@@ -50,6 +66,7 @@ export function TicketListTable({
   onOpen,
   assigneeNames,
   categoryNames,
+  groups,
 }: TicketListTableProps) {
   const t = useTranslations("tickets");
   const tChannel = useTranslations("tickets.channel");
@@ -87,7 +104,15 @@ export function TicketListTable({
               onOpen(ticket.id);
             }}
             dir="auto"
-            className="rounded-sm font-medium break-words text-fg-default underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-border-focus"
+            /*
+             * The row's primary target. A two-line subject makes the link box
+             * about 34px tall, under the 44px minimum, and this is the way
+             * into a ticket on a phone.
+             */
+            className={cn(
+              "rounded-sm font-medium break-words text-fg-default underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-border-focus",
+              TOUCH_TARGET,
+            )}
           >
             {ticket.subject}
           </Link>
@@ -98,9 +123,22 @@ export function TicketListTable({
             <BidiValue>{ticket.reference}</BidiValue>
 
             <span aria-hidden="true">·</span>
-            {/* Where it came from. The mockup carries it on this line and the
-                working list did not show it at all. */}
-            <span>{tChannel(ticket.channel)}</span>
+
+            {/*
+              Where it came from, in the channel's own colour.
+              `source-*` was the fourth palette given semantic names, and it
+              was heading straight back to being a dead layer — named, aliased
+              and used by nothing. A dot is enough: the word beside it carries
+              the meaning, and the colour only makes an email thread and a
+              portal request separable at a glance down the column.
+            */}
+            <span className="inline-flex items-center gap-1">
+              <span
+                aria-hidden="true"
+                className={cn("size-1.5 rounded-full", SOURCE_DOT[ticket.channel])}
+              />
+              {tChannel(ticket.channel)}
+            </span>
           </span>
         </span>
       ),
@@ -214,6 +252,7 @@ export function TicketListTable({
     <DataTable
       columns={columns}
       rows={tickets}
+      {...(groups === undefined ? {} : { groups })}
       getRowId={(ticket) => ticket.id}
       caption={caption}
       {...(search !== undefined ? { search } : {})}

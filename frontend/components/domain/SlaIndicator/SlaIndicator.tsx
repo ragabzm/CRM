@@ -169,10 +169,27 @@ function Badge({
       {/* A countdown only where a clock is still running. "40 min left" on a
           finished ticket would be nonsense. */}
       {(state === "on_track" || state === "at_risk" || state === "breached") && (
-        <span className="num" dir="ltr">
+        /*
+         * `dir="ltr"` goes around the DURATION, never around the sentence.
+         *
+         * `tickets.sla.remaining` in Arabic is "فاضل {duration}" — an Arabic
+         * phrase. Wrapping the whole of it in `dir="ltr"` reorders it, and the
+         * result on screen was `4 hفاضل`: the unit welded to the word and the
+         * number torn off its unit. The isolation belongs on the run of digits
+         * and nothing else.
+         */
+        <span>
           {timer.remaining_minutes >= 0
-            ? t("remaining", { duration: durationOf(timer.remaining_minutes, format) })
-            : t("over", { duration: durationOf(Math.abs(timer.remaining_minutes), format) })}
+            ? t.rich("remaining", {
+                duration: () => (
+                  <Duration minutes={timer.remaining_minutes} t={t} format={format} />
+                ),
+              })
+            : t.rich("over", {
+                duration: () => (
+                  <Duration minutes={Math.abs(timer.remaining_minutes)} t={t} format={format} />
+                ),
+              })}
         </span>
       )}
     </span>
@@ -209,8 +226,14 @@ function Row({
             without either is a colour with no argument behind it.
           */}
           <p className="flex flex-wrap gap-x-2 text-xs text-fg-muted">
-            <span className="num" dir="ltr">
-              {t("elapsedPercent", { percent: format.number(elapsedPercent(timer)) })}
+            <span>
+              {t.rich("elapsedPercent", {
+                percent: () => (
+                  <bdi className="num" dir="ltr">
+                    {format.number(elapsedPercent(timer))}
+                  </bdi>
+                ),
+              })}
             </span>
             {timer.due_at !== null && (
               <span>{t("dueAt", { at: format.dateTime(timer.due_at) })}</span>
@@ -219,6 +242,44 @@ function Row({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * The duration, with each number isolated and each unit translated.
+ *
+ * Two pieces of the same bug lived here. The units were Latin letters typed
+ * into the source — `43d 4h` stayed Latin in an Arabic interface no matter
+ * what the surrounding copy said — and the isolation was applied to the whole
+ * phrase rather than to the digits, which reordered the Arabic around them.
+ */
+function Duration({
+  minutes,
+  t,
+  format,
+}: {
+  minutes: number;
+  t: ReturnType<typeof useTranslations<"tickets.sla">>;
+  format: ReturnType<typeof useFormat>;
+}) {
+  const parts = partsOf(minutes);
+
+  return (
+    <>
+      {parts.map((part, index) => (
+        <span key={part.unit}>
+          {index > 0 ? " " : ""}
+          {/*
+            `bdi` around the number alone. The unit beside it is a translated
+            word and belongs to the surrounding paragraph's direction.
+          */}
+          <bdi className="num" dir="ltr">
+            {format.number(part.value)}
+          </bdi>
+          {t(`units.${part.unit}`)}
+        </span>
+      ))}
+    </>
   );
 }
 
@@ -233,7 +294,7 @@ function Row({
  * Working days and hours, not calendar ones. The engine counts in working
  * time, so dividing by 24 would promise a deadline the schedule does not.
  */
-function durationOf(minutes: number, format: ReturnType<typeof useFormat>): string {
+function partsOf(minutes: number): Array<{ unit: "days" | "hours" | "minutes"; value: number }> {
   const WORKING_DAY = 8 * 60;
 
   if (minutes >= WORKING_DAY) {
@@ -241,8 +302,11 @@ function durationOf(minutes: number, format: ReturnType<typeof useFormat>): stri
     const hours = Math.floor((minutes % WORKING_DAY) / 60);
 
     return hours === 0
-      ? `${format.number(days)}d`
-      : `${format.number(days)}d ${format.number(hours)}h`;
+      ? [{ unit: "days", value: days }]
+      : [
+          { unit: "days", value: days },
+          { unit: "hours", value: hours },
+        ];
   }
 
   if (minutes >= 60) {
@@ -250,11 +314,14 @@ function durationOf(minutes: number, format: ReturnType<typeof useFormat>): stri
     const rest = minutes % 60;
 
     return rest === 0
-      ? `${format.number(hours)}h`
-      : `${format.number(hours)}h ${format.number(rest)}m`;
+      ? [{ unit: "hours", value: hours }]
+      : [
+          { unit: "hours", value: hours },
+          { unit: "minutes", value: rest },
+        ];
   }
 
-  return `${format.number(minutes)}m`;
+  return [{ unit: "minutes", value: minutes }];
 }
 
 /** The timer the headline badge is about — the worse of the two. */
