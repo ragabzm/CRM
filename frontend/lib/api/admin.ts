@@ -376,3 +376,131 @@ export async function replayQuarantinedMail(
     fetchImpl,
   });
 }
+
+/* ------------------------------------------------------------------ *
+ * Staff accounts and departments
+ *
+ * The endpoints for both shipped with the users-and-roles story and this
+ * file had no function for either, so the Administration console said
+ * "managed through the API today" and meant it literally: the only way to
+ * add a colleague was a curl command.
+ * ------------------------------------------------------------------ */
+
+export interface StaffUser {
+  id: number;
+  name: string;
+  email: string;
+  /** Null for an account that somehow holds none. */
+  role: string | null;
+  department_id: number | null;
+  is_active: boolean;
+}
+
+export interface Department {
+  id: number;
+  name: string;
+  is_active: boolean;
+}
+
+export async function listStaff(fetchImpl: typeof fetch = fetch): Promise<StaffUser[]> {
+  const body = await request<{ data: StaffUser[] }>("/users", { method: "GET", fetchImpl });
+
+  return body.data;
+}
+
+export async function createStaff(
+  input: {
+    name: string;
+    email: string;
+    role: string;
+    department_id: number | null;
+    is_active?: boolean;
+  },
+  fetchImpl: typeof fetch = fetch,
+): Promise<StaffUser> {
+  await getCsrf(fetchImpl);
+
+  /*
+   * No password in the payload. The API creates the account without a usable
+   * one and the person sets their own through the reset flow — better than an
+   * administrator inventing a password and then having to transmit it.
+   */
+  return request<StaffUser>("/users", {
+    method: "POST",
+    body: JSON.stringify(input),
+    fetchImpl,
+  });
+}
+
+export async function updateStaff(
+  id: number,
+  input: Partial<{
+    name: string;
+    email: string;
+    role: string;
+    department_id: number | null;
+    is_active: boolean;
+  }>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<StaffUser> {
+  await getCsrf(fetchImpl);
+
+  return request<StaffUser>(`/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+    fetchImpl,
+  });
+}
+
+export async function deactivateStaff(id: number, fetchImpl: typeof fetch = fetch): Promise<void> {
+  await getCsrf(fetchImpl);
+
+  /*
+   * Deactivated, never deleted. A deleted account would orphan the
+   * `assignee_id` and the author name on everything that person ever
+   * touched — the history would stop saying who did the work.
+   */
+  return request<void>(`/users/${id}/deactivate`, { method: "POST", fetchImpl });
+}
+
+export async function listDepartments(fetchImpl: typeof fetch = fetch): Promise<Department[]> {
+  const body = await request<{ data: Department[] }>("/departments", { method: "GET", fetchImpl });
+
+  return body.data;
+}
+
+export async function createDepartment(
+  input: { name: string },
+  fetchImpl: typeof fetch = fetch,
+): Promise<Department> {
+  await getCsrf(fetchImpl);
+
+  return request<Department>("/departments", {
+    method: "POST",
+    body: JSON.stringify(input),
+    fetchImpl,
+  });
+}
+
+export async function updateDepartment(
+  id: number,
+  input: { name: string },
+  fetchImpl: typeof fetch = fetch,
+): Promise<Department> {
+  await getCsrf(fetchImpl);
+
+  return request<Department>(`/departments/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+    fetchImpl,
+  });
+}
+
+export async function deactivateDepartment(
+  id: number,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  await getCsrf(fetchImpl);
+
+  return request<void>(`/departments/${id}/deactivate`, { method: "POST", fetchImpl });
+}

@@ -5281,6 +5281,12 @@ export interface operations {
                 /** @description Either a user id or the "nobody has picked this up" sentinel. */
                 "assignee_id[]"?: string[];
                 "department_id[]"?: number[];
+                /**
+                 * @description Named states only. This is answered by computing the reading for
+                 *     the live queue, so an arbitrary string would be a walk over
+                 *     every open ticket that could never match anything.
+                 */
+                sla_state?: "on_track" | "at_risk" | "breached" | "met" | "paused";
                 created_from?: string;
                 created_to?: string;
                 q?: string | null;

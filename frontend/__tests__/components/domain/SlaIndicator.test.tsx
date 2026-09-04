@@ -73,8 +73,18 @@ describe("the SLA indicator", () => {
   it("says how far past the target a breach is", () => {
     render(<SlaIndicator sla={block("breached", { response: timer("breached", -75) })} />);
 
-    // "75 minutes over" is what a supervisor actually asks about.
-    expect(screen.getByText(/75/)).toBeInTheDocument();
+    // How far past is what a supervisor actually asks about.
+    expect(screen.getByText(/1h 15m over/)).toBeInTheDocument();
+  });
+
+  it("says a long overrun in units somebody can read", () => {
+    // Two weeks of working time. This used to print "20,880 min over" — a
+    // number nobody converts while scanning a queue, on the badge that exists
+    // to be scanned.
+    render(<SlaIndicator sla={block("breached", { response: timer("breached", -20880) })} />);
+
+    expect(screen.getByText(/43d 4h over/)).toBeInTheDocument();
+    expect(screen.queryByText(/20,880/)).toBeNull();
   });
 
   it("shows no countdown once a timer has stopped", () => {

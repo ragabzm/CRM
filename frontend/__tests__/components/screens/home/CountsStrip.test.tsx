@@ -97,12 +97,32 @@ describe("the counts strip", () => {
     expect(within(tile("atRisk")).getByText(en.home.counts.notKnownHint)).toBeInTheDocument();
   });
 
-  it("keeps the labels in place before any value arrives", () => {
+  it("says nothing at all before any value arrives", () => {
     renderStrip(null as never);
 
-    // No layout shift when the numbers land, and nothing invented meanwhile.
+    // The tiles and their labels stay, so nothing shifts when the numbers land.
     expect(screen.getAllByRole("link")).toHaveLength(5);
-    expect(screen.getAllByText("—")).toHaveLength(5);
+
+    /*
+     * And NOT a dash.
+     *
+     * A dash on this strip means "not tracked" — it has a line of copy under
+     * it saying so. Showing it while the request is still in flight made the
+     * first paint of every visit claim that a working feature was switched
+     * off, and then correct itself a second later.
+     *
+     * `counts === null` (no answer yet) and a null FIELD (answered, not
+     * tracked) are different facts and now render differently.
+     */
+    expect(screen.queryAllByText("—")).toHaveLength(0);
+    expect(screen.getAllByText(en.home.counts.loading).length).toBeGreaterThan(0);
+  });
+
+  it("still says not-tracked once the answer arrives and says so", () => {
+    renderStrip({ ...COUNTS, at_risk: null, breached: null });
+
+    expect(screen.getAllByText("—")).toHaveLength(2);
+    expect(screen.getAllByText(en.home.counts.notKnownHint)).toHaveLength(2);
   });
 
   it("omits the assignee filter when nobody is signed in", () => {

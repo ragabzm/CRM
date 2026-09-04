@@ -96,7 +96,7 @@ export function QuickReplyEditor({ reply, onSubmit, onCancel }: QuickReplyEditor
             rows={5}
             value={bodyEn}
             onChange={(event) => setBodyEn(event.target.value)}
-            className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-fg-default"
+            className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-fg-default"
           />
         </div>
 
@@ -110,7 +110,7 @@ export function QuickReplyEditor({ reply, onSubmit, onCancel }: QuickReplyEditor
             rows={5}
             value={bodyAr}
             onChange={(event) => setBodyAr(event.target.value)}
-            className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-fg-default"
+            className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-fg-default"
           />
         </div>
       </div>

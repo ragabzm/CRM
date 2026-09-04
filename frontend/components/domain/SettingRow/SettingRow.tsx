@@ -19,11 +19,62 @@ import { cn } from "@/lib/utils";
 
 export interface SettingRowProps {
   setting: Setting;
-  /** Human label. Falls back to the server's summary when the UI has no copy. */
+  /** Human label. Falls back to a readable form of the key. */
   label?: string;
+  /**
+   * Keeps the label for assistive technology but takes it off the screen.
+   *
+   * For a setting inside a table, where the column header and the row header
+   * already say what the field is. The service-level matrix printed
+   * "First response" three times per cell — as the column header, as the
+   * field label, and again in the summary underneath — which made an eight-cell
+   * table read like a wall.
+   */
+  labelHidden?: boolean;
+  /** Drops the summary line. Same reason as `labelHidden`. */
+  hideSummary?: boolean;
   /** Saves the value. Rejects with an ApiError whose problem carries the reason. */
   onSave: (value: unknown) => Promise<void>;
   className?: string;
+}
+
+/**
+ * A readable name for a setting nobody gave a label to.
+ *
+ * `sla.at_risk_threshold_percent` used to be printed exactly like that, in
+ * both languages, as the field's label — developer text shown to an
+ * administrator. This is still a fallback rather than a translation, but it is
+ * a fallback somebody can read.
+ */
+function humanise(key: string): string {
+  const last = key.split(".").pop() ?? key;
+
+  return last.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+}
+
+/**
+ * Seconds are how the server stores a target; minutes are what a person types.
+ *
+ * The matrix showed the raw seconds — `172800` — under a panel that said the
+ * targets were "measured in working hours". An administrator who read the
+ * heading, typed `4` meaning four hours and saved would have set a four-SECOND
+ * target, and every ticket in the desk would have breached immediately.
+ */
+const SECONDS_PER_MINUTE = 60;
+
+function isDuration(setting: Setting): boolean {
+  return setting.type === "duration_seconds";
+}
+
+/** The draft, in whole hours, for the line under the field. */
+function readableHours(draft: string): string {
+  const minutes = Number(draft);
+
+  if (!Number.isFinite(minutes) || draft.trim() === "") return "—";
+
+  const hours = minutes / 60;
+
+  return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
 }
 
 /** The editable text form of a value, by type. */
@@ -37,17 +88,27 @@ function toDraft(setting: Setting): string {
   if (value === null || value === undefined) return "";
   if (type === "json") return JSON.stringify(value, null, 2);
 
+  // Shown in minutes, stored in seconds.
+  if (type === "duration_seconds" && typeof value === "number") {
+    return String(Math.round(value / SECONDS_PER_MINUTE));
+  }
+
   return String(value);
 }
 
 /** Parses the draft back into the type the server will accept. */
 function fromDraft(setting: Setting, draft: string): { ok: true; value: unknown } | { ok: false } {
   switch (setting.type) {
-    case "int":
-    case "duration_seconds": {
+    case "int": {
       // Not parseInt: "12abc" would silently become 12.
       if (!/^-?\d+$/.test(draft.trim())) return { ok: false };
       return { ok: true, value: Number(draft.trim()) };
+    }
+    case "duration_seconds": {
+      if (!/^-?\d+$/.test(draft.trim())) return { ok: false };
+
+      // Back to the unit the server keeps.
+      return { ok: true, value: Number(draft.trim()) * SECONDS_PER_MINUTE };
     }
     case "json": {
       try {
@@ -69,7 +130,14 @@ function fromDraft(setting: Setting, draft: string): { ok: true; value: unknown 
  * the right control the moment a module declares it — and cannot be edited with
  * a control that does not match the rule it will be judged by.
  */
-export function SettingRow({ setting, label, onSave, className }: SettingRowProps) {
+export function SettingRow({
+  setting,
+  label,
+  labelHidden = false,
+  hideSummary = false,
+  onSave,
+  className,
+}: SettingRowProps) {
   const t = useTranslations("admin.setting");
   const id = useId();
 
@@ -125,7 +193,7 @@ export function SettingRow({ setting, label, onSave, className }: SettingRowProp
             disabled={state === "saving"}
             onCheckedChange={(next) => void save(next === true)}
           />
-          <span>{label ?? setting.key}</span>
+          <span>{label ?? humanise(setting.key)}</span>
         </label>
         <p id={describedBy} className="text-xs text-fg-muted">
           {setting.summary}
@@ -139,7 +207,7 @@ export function SettingRow({ setting, label, onSave, className }: SettingRowProp
     return (
       <div className={cn("flex flex-col gap-1", className)} data-setting={setting.key}>
         <label htmlFor={id} className="text-sm font-medium text-fg-default">
-          {label ?? setting.key}
+          {label ?? humanise(setting.key)}
         </label>
         <Select
           {...(typeof setting.value === "string" ? { value: setting.value } : {})}
@@ -186,8 +254,12 @@ export function SettingRow({ setting, label, onSave, className }: SettingRowProp
         void save(parsed.value);
       }}
     >
-      <label htmlFor={id} className="text-sm font-medium text-fg-default">
-        {label ?? setting.key}
+      <label
+        htmlFor={id}
+        className={cn("text-sm font-medium text-fg-default", labelHidden && "sr-only")}
+      >
+        {label ?? humanise(setting.key)}
+        {isDuration(setting) && !labelHidden && <> {t("minutesSuffix")}</>}
       </label>
 
       {multiline ? (
@@ -214,8 +286,15 @@ export function SettingRow({ setting, label, onSave, className }: SettingRowProp
         />
       )}
 
-      <p id={describedBy} className="text-xs text-fg-muted">
+      <p id={describedBy} className={cn("text-xs text-fg-muted", hideSummary && "sr-only")}>
         {setting.summary}
+        {isDuration(setting) && (
+          /*
+           * The number in words, so nobody has to divide by sixty to find out
+           * whether they just typed four hours or four minutes.
+           */
+          <> {t("minutesReading", { hours: readableHours(draft) })}</>
+        )}
         {setting.secret && (
           /*
            * Distinguishes "a password is saved" from "no password is set".

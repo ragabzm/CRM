@@ -169,25 +169,19 @@ final class TicketsServiceProvider extends ServiceProvider implements RegistersS
                 : 'The reopen window must be between 1 and 365 days.',
         ));
 
-        $registry->register(new SettingDefinition(
-            key: 'tickets.auto_close_hours',
-            type: SettingType::Int,
-            default: 168,
-            validator: static fn (mixed $v): true|string => is_int($v) && $v >= 1 && $v <= 8760
-                ? true
-                : 'Must be between 1 hour and a year.',
-            summary: 'How long a resolved ticket waits before closing itself.',
-        ));
-
-        $registry->register(new SettingDefinition(
-            key: 'tickets.reopen_window_hours',
-            type: SettingType::Int,
-            default: 72,
-            validator: static fn (mixed $v): true|string => is_int($v) && $v >= 0 && $v <= 8760
-                ? true
-                : 'Must be between 0 hours and a year.',
-            summary: 'How long after closing a customer reply reopens the ticket.',
-        ));
+        /*
+         * There used to be two more here — `tickets.auto_close_hours` and
+         * `tickets.reopen_window_hours` — declaring the same two policies a
+         * second time in a different unit. Nothing read either of them:
+         * `TicketLifecycle` names `auto_close_window_hours` and
+         * `reopen_window_days`.
+         *
+         * They were not harmless. The Administration console rendered the
+         * settings the registry declares, so it showed the DEAD pair, and an
+         * administrator who changed the reopen window there changed nothing at
+         * all — with a success message. `SettingsHaveAReaderTest` now fails on
+         * any setting nothing reads.
+         */
 
         $registry->register(new SettingDefinition(
             key: 'tickets.quick_replies',

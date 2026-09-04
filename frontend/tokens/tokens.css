@@ -294,6 +294,89 @@
     --state-info-bg: var(--color-info-bg);
     --state-info-border: var(--color-info-bd);
 
+    /*
+     * TICKET STATUS · SLA CLOCK · URGENCY · SOURCE
+     *
+     * Four complete palettes sat in `@theme` above with ZERO consumers, and
+     * not by neglect: `check-tokens.mjs` bans a component from naming a
+     * primitive scale, and there was no semantic alias for any of them. So the
+     * only legal way to reach forty tokens was a way that did not exist, and
+     * `SlaIndicator` reached for the generic feedback colours instead —
+     * leaving `--color-sla-*`, the block commented "The traffic light.
+     * Reserved for SLA", reserved for something that never arrived.
+     *
+     * The ban was right. This block is what was missing.
+     *
+     * THE NAMES ARE DELIBERATELY NOT `status-*`, `sla-*`, `priority-*` AND
+     * `channel-*`. Those four words are the PRIMITIVE scales, and
+     * `PRIMITIVE_SCALES` in `check-tokens.mjs` bans a component from writing
+     * `bg-status-open-bg`. Reusing them here would emit a utility with the
+     * banned name, and the only ways out would be to lift the ban — which is
+     * the guard, not the problem — or to leave the palettes unreachable again.
+     *
+     * So each family is named for what it MEANS, the same way the feedback
+     * palette `success` is reached as `state-success`:
+     *
+     *   status   -> ticket-*    the ticket's own state
+     *   sla      -> clock-*     the SLA clock, which is what the traffic
+     *                           light actually reports on
+     *   priority -> urgency-*
+     *   channel  -> source-*    where the ticket came from
+     */
+    --ticket-new: var(--color-status-new-fg);
+    --ticket-new-bg: var(--color-status-new-bg);
+    --ticket-new-border: var(--color-status-new-bd);
+    --ticket-open: var(--color-status-open-fg);
+    --ticket-open-bg: var(--color-status-open-bg);
+    --ticket-open-border: var(--color-status-open-bd);
+    --ticket-pending: var(--color-status-pending-fg);
+    --ticket-pending-bg: var(--color-status-pending-bg);
+    --ticket-pending-border: var(--color-status-pending-bd);
+    --ticket-resolved: var(--color-status-resolved-fg);
+    --ticket-resolved-bg: var(--color-status-resolved-bg);
+    --ticket-resolved-border: var(--color-status-resolved-bd);
+    --ticket-closed: var(--color-status-closed-fg);
+    --ticket-closed-bg: var(--color-status-closed-bg);
+    --ticket-closed-border: var(--color-status-closed-bd);
+    --ticket-cancelled: var(--color-status-cancelled-fg);
+    --ticket-cancelled-bg: var(--color-status-cancelled-bg);
+    --ticket-cancelled-border: var(--color-status-cancelled-bd);
+
+    --clock-on-track: var(--color-sla-on-track-fg);
+    --clock-on-track-bg: var(--color-sla-on-track-bg);
+    --clock-on-track-border: var(--color-sla-on-track-bd);
+    --clock-at-risk: var(--color-sla-at-risk-fg);
+    --clock-at-risk-bg: var(--color-sla-at-risk-bg);
+    --clock-at-risk-border: var(--color-sla-at-risk-bd);
+    --clock-breached: var(--color-sla-breached-fg);
+    --clock-breached-bg: var(--color-sla-breached-bg);
+    --clock-breached-border: var(--color-sla-breached-bd);
+    --clock-met: var(--color-sla-met-fg);
+    --clock-met-bg: var(--color-sla-met-bg);
+    --clock-met-border: var(--color-sla-met-bd);
+    --clock-paused: var(--color-sla-paused-fg);
+    --clock-paused-bg: var(--color-sla-paused-bg);
+    --clock-paused-border: var(--color-sla-paused-bd);
+    --clock-na: var(--color-sla-na-fg);
+    --clock-na-bg: var(--color-sla-na-bg);
+    --clock-na-border: var(--color-sla-na-bd);
+    /* The unfilled remainder of a progress bar. */
+    --clock-track: var(--color-sla-track);
+
+    --urgency-low: var(--color-priority-low);
+    --urgency-normal: var(--color-priority-normal);
+    --urgency-high: var(--color-priority-high);
+    --urgency-urgent: var(--color-priority-urgent);
+    --urgency-urgent-bg: var(--color-priority-urgent-bg);
+    /* The unlit bars of the urgency meter. */
+    --urgency-bar-empty: var(--color-priority-bar-empty);
+
+    --source-email: var(--color-channel-email);
+    --source-whatsapp: var(--color-channel-whatsapp);
+    --source-sms: var(--color-channel-sms);
+    --source-livechat: var(--color-channel-livechat);
+    --source-webform: var(--color-channel-webform);
+
     /* Elevation */
     --elevation-none: var(--shadow-e0);
     --elevation-menu: var(--shadow-e-menu);
@@ -417,6 +500,62 @@
   --color-state-info: var(--state-info);
   --color-state-info-bg: var(--state-info-bg);
   --color-state-info-border: var(--state-info-border);
+
+  /* Ticket status */
+  --color-ticket-new: var(--ticket-new);
+  --color-ticket-new-bg: var(--ticket-new-bg);
+  --color-ticket-new-border: var(--ticket-new-border);
+  --color-ticket-open: var(--ticket-open);
+  --color-ticket-open-bg: var(--ticket-open-bg);
+  --color-ticket-open-border: var(--ticket-open-border);
+  --color-ticket-pending: var(--ticket-pending);
+  --color-ticket-pending-bg: var(--ticket-pending-bg);
+  --color-ticket-pending-border: var(--ticket-pending-border);
+  --color-ticket-resolved: var(--ticket-resolved);
+  --color-ticket-resolved-bg: var(--ticket-resolved-bg);
+  --color-ticket-resolved-border: var(--ticket-resolved-border);
+  --color-ticket-closed: var(--ticket-closed);
+  --color-ticket-closed-bg: var(--ticket-closed-bg);
+  --color-ticket-closed-border: var(--ticket-closed-border);
+  --color-ticket-cancelled: var(--ticket-cancelled);
+  --color-ticket-cancelled-bg: var(--ticket-cancelled-bg);
+  --color-ticket-cancelled-border: var(--ticket-cancelled-border);
+
+  /* The SLA clock */
+  --color-clock-on-track: var(--clock-on-track);
+  --color-clock-on-track-bg: var(--clock-on-track-bg);
+  --color-clock-on-track-border: var(--clock-on-track-border);
+  --color-clock-at-risk: var(--clock-at-risk);
+  --color-clock-at-risk-bg: var(--clock-at-risk-bg);
+  --color-clock-at-risk-border: var(--clock-at-risk-border);
+  --color-clock-breached: var(--clock-breached);
+  --color-clock-breached-bg: var(--clock-breached-bg);
+  --color-clock-breached-border: var(--clock-breached-border);
+  --color-clock-met: var(--clock-met);
+  --color-clock-met-bg: var(--clock-met-bg);
+  --color-clock-met-border: var(--clock-met-border);
+  --color-clock-paused: var(--clock-paused);
+  --color-clock-paused-bg: var(--clock-paused-bg);
+  --color-clock-paused-border: var(--clock-paused-border);
+  --color-clock-na: var(--clock-na);
+  --color-clock-na-bg: var(--clock-na-bg);
+  --color-clock-na-border: var(--clock-na-border);
+  --color-clock-track: var(--clock-track);
+
+  /* Urgency */
+  --color-urgency-low: var(--urgency-low);
+  --color-urgency-normal: var(--urgency-normal);
+  --color-urgency-high: var(--urgency-high);
+  --color-urgency-urgent: var(--urgency-urgent);
+  --color-urgency-urgent-bg: var(--urgency-urgent-bg);
+  --color-urgency-bar-empty: var(--urgency-bar-empty);
+
+  /* Where it came from */
+  --color-source-email: var(--source-email);
+  --color-source-whatsapp: var(--source-whatsapp);
+  --color-source-sms: var(--source-sms);
+  --color-source-livechat: var(--source-livechat);
+  --color-source-webform: var(--source-webform);
 
   /* Elevation */
   --shadow-menu: var(--elevation-menu);

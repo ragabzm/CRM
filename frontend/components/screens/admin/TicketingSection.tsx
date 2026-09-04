@@ -34,6 +34,7 @@ import { useSettings } from "./useSettings";
 
 export function TicketingSection() {
   const t = useTranslations("admin.ticketing");
+  const tPriority = useTranslations("tickets.priority");
   const tConfirm = useTranslations("admin.confirm");
 
   const { settings, save } = useSettings();
@@ -93,8 +94,19 @@ export function TicketingSection() {
       </Panel>
 
       <Panel title={t("closing")}>
+        {/*
+          The keys `TicketLifecycle` actually reads.
+          This panel used to edit `tickets.auto_close_hours` and
+          `tickets.reopen_window_hours`, a duplicate pair the registry declared
+          and nothing consumed — so an administrator changing the reopen window
+          here saw "Saved" and changed nothing.
+        */}
         <SettingsGroup
-          keys={["tickets.auto_close_hours", "tickets.reopen_window_hours"]}
+          keys={["tickets.auto_close_window_hours", "tickets.reopen_window_days"]}
+          labels={{
+            "tickets.auto_close_window_hours": t("autoClose"),
+            "tickets.reopen_window_days": t("reopenWindow"),
+          }}
           settings={settings}
           save={save}
         />
@@ -146,7 +158,13 @@ export function TicketingSection() {
               key={priority.value}
               className="rounded-full border border-border-default px-3 py-1 text-xs text-fg-default"
             >
-              {priority.value}
+              {/*
+                The word, not the enum. The sentence directly above this row
+                already names all four in Arabic; the chips underneath were
+                printing `low normal high urgent` in lowercase Latin next to
+                it — the same untranslated-enum habit the ticket list had.
+              */}
+              {tPriority(priority.value)}
             </li>
           ))}
         </ul>

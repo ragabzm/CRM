@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Tickets\Domain\Query;
 
+use App\Modules\Tickets\Contracts\SlaReader;
 use App\Modules\Tickets\Domain\Ticket;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -46,6 +47,14 @@ final class TicketListQuery
      */
     private const REFERENCE_LIKE = '/^(?=[A-Za-z0-9\-]*\d)[A-Za-z0-9\-]{3,}$/';
 
+    /*
+     * Through the CONTRACT. Sla is T4 and this is T3, so the dependency points
+     * downward — and with the engine switched off the null implementation
+     * answers "not known", which this treats as "do not filter" rather than as
+     * "nothing matches".
+     */
+    public function __construct(private readonly SlaReader $sla) {}
+
     public function paginate(TicketListFilters $filters, ?Authenticatable $actor): LengthAwarePaginator
     {
         $query = Ticket::query();
@@ -57,9 +66,47 @@ final class TicketListQuery
 
         $this->applyFilters($query, $filters);
         $this->applySearch($query, $filters);
+        $this->applySlaState($query, $filters, $actor);
         $this->applyOrder($query, $filters);
 
         return $query->paginate(min($filters->perPage, TicketListFilters::MAX_PER_PAGE));
+    }
+
+    /**
+     * Narrows to an SLA reading.
+     *
+     * There is no column for this. SLA state is computed from each ticket's
+     * timeline — a stored state is wrong the second after it is written — so
+     * the only honest way to filter on it is to ask the Sla module which
+     * tickets are in the state and constrain on the ids it names.
+     *
+     * The candidate set is deliberately the LIVE, ALREADY-VISIBLE queue rather
+     * than every ticket: it bounds the work to what a desk currently has open,
+     * and it means the filter can never widen what the actor may see.
+     *
+     * @param  Builder<Ticket>  $query
+     */
+    private function applySlaState(Builder $query, TicketListFilters $filters, ?Authenticatable $actor): void
+    {
+        if ($filters->slaState === null) {
+            return;
+        }
+
+        $candidates = (clone $query)->pluck('id')->map(strval(...))->all();
+
+        $matching = $this->sla->idsInState($filters->slaState, $candidates);
+
+        if ($matching === null) {
+            /*
+             * The engine is off, so nothing knows the answer. Returning an
+             * empty list would render as "no ticket is at risk", which is a
+             * claim; leaving the filter off shows the unfiltered queue, which
+             * at least does not assert something false.
+             */
+            return;
+        }
+
+        $query->whereIn('id', $matching);
     }
 
     /** @param  Builder<Ticket>  $query */

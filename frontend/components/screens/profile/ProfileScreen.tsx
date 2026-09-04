@@ -133,16 +133,23 @@ export function ProfileScreen() {
             onChange={(event) => setName(event.target.value)}
           />
 
-          {/* Read-only: changing the sign-in address is an identity change that
-            needs verification of the new address and notice to the old. */}
-          <FormField
-            label={t("email")}
-            name="email"
-            value={user?.email ?? ""}
-            readOnly
-            disabled
-            hint={t("emailHint")}
-          />
+          {/*
+            Shown as a VALUE, not as a disabled input.
+            It used to be a `FormField` that was readOnly and disabled, which
+            renders a grey box holding grey text — indistinguishable from an
+            empty field with a placeholder, and worse while `/auth/me` was
+            still in flight, when the value really was empty. Changing the
+            sign-in address is an identity change that needs verification of
+            the new address and notice to the old, so it is not editable here
+            and should not look like it might be.
+          */}
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-fg-default">{t("email")}</span>
+            <span dir="ltr" className="text-sm text-fg-default" data-slot="profile-email">
+              {user?.email ?? "…"}
+            </span>
+            <span className="text-xs text-fg-muted">{t("emailHint")}</span>
+          </div>
 
           <fieldset className="flex flex-col gap-2">
             <legend className="text-sm font-medium text-fg-default">{t("language")}</legend>

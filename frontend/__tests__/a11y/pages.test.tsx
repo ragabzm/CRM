@@ -5,10 +5,37 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/",
 }));
 
+/*
+ * Home used to be checked through `HomeScreen`, a Story 1.3 placeholder that
+ * rendered a heading and one sentence. It was accessible, and it was not the
+ * page anybody opens — `AgentHomeScreen` replaced it and nothing updated this
+ * file, so the gate spent several stories certifying a screen no route
+ * reached. The real one needs its data stubbed; that is the whole cost.
+ */
+vi.mock("@/lib/api/tickets", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api/tickets")>("@/lib/api/tickets");
+
+  return {
+    ...actual,
+    ticketCounts: vi.fn().mockResolvedValue({
+      assigned_to_me: 2,
+      unassigned: 1,
+      at_risk: null,
+      breached: null,
+      pending_customer_reply: 0,
+    }),
+    listTickets: vi.fn().mockResolvedValue({
+      data: [],
+      meta: { total: 0, per_page: 25, current_page: 1, last_page: 1 },
+      included: { assignees: {}, categories: {} },
+    }),
+  };
+});
+
 import { DataTable } from "@/components/domain/DataTable/DataTable";
 import { EmptyState } from "@/components/domain/EmptyState/EmptyState";
 import { ForbiddenState } from "@/components/domain/ForbiddenState/ForbiddenState";
-import { HomeScreen } from "@/components/screens/home/HomeScreen";
+import { AgentHomeScreen } from "@/components/screens/home/AgentHomeScreen";
 import { AppShell } from "@/components/shell/AppShell";
 import { FileInput } from "@/components/ui/file-input";
 import { withIntl } from "@/__tests__/helpers/intl";
@@ -52,7 +79,11 @@ function renderComponent(ui: React.ReactElement, dir: "ltr" | "rtl", locale: Loc
 
 describe.each(DIRECTIONS)("rendered pages · dir=$dir", ({ dir, locale }) => {
   it("Home has no WCAG 2.1 AA violations", async () => {
-    const { container } = renderPage(<HomeScreen />, dir, locale);
+    const { container } = renderPage(
+      <AgentHomeScreen currentUserId={1} onOpen={() => {}} />,
+      dir,
+      locale,
+    );
 
     expect(await axePage(container)).toHaveNoViolations();
   });
@@ -159,7 +190,12 @@ describe.each(DIRECTIONS)("global chrome · dir=$dir", ({ dir, locale }) => {
   it("AppShell has no violations", async () => {
     const { container } = renderComponent(
       <AppShell>
-        <HomeScreen />
+        {/*
+          Filler, and deliberately trivial: the subject here is the chrome, and
+          a real screen inside it would make a chrome violation and a screen
+          violation indistinguishable.
+        */}
+        <h1>Home</h1>
       </AppShell>,
       dir,
       locale,

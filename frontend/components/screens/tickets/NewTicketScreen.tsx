@@ -17,6 +17,16 @@ export interface NewTicketScreenProps {
   onCreated: (ticketId: string) => void;
   /** Pre-selects the customer when opened from their profile. */
   customerId?: string;
+  /**
+   * True when the category or department list could not be loaded.
+   *
+   * Said out loud rather than swallowed. On the ticket workspace an empty
+   * select still leaves an agent a readable ticket, so a quiet failure is the
+   * lesser harm; here it leaves them a form they cannot complete, and silence
+   * reads as "this business has no departments" instead of "we could not
+   * reach the server".
+   */
+  referenceFailed?: boolean;
 }
 
 const PRIORITIES: TicketPriority[] = ["low", "normal", "high", "urgent"];
@@ -34,6 +44,7 @@ export function NewTicketScreen({
   categories,
   onCreated,
   customerId,
+  referenceFailed = false,
 }: NewTicketScreenProps) {
   const t = useTranslations("tickets.new");
   const tPriority = useTranslations("tickets.priority");
@@ -121,6 +132,8 @@ export function NewTicketScreen({
     <form onSubmit={submit} className="flex max-w-2xl flex-col gap-4">
       <h1 className="text-xl font-semibold text-fg-default">{t("title")}</h1>
 
+      {referenceFailed && <FormAlert tone="error">{t("referenceError")}</FormAlert>}
+
       <FormField
         label={t("subject")}
         hint={t("subjectHint")}
@@ -135,7 +148,7 @@ export function NewTicketScreen({
           rows={5}
           value={description}
           onChange={(event) => setDescription(event.target.value)}
-          className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-fg-default"
+          className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-fg-default"
         />
       </label>
 
@@ -178,7 +191,7 @@ export function NewTicketScreen({
           onChange={(event) =>
             setCategoryId(event.target.value === "" ? "" : Number(event.target.value))
           }
-          className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
+          className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
         >
           <option value="">{t("noCategory")}</option>
           {categories.map((category) => (
@@ -194,7 +207,7 @@ export function NewTicketScreen({
         <select
           value={priority}
           onChange={(event) => setPriority(event.target.value as TicketPriority)}
-          className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
+          className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
         >
           {PRIORITIES.map((value) => (
             <option key={value} value={value}>
@@ -211,7 +224,7 @@ export function NewTicketScreen({
           onChange={(event) =>
             setDepartmentId(event.target.value === "" ? "" : Number(event.target.value))
           }
-          className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
+          className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
         >
           <option value="">{t("noDepartment")}</option>
           {departments.map((department) => (

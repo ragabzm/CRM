@@ -49,6 +49,49 @@ final class SlaReaderService implements SlaReader
         return $blocks;
     }
 
+    /**
+     * @param  list<string>  $ticketIds
+     * @return array{at_risk: int|null, breached: int|null}
+     */
+    public function countsAmong(array $ticketIds): array
+    {
+        $counts = ['at_risk' => 0, 'breached' => 0];
+
+        foreach ($this->forTickets($ticketIds) as $block) {
+            /*
+             * The SAME reading the row badge shows. Counting from
+             * `sla_events.breached_at` instead would be cheaper and would
+             * eventually disagree: that column is written by the sweep, which
+             * runs on a schedule, so a ticket can be breached on the row and
+             * not yet breached in the tally.
+             */
+            if ($block['state'] === SlaState::Breached->value) {
+                $counts['breached']++;
+            } elseif ($block['state'] === SlaState::AtRisk->value) {
+                $counts['at_risk']++;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @param  list<string>  $ticketIds
+     * @return list<string>
+     */
+    public function idsInState(string $state, array $ticketIds): ?array
+    {
+        $matching = [];
+
+        foreach ($this->forTickets($ticketIds) as $id => $block) {
+            if ($block['state'] === $state) {
+                $matching[] = (string) $id;
+            }
+        }
+
+        return $matching;
+    }
+
     /** Severity order, worst first. */
     private function worst(SlaState $a, SlaState $b): SlaState
     {

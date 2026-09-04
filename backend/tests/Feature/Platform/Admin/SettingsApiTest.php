@@ -40,16 +40,16 @@ final class SettingsApiTest extends TestCase
 
         $keys = array_column($response->json('data'), 'key');
 
-        $this->assertContains('tickets.auto_close_hours', $keys);
+        $this->assertContains('tickets.auto_close_window_hours', $keys);
         $this->assertContains('sla.at_risk_threshold_percent', $keys);
         $this->assertContains('email.mailbox.host', $keys);
 
-        $row = collect($response->json('data'))->firstWhere('key', 'tickets.auto_close_hours');
+        $row = collect($response->json('data'))->firstWhere('key', 'tickets.auto_close_window_hours');
 
         // The console needs the default to offer "reset", the summary to
         // explain the setting, and the type to pick an input — all in one trip.
         $this->assertSame('int', $row['type']);
-        $this->assertSame(168, $row['default']);
+        $this->assertSame(72, $row['default']);
         $this->assertNotSame('', $row['summary']);
         $this->assertFalse($row['secret']);
     }
@@ -117,12 +117,12 @@ final class SettingsApiTest extends TestCase
         $this->actingAsRole(Roles::ADMINISTRATOR);
 
         $this->withIdempotencyKey()
-            ->patchJson('/api/v1/admin/settings/tickets.auto_close_hours', ['value' => 24])
+            ->patchJson('/api/v1/admin/settings/tickets.auto_close_window_hours', ['value' => 24])
             ->assertOk()
             ->assertJsonPath('value', 24);
 
         $this->getJson('/api/v1/admin/settings')
-            ->assertJsonPath('data.'.$this->indexOfKey('tickets.auto_close_hours').'.value', 24);
+            ->assertJsonPath('data.'.$this->indexOfKey('tickets.auto_close_window_hours').'.value', 24);
     }
 
     private function indexOfKey(string $key): int
@@ -140,16 +140,16 @@ final class SettingsApiTest extends TestCase
         $this->actingAsRole(Roles::ADMINISTRATOR);
 
         $this->withIdempotencyKey()
-            ->patchJson('/api/v1/admin/settings/tickets.auto_close_hours', ['value' => 0])
+            ->patchJson('/api/v1/admin/settings/tickets.auto_close_window_hours', ['value' => 0])
             ->assertStatus(422)
             ->assertHeader('Content-Type', 'application/problem+json')
             ->assertJsonPath('code', 'platform.setting_invalid')
             // RFC 9457 extension members sit at the top level of the document.
-            ->assertJsonPath('setting', 'tickets.auto_close_hours');
+            ->assertJsonPath('setting', 'tickets.auto_close_window_hours');
 
         // Not "invalid value" — the administrator is told the actual bound.
         $detail = (string) $this->withIdempotencyKey()
-            ->patchJson('/api/v1/admin/settings/tickets.auto_close_hours', ['value' => 0])
+            ->patchJson('/api/v1/admin/settings/tickets.auto_close_window_hours', ['value' => 0])
             ->json('detail');
 
         $this->assertStringContainsString('between 1 hour', $detail);
@@ -172,7 +172,7 @@ final class SettingsApiTest extends TestCase
         $this->actingAsRole(Roles::ADMINISTRATOR);
 
         $this->withIdempotencyKey()
-            ->patchJson('/api/v1/admin/settings/tickets.auto_close_hours', [])
+            ->patchJson('/api/v1/admin/settings/tickets.auto_close_window_hours', [])
             ->assertStatus(422)
             ->assertJsonPath('code', 'platform.setting_invalid');
     }
@@ -186,10 +186,10 @@ final class SettingsApiTest extends TestCase
         $this->getJson('/api/v1/admin/settings')->assertStatus(403);
 
         $this->withIdempotencyKey()
-            ->patchJson('/api/v1/admin/settings/tickets.auto_close_hours', ['value' => 24])
+            ->patchJson('/api/v1/admin/settings/tickets.auto_close_window_hours', ['value' => 24])
             ->assertStatus(403);
 
-        $this->assertDatabaseMissing('settings', ['key' => 'tickets.auto_close_hours']);
+        $this->assertDatabaseMissing('settings', ['key' => 'tickets.auto_close_window_hours']);
     }
 
     public function test_an_agent_cannot_reach_the_console(): void
@@ -209,13 +209,13 @@ final class SettingsApiTest extends TestCase
         $administrator = $this->actingAsRole(Roles::ADMINISTRATOR);
 
         $this->withIdempotencyKey()
-            ->patchJson('/api/v1/admin/settings/tickets.auto_close_hours', ['value' => 24])
+            ->patchJson('/api/v1/admin/settings/tickets.auto_close_window_hours', ['value' => 24])
             ->assertOk();
 
         // Story 2.4 turns this column into a full audit trail; the attribution
         // has to be captured at write time or it is gone.
         $this->assertDatabaseHas('settings', [
-            'key' => 'tickets.auto_close_hours',
+            'key' => 'tickets.auto_close_window_hours',
             'updated_by' => $administrator->getKey(),
         ]);
     }

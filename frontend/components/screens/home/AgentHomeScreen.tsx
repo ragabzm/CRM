@@ -1,13 +1,15 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { EmptyState } from "@/components/domain/EmptyState/EmptyState";
 import { FormAlert } from "@/components/domain/FormAlert/FormAlert";
+import { RowSkeleton } from "@/components/domain/RowSkeleton/RowSkeleton";
 import { TicketListTable } from "@/components/domain/TicketList/TicketListTable";
-import { listTickets, ticketCounts, type TicketListParams } from "@/lib/api/tickets";
+import { listTickets, ticketCounts, type Ticket, type TicketListParams } from "@/lib/api/tickets";
 import { useFreshQuery } from "@/lib/data/useFreshQuery";
+import { useFormat } from "@/lib/format/useFormat";
 
 import { CountsStrip } from "./CountsStrip";
 
@@ -17,6 +19,35 @@ export interface AgentHomeScreenProps {
 }
 
 const REFETCH_MS = 30_000;
+
+/**
+ * The reasons a ticket is on this screen, worst first.
+ *
+ * The order is the screen's argument: a breached ticket is not the same kind
+ * of problem as one waiting on a customer, and putting them in one list sorted
+ * by a column asks the agent to work out which is which.
+ */
+const GROUPS = ["breached", "atRisk", "waiting", "rest"] as const;
+
+type GroupKey = (typeof GROUPS)[number];
+
+function groupKeyFor(ticket: Ticket): GroupKey {
+  if (ticket.sla?.state === "breached") return "breached";
+  if (ticket.sla?.state === "at_risk") return "atRisk";
+  // Pending means the ball is with the customer — real work, but not the
+  // agent's to do right now.
+  if (ticket.status === "pending") return "waiting";
+
+  return "rest";
+}
+
+/** Only the groups that have something in them — an empty heading is noise. */
+function groupsOf(tickets: Ticket[]): Array<{ key: GroupKey; tickets: Ticket[] }> {
+  return GROUPS.map((key) => ({
+    key,
+    tickets: tickets.filter((ticket) => groupKeyFor(ticket) === key),
+  })).filter((group) => group.tickets.length > 0);
+}
 
 /**
  * Where an agent lands, and what they should do next.
@@ -35,6 +66,7 @@ export function AgentHomeScreen({ currentUserId, onOpen }: AgentHomeScreenProps)
   const t = useTranslations("home");
   // The list's own copy for load states, so both surfaces say the same thing.
   const list = useTranslations("tickets");
+  const format = useFormat();
 
   const queueParams: TicketListParams = {
     status: ["open", "pending"],
@@ -62,6 +94,17 @@ export function AgentHomeScreen({ currentUserId, onOpen }: AgentHomeScreenProps)
     refetchOnWindowFocus: true,
   });
 
+  /*
+   * DERIVED from the data, not stored beside it.
+   *
+   * `counts.data` is a new object on every settled refetch, so this recomputes
+   * exactly once per answer — the stamp says when the numbers under it were
+   * true, and cannot drift away from them on a timer of its own. Reading
+   * `new Date()` straight in the body instead would change on every paint.
+   */
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the data IS the dependency
+  const now = useMemo(() => new Date(), [counts.data, queue.data]);
+
   const rows = queue.data?.data ?? [];
 
   /*
@@ -77,12 +120,33 @@ export function AgentHomeScreen({ currentUserId, onOpen }: AgentHomeScreenProps)
 
   return (
     <div className="flex flex-col gap-6" data-slot="agent-home">
-      <h1 className="text-xl font-semibold text-fg-default">{t("title")}</h1>
+      <div className="flex flex-col gap-0.5">
+        <h1 className="text-xl font-semibold text-fg-default">{t("title")}</h1>
+
+        {/*
+          When "now" is. Every number on this screen is a reading taken at a
+          moment — "3 breached" is only meaningful next to the time it was
+          true — and the strip refreshes on its own every thirty seconds, so
+          without a timestamp the reader cannot tell a stale screen from a
+          quiet queue.
+        */}
+        <p className="text-xs text-fg-muted">{format.dateTime(now)}</p>
+      </div>
 
       <CountsStrip counts={counts.data} currentUserId={currentUserId} />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-base font-semibold text-fg-default">{t("queue.title")}</h2>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <h2 className="text-base font-semibold text-fg-default">{t("queue.title")}</h2>
+
+          {/*
+            The ordering, said out loud. The queue has always been sorted by
+            urgency and then age, and nothing on screen mentioned it — so the
+            order looked arbitrary, and an agent working top-down had no reason
+            to trust that top meant "first".
+          */}
+          <p className="text-xs text-fg-subtle">{t("queue.ordering")}</p>
+        </div>
 
         {/*
           Quiet, and the rows stay put. A banner that shouted would interrupt
@@ -100,16 +164,44 @@ export function AgentHomeScreen({ currentUserId, onOpen }: AgentHomeScreenProps)
           </FormAlert>
         )}
 
-        {rows.length === 0 && !queue.loading ? (
+        {queue.loading && queue.data === null ? (
+          /*
+            The same rule as the list: an empty state on first paint is an
+            answer to a question the request has not returned yet.
+          */
+          <RowSkeleton label={list("loading")} rows={5} />
+        ) : rows.length === 0 ? (
           <EmptyState headline={t("queue.empty")} description={t("queue.emptyBody")} />
         ) : (
-          <TicketListTable
-            tickets={rows}
-            caption={t("queue.title")}
-            onOpen={onOpen}
-            assigneeNames={assigneeNames}
-            categoryNames={categoryNames}
-          />
+          /*
+            GROUPED BY WHY IT NEEDS ATTENTION, not one flat table.
+            Home used to render exactly the same table as /tickets, in the same
+            order, with the same columns — a second filtered list rather than a
+            screen with a job. The product owner's line in the mockup is
+            explicit: "I want it practical, showing what needs the user's
+            attention now." A heading saying "Breached — act now" does that;
+            a sorted table leaves the agent to work it out.
+          */
+          <div className="flex flex-col gap-6">
+            {groupsOf(rows).map((group) => (
+              <div key={group.key} className="flex flex-col gap-2" data-queue-group={group.key}>
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <h3 className="text-sm font-semibold text-fg-default">
+                    {t(`queue.groups.${group.key}`)}
+                  </h3>
+                  <p className="text-xs text-fg-muted">{t(`queue.groupNotes.${group.key}`)}</p>
+                </div>
+
+                <TicketListTable
+                  tickets={group.tickets}
+                  caption={t(`queue.groups.${group.key}`)}
+                  onOpen={onOpen}
+                  assigneeNames={assigneeNames}
+                  categoryNames={categoryNames}
+                />
+              </div>
+            ))}
+          </div>
         )}
       </section>
     </div>

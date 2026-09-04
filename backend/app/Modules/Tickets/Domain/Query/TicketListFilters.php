@@ -29,6 +29,17 @@ final readonly class TicketListFilters
     public const SORTABLE = ['updated_at', 'created_at', 'priority', 'reference', 'status'];
 
     /**
+     * The SLA readings a list can be narrowed to.
+     *
+     * Not a database column — SLA state is computed from each ticket's
+     * timeline, so this filter is answered by asking the Sla module which
+     * tickets are in the state and constraining on the ids it names. That is
+     * why the set is a whitelist here rather than free text: every value costs
+     * a walk over the live queue.
+     */
+    public const SLA_STATES = ['on_track', 'at_risk', 'breached', 'met', 'paused'];
+
+    /**
      * @param  list<string>  $status
      * @param  list<string>  $priority
      * @param  list<int>  $categoryIds
@@ -41,6 +52,7 @@ final readonly class TicketListFilters
         public array $categoryIds = [],
         public array $assigneeIds = [],
         public array $departmentIds = [],
+        public ?string $slaState = null,
         public ?string $createdFrom = null,
         public ?string $createdTo = null,
         public ?string $term = null,

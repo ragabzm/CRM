@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ticketListQuery, type TicketListParams } from "@/lib/api/tickets";
 
@@ -16,9 +16,52 @@ import { TicketListScreen } from "./TicketListScreen";
  * localStorage, and there are no named views: a reload has to reproduce the
  * screen from the address bar alone or the address bar is lying.
  */
+interface Named {
+  id: number;
+  name: string;
+}
+
 export function TicketListPage() {
   const router = useRouter();
   const search = useSearchParams();
+
+  const [categories, setCategories] = useState<Named[]>([]);
+  const [departments, setDepartments] = useState<Named[]>([]);
+  const [assignees, setAssignees] = useState<Named[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const { request } = await import("@/lib/api/request");
+
+      const load = async (path: string, set: (items: Named[]) => void): Promise<void> => {
+        try {
+          const body = await request<{ data: Named[] }>(path, { method: "GET" });
+
+          if (!cancelled) set(body.data);
+        } catch {
+          /*
+           * Swallowed HERE and nowhere else, because the consequence is
+           * bounded: a filter that cannot load is hidden rather than shown
+           * empty, and the list itself still works. Compare the new-ticket
+           * form, where the same failure leaves a form nobody can submit and
+           * is reported out loud.
+           */
+        }
+      };
+
+      await Promise.all([
+        load("/ticket-categories", setCategories),
+        load("/departments", setDepartments),
+        load("/assignees", setAssignees),
+      ]);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const params = useMemo((): TicketListParams => {
     const list = (key: string): string[] => {
@@ -41,6 +84,17 @@ export function TicketListPage() {
     }
     if (list("category_id").length > 0) built.category_id = list("category_id").map(Number);
 
+    const slaState = search.get("sla_state");
+    if (
+      slaState === "on_track" ||
+      slaState === "at_risk" ||
+      slaState === "breached" ||
+      slaState === "met" ||
+      slaState === "paused"
+    ) {
+      built.sla_state = slaState;
+    }
+
     const q = search.get("q");
     if (q !== null && q !== "") built.q = q;
 
@@ -49,6 +103,11 @@ export function TicketListPage() {
 
     const direction = search.get("direction");
     if (direction === "asc" || direction === "desc") built.direction = direction;
+
+    // The page belongs in the URL like every other piece of list state: a
+    // reload has to reproduce the screen from the address bar alone.
+    const page = Number(search.get("page"));
+    if (Number.isInteger(page) && page > 1) built.page = page;
 
     return built;
   }, [search]);
@@ -70,6 +129,9 @@ export function TicketListPage() {
       params={params}
       onParamsChange={apply}
       onOpen={(id) => router.push(`/tickets/${id}`)}
+      categories={categories}
+      departments={departments}
+      assignees={assignees}
     />
   );
 }

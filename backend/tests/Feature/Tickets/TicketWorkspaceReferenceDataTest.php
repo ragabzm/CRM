@@ -57,11 +57,10 @@ final class TicketWorkspaceReferenceDataTest extends TestCase
 
     public function test_the_category_name_is_in_the_readers_language(): void
     {
-        $reader = self::agent();
-        $reader->forceFill(['preferred_locale' => 'ar'])->save();
+        $this->withHeader('Accept-Language', 'ar');
 
         $names = array_column(
-            $this->actingAs($reader)->getJson('/api/v1/ticket-categories')->json('data'),
+            $this->actingAs(self::agent())->getJson('/api/v1/ticket-categories')->json('data'),
             'name',
         );
 

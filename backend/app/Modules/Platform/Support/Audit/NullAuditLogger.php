@@ -27,9 +27,11 @@ final class NullAuditLogger implements AuditLogger
         string $targetId,
         array $before,
         array $after,
+        ?string $actorLabel = null,
     ): void {
         Log::channel('audit')->info($action, [
             'actor_id' => $actorUserId,
+            'actor_label' => $actorLabel,
             'target_type' => $targetType,
             'target_id' => $targetId,
             'before' => $before,

@@ -65,7 +65,11 @@ export function PortalRegisterScreen({ onRegistered }: PortalRegisterScreenProps
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4" data-slot="portal-register">
+    <form
+      onSubmit={submit}
+      className="flex w-full max-w-sm flex-col gap-4"
+      data-slot="portal-register"
+    >
       <h1 className="text-xl font-semibold text-fg-default">{t("register")}</h1>
       <p className="text-sm text-fg-muted">{t("registerHint")}</p>
 

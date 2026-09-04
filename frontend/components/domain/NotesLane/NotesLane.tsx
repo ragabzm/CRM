@@ -109,7 +109,7 @@ export function NotesLane({ customerId, currentUserId, canModerate }: NotesLaneP
           placeholder={t("placeholder")}
           maxLength={5000}
           onChange={(event) => setDraft(event.target.value)}
-          className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-fg-default"
+          className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-fg-default"
         />
         <Button type="submit" className="w-fit" disabled={busy}>
           {t("add")}
@@ -197,7 +197,7 @@ export function NotesLane({ customerId, currentUserId, canModerate }: NotesLaneP
                       value={editDraft}
                       maxLength={5000}
                       onChange={(event) => setEditDraft(event.target.value)}
-                      className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
+                      className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
                     />
                     <div className="flex gap-2">
                       <Button type="submit" disabled={busy}>

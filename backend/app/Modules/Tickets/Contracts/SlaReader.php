@@ -33,4 +33,37 @@ interface SlaReader
      * @return array<string, array<string, mixed>>
      */
     public function forTickets(array $ticketIds): array;
+
+    /**
+     * How many of these tickets are at risk, and how many have breached.
+     *
+     * Null means NOT KNOWN, not zero. With the engine switched off there is
+     * nothing to count, and returning 0 would be a claim — "no ticket is at
+     * risk" — that a deployment with no SLA module is in no position to make.
+     * An agent who read that would stop looking.
+     *
+     * Tallied from the same reading the list badges use, deliberately. Two
+     * routes to "is this breached?" is two answers, and the one on the strip
+     * would eventually disagree with the one on the row.
+     *
+     * @param  list<string>  $ticketIds
+     * @return array{at_risk: int|null, breached: int|null}
+     */
+    public function countsAmong(array $ticketIds): array;
+
+    /**
+     * Which of these tickets are in a given SLA state.
+     *
+     * Null when the engine is off — the caller must then not filter at all,
+     * rather than filter to nothing. An empty ARRAY is a real answer: nothing
+     * is in that state.
+     *
+     * This exists because SLA state is computed, not stored: there is no
+     * column to put in a WHERE clause. The cost is bounded by the caller
+     * passing only the tickets it was already going to consider.
+     *
+     * @param  list<string>  $ticketIds
+     * @return list<string>|null
+     */
+    public function idsInState(string $state, array $ticketIds): ?array;
 }

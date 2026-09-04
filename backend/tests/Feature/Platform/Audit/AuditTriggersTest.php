@@ -232,14 +232,14 @@ final class AuditTriggersTest extends TestCase
         $this->actingAs($this->administrator);
 
         $this->withIdempotencyKey()
-            ->patchJson('/api/v1/admin/settings/tickets.auto_close_hours', ['value' => 24])
+            ->patchJson('/api/v1/admin/settings/tickets.auto_close_window_hours', ['value' => 24])
             ->assertOk();
 
         $entry = $this->onlyEntry(AuditAction::ConfigChanged);
 
         $this->assertSame('setting', $entry->target_type);
-        $this->assertSame('tickets.auto_close_hours', $entry->target_id);
-        $this->assertSame(168, json_decode((string) $entry->before, true)['value']);
+        $this->assertSame('tickets.auto_close_window_hours', $entry->target_id);
+        $this->assertSame(72, json_decode((string) $entry->before, true)['value']);
         $this->assertSame(24, json_decode((string) $entry->after, true)['value']);
     }
 
@@ -264,7 +264,7 @@ final class AuditTriggersTest extends TestCase
         $this->actingAs($this->administrator);
 
         $this->withIdempotencyKey()
-            ->patchJson('/api/v1/admin/settings/tickets.auto_close_hours', ['value' => 0])
+            ->patchJson('/api/v1/admin/settings/tickets.auto_close_window_hours', ['value' => 0])
             ->assertStatus(422);
 
         $this->assertCount(0, $this->entries(AuditAction::ConfigChanged));

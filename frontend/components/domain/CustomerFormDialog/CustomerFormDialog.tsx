@@ -228,7 +228,7 @@ export function CustomerFormDialog({
             <select
               value={departmentId}
               onChange={(event) => setDepartmentId(Number(event.target.value))}
-              className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
+              className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
             >
               {departments.map((department) => (
                 <option key={department.id} value={department.id}>
@@ -255,7 +255,7 @@ export function CustomerFormDialog({
                         ),
                       )
                     }
-                    className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
+                    className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
                   >
                     <option value="email">{t("kindEmail")}</option>
                     <option value="phone">{t("kindPhone")}</option>
@@ -324,7 +324,7 @@ export function CustomerFormDialog({
             <select
               value={channel}
               onChange={(event) => setChannel(event.target.value as ContactKind | "")}
-              className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
+              className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
             >
               <option value="">{t("noPreference")}</option>
               <option value="email">{t("kindEmail")}</option>
@@ -338,7 +338,7 @@ export function CustomerFormDialog({
               rows={3}
               value={notes ?? ""}
               onChange={(event) => setNotes(event.target.value)}
-              className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
+              className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
             />
           </label>
 

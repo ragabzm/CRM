@@ -27,6 +27,12 @@ const buttonVariants = cva(
     "transition-all",
     "disabled:pointer-events-none disabled:opacity-50",
     "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    /*
+     * The invisible 44x44. Centred on the control and behind it, so it never
+     * covers a neighbour's text and never changes what anything looks like.
+     */
+    "relative after:absolute after:start-1/2 after:top-1/2 after:-z-10 after:size-11",
+    "after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] rtl:after:translate-x-1/2",
   ].join(" "),
   {
     variants: {
@@ -40,11 +46,30 @@ const buttonVariants = cva(
         destructive:
           "bg-state-danger text-fg-inverse font-semibold hover:opacity-90 active:opacity-95",
       },
+      /*
+       * Every size carries a 44x44 HIT AREA regardless of how big it looks.
+       *
+       * R-05 of the responsive design: "44x44 CSS px minimum, applied at every
+       * band, because width does not predict input" — a 1440px viewport may be
+       * a touchscreen, and a phone may be driven by a Bluetooth keyboard. So
+       * the target is not a mobile feature that switches on below 768px.
+       *
+       * The VISUAL box does not grow. Making every button 44px tall would
+       * wreck the density of the desktop design, which R-02's second half
+       * protects just as firmly as its first half protects mobile. Instead an
+       * invisible `::after` is centred on the control and stretched to 44x44 —
+       * the mockup's own `.hitwrap` pattern.
+       *
+       * `icon` is the exception and becomes a real 44px box: icon buttons sit
+       * in the chrome at gap-2 (8px), and a pseudo-element hit area there
+       * would overlap its neighbour's — breaking the other half of R-05, the
+       * 8px separation.
+       */
       size: {
         sm: "h-7 px-2.5 text-xs",
         md: "h-8 px-3 text-sm",
         lg: "h-9 px-4 text-md",
-        icon: "size-8 p-0",
+        icon: "size-11 p-0",
       },
     },
     defaultVariants: {

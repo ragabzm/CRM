@@ -1,13 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import { AvatarChip } from "@/components/domain/AvatarChip/AvatarChip";
 import { BidiValue } from "@/components/domain/BidiValue/BidiValue";
 import { DataTable } from "@/components/domain/DataTable/DataTable";
 import type { ColumnDef, SortState } from "@/components/domain/DataTable/DataTable.types";
 import { EmptyState } from "@/components/domain/EmptyState/EmptyState";
 import { RowActions } from "@/components/domain/RowActions/RowActions";
 import { SlaIndicator } from "@/components/domain/SlaIndicator/SlaIndicator";
+import { StatusBadge, type TicketStatusName } from "@/components/domain/StatusBadge/StatusBadge";
+import { UrgencyMeter, type UrgencyName } from "@/components/domain/UrgencyMeter/UrgencyMeter";
 import type { Ticket } from "@/lib/api/tickets";
 import { useFormat } from "@/lib/format/useFormat";
 
@@ -48,26 +52,56 @@ export function TicketListTable({
   categoryNames,
 }: TicketListTableProps) {
   const t = useTranslations("tickets");
+  const tChannel = useTranslations("tickets.channel");
   const format = useFormat();
 
   const columns: ColumnDef<Ticket>[] = [
     {
-      id: "reference",
-      header: t("columns.reference"),
-      identity: true,
-      sortable: true,
-      // An identifier, not prose: forced LTR so it reads the same in both
-      // writing directions.
-      cell: (ticket) => <BidiValue>{ticket.reference}</BidiValue>,
-    },
-    {
       id: "subject",
       header: t("columns.subject"),
-      // Wraps rather than clipping. A truncated subject hides the words that
-      // told the agent what the ticket is.
+      identity: true,
+      /*
+       * TWO LINES, and the reference no longer has a column of its own.
+       *
+       * The row used to spread reference, subject, status, priority, SLA,
+       * assignee, category and updated-at across eight columns of equal
+       * weight, so nothing said which row this was — the eye had to read all
+       * of them. The design puts the subject first and everything that only
+       * IDENTIFIES the row underneath it in smaller, quieter type.
+       */
       cell: (ticket) => (
-        <span dir="auto" className="break-words">
-          {ticket.subject}
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <Link
+            href={`/tickets/${ticket.id}`}
+            onClick={(event) => {
+              /*
+               * Anything that means "somewhere else" is left to the browser:
+               * a modified click, or the middle button. Only a plain left
+               * click goes to the router.
+               */
+              if (event.defaultPrevented) return;
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              if (event.button !== 0) return;
+
+              event.preventDefault();
+              onOpen(ticket.id);
+            }}
+            dir="auto"
+            className="rounded-sm font-medium break-words text-fg-default underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-border-focus"
+          >
+            {ticket.subject}
+          </Link>
+
+          <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-fg-subtle">
+            {/* An identifier, forced LTR so it reads the same in both
+                writing directions. */}
+            <BidiValue>{ticket.reference}</BidiValue>
+
+            <span aria-hidden="true">·</span>
+            {/* Where it came from. The mockup carries it on this line and the
+                working list did not show it at all. */}
+            <span>{tChannel(ticket.channel)}</span>
+          </span>
         </span>
       ),
     },
@@ -75,13 +109,29 @@ export function TicketListTable({
       id: "status",
       header: t("columns.status"),
       sortable: true,
-      cell: (ticket) => ticket.status,
+      /*
+       * The word, not the enum. `tickets.status.*` and `tickets.priority.*`
+       * were translated into both languages and then read by nothing — the
+       * table printed the raw API value, so an Arabic reader saw `open` and
+       * `urgent` in lowercase Latin on the busiest screen in the product.
+       */
+      cell: (ticket) => <StatusBadge status={ticket.status as TicketStatusName} />,
     },
     {
       id: "priority",
+      /*
+       * FOLDS below desktop. `DataTable` reprints a folded value, labelled,
+       * under the identity cell — the value MOVES, it is never dropped, which
+       * is the difference the design draws between folding and truncating.
+       *
+       * Nothing was marked, so at 390px the table stayed eight columns wide
+       * inside a container that hid the overflow: the row was silently cut
+       * off at the screen edge with no cue and no way to scroll to it.
+       */
+      secondary: true,
       header: t("columns.priority"),
       sortable: true,
-      cell: (ticket) => ticket.priority,
+      cell: (ticket) => <UrgencyMeter priority={ticket.priority as UrgencyName} />,
     },
     {
       id: "sla",
@@ -95,16 +145,22 @@ export function TicketListTable({
     },
     {
       id: "assignee",
+      secondary: true,
       header: t("columns.assignee"),
-      cell: (ticket) =>
-        ticket.assignee_id === null ? (
-          <span className="text-fg-muted">{t("filters.unassigned")}</span>
-        ) : (
-          <span dir="auto">{assigneeNames[String(ticket.assignee_id)] ?? NOT_KNOWN}</span>
-        ),
+      cell: (ticket) => (
+        <AvatarChip
+          name={
+            ticket.assignee_id === null
+              ? null
+              : (assigneeNames[String(ticket.assignee_id)] ?? NOT_KNOWN)
+          }
+          unassignedLabel={t("filters.unassigned")}
+        />
+      ),
     },
     {
       id: "category",
+      secondary: true,
       header: t("columns.category"),
       cell: (ticket) =>
         ticket.category_id === null ? (
@@ -115,13 +171,28 @@ export function TicketListTable({
     },
     {
       id: "updated_at",
+      secondary: true,
       header: t("columns.updated"),
       sortable: true,
+      /*
+       * Relative, with the exact moment in the tooltip.
+       *
+       * "12m ago" answers the question an agent is actually asking — is this
+       * moving? — in a glance. "Sep 3, 2026, 7:23 PM" makes them subtract.
+       * The absolute time stays reachable, because a supervisor writing an
+       * incident note needs it.
+       */
       cell: (ticket) =>
         ticket.updated_at === null ? (
           NOT_KNOWN
         ) : (
-          <time dateTime={ticket.updated_at}>{format.dateTime(ticket.updated_at)}</time>
+          <time
+            dateTime={ticket.updated_at}
+            title={format.dateTime(ticket.updated_at)}
+            className="text-fg-muted"
+          >
+            {format.relativeTime(ticket.updated_at, new Date())}
+          </time>
         ),
     },
     {

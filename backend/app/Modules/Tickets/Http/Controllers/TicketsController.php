@@ -147,7 +147,7 @@ final class TicketsController extends Controller
                         ? null
                         : (string) $ticket->assignee_id, $tickets),
                 )))),
-                'categories' => self::categoryNames($tickets, $request->user()?->preferredLocale()),
+                'categories' => self::categoryNames($tickets),
             ],
         ]);
     }
@@ -324,16 +324,17 @@ final class TicketsController extends Controller
      * and every list that forgot would quietly show English to an Arabic
      * reader.
      *
-     * The language comes from the signed-in person's own preference, not from
-     * `app()->getLocale()`. Nothing in this application sets the application
-     * locale per request, so reading it would return the config default and
-     * hand every Arabic reader an English column — which is exactly what it
-     * did until this line named the right source.
+     * The language is the REQUEST's, set by `SetLocaleFromRequest` from the
+     * `Accept-Language` the client sends when somebody flips the switcher —
+     * falling back to the account's stored preference. Reading the stored
+     * preference directly, which this did at first, meant an agent who
+     * switched the interface to Arabic still got an English category next to
+     * an Arabic status.
      *
      * @param  list<Ticket>  $tickets
      * @return array<string, string>
      */
-    private static function categoryNames(array $tickets, ?string $locale): array
+    private static function categoryNames(array $tickets): array
     {
         $ids = array_values(array_unique(array_filter(array_map(
             static fn (Ticket $ticket): ?int => $ticket->category_id,
@@ -344,7 +345,7 @@ final class TicketsController extends Controller
             return [];
         }
 
-        $column = $locale === 'ar' ? 'name_ar' : 'name_en';
+        $column = app()->getLocale() === 'ar' ? 'name_ar' : 'name_en';
 
         return Category::query()
             ->whereIn('id', $ids)

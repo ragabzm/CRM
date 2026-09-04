@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Platform\Http\Middleware\AssignRequestId;
+use App\Modules\Platform\Http\Middleware\SetLocaleFromRequest;
 use App\Modules\Security\Http\Middleware\EnsureActiveUser;
 use App\Modules\Security\Http\Middleware\RequireCapability;
 use App\Modules\Platform\Http\Middleware\IdempotencyKey;
@@ -48,6 +49,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->prependToGroup('api', AssignRequestId::class);
         $middleware->appendToGroup('api', IdempotencyKey::class);
+
+        /*
+         * After the guards have run, so the fallback can read the signed-in
+         * account's preference — and before any controller, so everything that
+         * chooses wording sees the right locale.
+         */
+        $middleware->appendToGroup('api', SetLocaleFromRequest::class);
 
         /*
          * Runs on every API request, after authentication has resolved a user.

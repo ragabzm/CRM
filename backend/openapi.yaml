@@ -4053,6 +4053,18 @@ paths:
             items:
               type: integer
         -
+          name: sla_state
+          in: query
+          description: "Named states only. This is answered by computing the reading for\nthe live queue, so an arbitrary string would be a walk over\nevery open ticket that could never match anything."
+          schema:
+            type: string
+            enum:
+              - on_track
+              - at_risk
+              - breached
+              - met
+              - paused
+        -
           name: created_from
           in: query
           schema:

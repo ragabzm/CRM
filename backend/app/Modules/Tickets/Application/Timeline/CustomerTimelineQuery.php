@@ -77,7 +77,20 @@ final class CustomerTimelineQuery
                 "m.id, case when m.direction = ? then ? else ? end as kind, m.ticket_id, t.reference as ticket_ref, m.sent_at as occurred_at, m.body as preview",
                 [MessageDirection::Inbound->value, TimelineEntry::MESSAGE_INBOUND, TimelineEntry::MESSAGE_OUTBOUND],
             )
-            ->where('m.customer_id', $customerId);
+            ->where('m.customer_id', $customerId)
+            /*
+             * Interactions WITH the customer, so an internal note is not one.
+             *
+             * The `case when inbound then … else outbound` above sorted every
+             * non-inbound message into "outbound", which put colleagues' notes
+             * on this timeline labelled "sent to the customer". An agent
+             * reading a customer's history would believe the desk had told
+             * this person that the gateway was double-charging them.
+             *
+             * The note is not lost: it lives on its ticket, where it was
+             * written and where it makes sense.
+             */
+            ->where('m.direction', '!=', MessageDirection::Internal->value);
 
         $this->applyCursor($messages, $cursor, 'm.sent_at', 'm.id');
 

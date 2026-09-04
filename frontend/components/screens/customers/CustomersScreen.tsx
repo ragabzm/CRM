@@ -193,7 +193,7 @@ export function CustomersScreen({ departments, onOpenCustomer }: CustomersScreen
                   : { ...rest, department_id: Number(event.target.value), page: 1 };
               })
             }
-            className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
+            className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
           >
             <option value="">{t("department.any")}</option>
             {departments.map((department) => (

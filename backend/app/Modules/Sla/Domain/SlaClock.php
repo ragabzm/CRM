@@ -177,9 +177,50 @@ final class SlaClock
         return $paused;
     }
 
+    /**
+     * Every target key, written out.
+     *
+     * These used to be built by interpolation —
+     * `"sla.{$timer}_target_seconds.{$priority}"` — which meant no key in this
+     * file could be found by searching for it. That is not a small
+     * inconvenience: the registry once declared a whole duplicate pair of
+     * ticket settings that nothing read, the Administration console offered
+     * them, and an administrator changing one was changing a number the
+     * product never looks at. A grep would have found that in a second, and no
+     * grep could work while the keys did not exist as text.
+     *
+     * @var array<string, array<string, string>>
+     */
+    private const TARGET_KEYS = [
+        self::RESPONSE => [
+            'low' => 'sla.response_target_seconds.low',
+            'normal' => 'sla.response_target_seconds.normal',
+            'high' => 'sla.response_target_seconds.high',
+            'urgent' => 'sla.response_target_seconds.urgent',
+        ],
+        self::RESOLUTION => [
+            'low' => 'sla.resolution_target_seconds.low',
+            'normal' => 'sla.resolution_target_seconds.normal',
+            'high' => 'sla.resolution_target_seconds.high',
+            'urgent' => 'sla.resolution_target_seconds.urgent',
+        ],
+    ];
+
     private function targetMinutes(string $timer, string $priority): int
     {
-        $seconds = (int) $this->settings->get("sla.{$timer}_target_seconds.{$priority}");
+        $key = self::TARGET_KEYS[$timer][$priority] ?? null;
+
+        if ($key === null) {
+            /*
+             * A priority with no target is a programming error, not a
+             * configuration one — the enum and this table have to agree, and
+             * silently falling back to a default would hide the disagreement
+             * behind a plausible number.
+             */
+            throw new \InvalidArgumentException("No SLA target is defined for [{$timer}/{$priority}].");
+        }
+
+        $seconds = (int) $this->settings->get($key);
 
         return (int) max(1, floor($seconds / 60));
     }

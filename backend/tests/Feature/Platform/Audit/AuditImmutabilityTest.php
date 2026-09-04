@@ -43,7 +43,7 @@ final class AuditImmutabilityTest extends TestCase
         $this->entryId = $this->app->make(AuditWriter::class)->record(
             action: AuditAction::ConfigChanged,
             targetType: 'setting',
-            targetId: 'tickets.auto_close_hours',
+            targetId: 'tickets.auto_close_window_hours',
             before: ['value' => 168],
             after: ['value' => 24],
         );

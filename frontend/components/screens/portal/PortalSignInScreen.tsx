@@ -48,7 +48,15 @@ export function PortalSignInScreen({ onSignedIn }: PortalSignInScreenProps) {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4" data-slot="portal-sign-in">
+    <form
+      onSubmit={submit} /*
+       * The same `max-w-sm` the staff sign-in form uses. Without it this form
+       * stretched to about 750px while the staff one sat at 380 — two widths
+       * for the same act, in the same product, three clicks apart.
+       */
+      className="flex w-full max-w-sm flex-col gap-4"
+      data-slot="portal-sign-in"
+    >
       <h1 className="text-xl font-semibold text-fg-default">{t("signIn")}</h1>
 
       {error !== null && <FormAlert tone="error">{error}</FormAlert>}

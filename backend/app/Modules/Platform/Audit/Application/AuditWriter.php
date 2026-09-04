@@ -47,6 +47,7 @@ final class AuditWriter implements AuditLogger
         string $targetId,
         array $before,
         array $after,
+        ?string $actorLabel = null,
     ): void {
         $resolved = AuditAction::tryFrom($action);
 
@@ -64,7 +65,7 @@ final class AuditWriter implements AuditLogger
             after: $after,
             actorType: $actorUserId !== null ? AuditActorType::User : null,
             actorId: $actorUserId !== null ? (string) $actorUserId : null,
-            actorLabel: null,
+            actorLabel: $actorLabel,
         );
     }
 

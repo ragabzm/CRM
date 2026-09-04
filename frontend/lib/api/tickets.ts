@@ -360,7 +360,17 @@ export async function updateTicketProperties(
   });
 }
 
+export type SlaStateFilter = "on_track" | "at_risk" | "breached" | "met" | "paused";
+
 export interface TicketListParams {
+  /**
+   * Narrows to an SLA reading.
+   *
+   * Not a column — the server computes it from each ticket's timeline — which
+   * is why it is a single value rather than a list: every value costs a walk
+   * over the live queue.
+   */
+  sla_state?: SlaStateFilter;
   status?: string[];
   priority?: string[];
   category_id?: number[];

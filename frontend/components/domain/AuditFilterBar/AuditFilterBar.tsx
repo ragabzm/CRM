@@ -55,7 +55,7 @@ export function AuditFilterBar({
           <select
             value={filters.action ?? ""}
             onChange={(event) => update({ action: event.target.value })}
-            className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
+            className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
           >
             <option value="">{t("anyAction")}</option>
             {actions.map((action) => (

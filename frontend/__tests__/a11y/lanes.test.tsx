@@ -8,13 +8,12 @@ vi.mock("next/navigation", () => ({
 import { render, waitFor } from "@testing-library/react";
 
 import { withIntl } from "@/__tests__/helpers/intl";
+import { FormAlert } from "@/components/domain/FormAlert/FormAlert";
 import { AttachmentsLane } from "@/components/domain/AttachmentsLane/AttachmentsLane";
 import { NotesLane } from "@/components/domain/NotesLane/NotesLane";
 import type { Attachment } from "@/lib/api/attachments";
 import type { CustomerNote } from "@/lib/api/notes";
 import type { Locale } from "@/lib/i18n/locale";
-
-import { StaleVersionBanner } from "@/components/domain/StaleVersionBanner/StaleVersionBanner";
 
 import { axe } from "./axe";
 
@@ -115,8 +114,21 @@ describe.each(DIRECTIONS)("record lanes · dir=$dir", ({ dir, locale }) => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("the stale version banner has no violations", async () => {
-    const { container } = renderIn(<StaleVersionBanner onReload={vi.fn()} />, dir, locale);
+  it("the stale version alert has no violations", async () => {
+    /*
+     * The surviving implementation. There were two: a `StaleVersionBanner`
+     * component with its own tests that no screen ever imported, and the
+     * version `TicketPropertyRail` renders — an alert carrying its own
+     * action. The orphan is gone; this checks the one an agent actually
+     * meets, in the shape the rail builds it.
+     */
+    const { container } = renderIn(
+      <FormAlert tone="error" action={{ label: "Reload", onSelect: vi.fn() }}>
+        This ticket was changed by someone else. Reload to see the current version.
+      </FormAlert>,
+      dir,
+      locale,
+    );
 
     expect(await axe(container)).toHaveNoViolations();
   });

@@ -8,6 +8,8 @@ import { EmptyState } from "@/components/domain/EmptyState/EmptyState";
 import { ForbiddenState } from "@/components/domain/ForbiddenState/ForbiddenState";
 import { FormAlert } from "@/components/domain/FormAlert/FormAlert";
 import { SegmentedFilter } from "@/components/domain/SegmentedFilter/SegmentedFilter";
+import { StatusBadge, type TicketStatusName } from "@/components/domain/StatusBadge/StatusBadge";
+import { TicketHeaderActions } from "@/components/domain/TicketHeaderActions/TicketHeaderActions";
 import { ConversationPanel } from "@/components/domain/TicketConversation/ConversationPanel";
 import { TicketComposer } from "@/components/domain/TicketComposer/TicketComposer";
 import { TicketPropertyRail } from "@/components/domain/TicketPropertyRail/TicketPropertyRail";
@@ -164,13 +166,38 @@ export function TicketDetailScreen({
 
   return (
     <div className="flex flex-col gap-6" data-slot="ticket-detail">
-      <header className="flex flex-wrap items-baseline gap-3">
-        <h1 className="text-xl font-semibold text-fg-default">
-          <bdi dir="auto">{ticket.subject}</bdi>
-        </h1>
-        <bdi dir="ltr" className="num text-sm text-fg-muted">
-          {ticket.reference}
-        </bdi>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/*
+            The reference as a CHIP before the title, not grey text beside it.
+            It is the thing an agent reads out on the phone and pastes into a
+            note, so it needs an edge somebody can aim at.
+          */}
+          <bdi
+            dir="ltr"
+            className="num rounded-sm border border-border-default bg-surface-sunken px-2 py-0.5 text-xs text-fg-muted"
+          >
+            {ticket.reference}
+          </bdi>
+
+          <h1 className="text-xl font-semibold text-fg-default">
+            <bdi dir="auto">{ticket.subject}</bdi>
+          </h1>
+
+          <StatusBadge status={ticket.status as TicketStatusName} />
+        </div>
+
+        {/*
+          Resolving used to be a `<select>` in the rail, three columns away and
+          weighted exactly like "Category" — the most-used decision on the
+          busiest screen, hidden inside a dropdown.
+        */}
+        <TicketHeaderActions
+          ticket={ticket}
+          editable={editable}
+          onChanged={setTicket}
+          onReload={reload}
+        />
       </header>
 
       {/* Below the tablet breakpoint: one pane at a time, chosen here. */}

@@ -27,7 +27,7 @@ final class AuditReadAuthorizationTest extends TestCase
         $this->app->make(AuditWriter::class)->record(
             action: AuditAction::ConfigChanged,
             targetType: 'setting',
-            targetId: 'tickets.auto_close_hours',
+            targetId: 'tickets.auto_close_window_hours',
         );
     }
 
@@ -83,7 +83,7 @@ final class AuditReadAuthorizationTest extends TestCase
         $body = (string) $this->getJson('/api/v1/audit-entries')->getContent();
 
         // Not even a count. "403, and there are 4,812 entries" is still a leak.
-        $this->assertStringNotContainsString('tickets.auto_close_hours', $body);
+        $this->assertStringNotContainsString('tickets.auto_close_window_hours', $body);
         $this->assertStringNotContainsString('meta', $body);
     }
 

@@ -30,6 +30,13 @@ const LIVE: string[] = ["open", "pending"];
  * keyboard without any of that being re-implemented.
  */
 export function CountsStrip({ counts, currentUserId }: CountsStripProps) {
+  /*
+   * `counts === null` means the request has not answered; a null FIELD means
+   * the answer arrived and said "not tracked". The strip used to conflate
+   * them, so on first paint all five tiles read "Not tracked yet" — a claim
+   * about a feature that works — and then corrected themselves a second later.
+   */
+  const waiting = counts === null;
   const t = useTranslations("home.counts");
   const format = useFormat();
 
@@ -57,16 +64,23 @@ export function CountsStrip({ counts, currentUserId }: CountsStripProps) {
     {
       key: "atRisk",
       label: t("atRisk"),
-      // Null until Story 5.3 exists. Rendered as a dash, with the label in
-      // place, so nothing moves when the value arrives.
+      /*
+       * Still null when nothing is tracking — rendered as a dash with a line
+       * saying why — but a real number as soon as the engine is on.
+       */
       value: counts?.at_risk ?? null,
-      params: { status: LIVE },
+      /*
+       * Carries the SLA condition. Both of these tiles used to link to
+       * `status=open,pending` with no condition at all, so a figure of 3
+       * opened a page of 40 and the number and the page were unrelated.
+       */
+      params: { status: LIVE, sla_state: "at_risk" },
     },
     {
       key: "breached",
       label: t("breached"),
       value: counts?.breached ?? null,
-      params: { status: LIVE },
+      params: { status: LIVE, sla_state: "breached" },
     },
     {
       key: "pendingCustomerReply",
@@ -79,7 +93,7 @@ export function CountsStrip({ counts, currentUserId }: CountsStripProps) {
   return (
     <ul data-slot="counts-strip" className="grid grid-cols-2 gap-3 tablet:grid-cols-5">
       {tiles.map((tile) => {
-        const untracked = tile.value === null;
+        const untracked = !waiting && tile.value === null;
 
         return (
           <li key={tile.key}>
@@ -87,18 +101,49 @@ export function CountsStrip({ counts, currentUserId }: CountsStripProps) {
               href={`/tickets?${ticketListQuery(tile.params)}`}
               data-slot="count-tile"
               data-count={tile.key}
-              className="flex flex-col gap-1 rounded-md border border-border-default bg-surface-base p-3 hover:bg-surface-hover"
+              /*
+               * Looks like what it is. It was always an `<a>`, but with no
+               * arrow and no hover treatment it read as a static readout — so
+               * the five numbers that are the fastest way into a filtered
+               * queue looked like they did nothing.
+               */
+              className="group flex flex-col gap-1 rounded-md border border-border-default bg-surface-base p-3 transition-colors hover:border-border-strong hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
             >
-              <span className="text-sm text-fg-muted">{tile.label}</span>
+              {/*
+                The NUMBER first, large. It used to sit under its own label in
+                small type — but the number is the message, and the label only
+                says what it counts.
+              */}
+              <span className="flex items-center gap-2">
+                <span className="num text-2xl font-semibold text-fg-default" dir="ltr">
+                  {waiting ? (
+                    <span
+                      aria-hidden="true"
+                      className="inline-block h-6 w-8 animate-pulse rounded-sm bg-surface-sunken align-middle"
+                    />
+                  ) : untracked ? (
+                    NOT_KNOWN
+                  ) : (
+                    format.number(tile.value ?? 0)
+                  )}
+                </span>
 
-              <span className="text-2xl font-semibold text-fg-default">
-                {untracked ? NOT_KNOWN : format.number(tile.value ?? 0)}
+                <span
+                  aria-hidden="true"
+                  className="ms-auto text-fg-subtle transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5"
+                >
+                  →
+                </span>
               </span>
+
+              <span className="text-sm text-fg-muted">{tile.label}</span>
 
               {untracked && (
                 // Says WHY it is a dash. An unexplained dash reads as a bug.
                 <span className="text-xs text-fg-muted">{t("notKnownHint")}</span>
               )}
+
+              {waiting && <span className="sr-only">{t("loading")}</span>}
             </Link>
           </li>
         );

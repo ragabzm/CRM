@@ -40,7 +40,11 @@ export function PortalForgotPasswordScreen() {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4" data-slot="portal-forgot">
+    <form
+      onSubmit={submit}
+      className="flex w-full max-w-sm flex-col gap-4"
+      data-slot="portal-forgot"
+    >
       <h1 className="text-xl font-semibold text-fg-default">{t("forgotTitle")}</h1>
       <p className="text-sm text-fg-muted">{t("forgotHint")}</p>
 
@@ -127,7 +131,11 @@ export function PortalResetPasswordScreen({ token, email }: PortalResetPasswordS
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4" data-slot="portal-reset">
+    <form
+      onSubmit={submit}
+      className="flex w-full max-w-sm flex-col gap-4"
+      data-slot="portal-reset"
+    >
       <h1 className="text-xl font-semibold text-fg-default">{t("resetTitle")}</h1>
 
       {error !== null && <FormAlert tone="error">{error}</FormAlert>}

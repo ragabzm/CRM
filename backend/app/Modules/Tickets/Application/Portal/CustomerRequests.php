@@ -70,8 +70,55 @@ final class CustomerRequests implements CustomerRequestGateway
         return [
             ...$this->summary($ticket),
             'description' => $ticket->description,
-            'messages' => $this->thread($ticketId),
+            'messages' => self::withoutTheOpeningEcho(
+                $this->thread($ticketId),
+                (string) $ticket->description,
+            ),
         ];
+    }
+
+    /**
+     * Drops the first message when it repeats the description word for word.
+     *
+     * The portal shows the description as the opening entry and the thread
+     * underneath it. For a request that arrived by EMAIL that is the same text
+     * twice: `InboundMailIntake` writes the body into `description` when it
+     * opens the ticket, and then appends it again as the first inbound
+     * message — it has to, because the message row is what carries the
+     * `Message-ID` the whole email thread is correlated by.
+     *
+     * So a customer opened their own request and read their own words back to
+     * themselves, twice in a row, and it looked like the system had
+     * double-posted.
+     *
+     * Only the FIRST message, only when it is INBOUND, and only on an exact
+     * match. A customer who genuinely writes the same sentence twice — because
+     * nothing happened the first time — must still see both: that repetition
+     * is the message.
+     *
+     * @param  list<array<string, mixed>>  $messages
+     * @return list<array<string, mixed>>
+     */
+    private static function withoutTheOpeningEcho(array $messages, string $description): array
+    {
+        $first = $messages[0] ?? null;
+
+        if ($first === null || $first['from'] !== 'you') {
+            return $messages;
+        }
+
+        if (trim((string) $first['body']) !== trim($description)) {
+            return $messages;
+        }
+
+        // Attachments live on the message, so one carrying them is not an
+        // echo of anything — dropping it would take the customer's own file
+        // off their screen.
+        if (($first['attachments'] ?? []) !== []) {
+            return $messages;
+        }
+
+        return array_values(array_slice($messages, 1));
     }
 
     /**

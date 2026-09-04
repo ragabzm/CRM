@@ -92,11 +92,12 @@ describe("the ticket list", () => {
 
     await screen.findByText("TKT-000042");
 
-    await userEvent.click(
-      within(screen.getByRole("group", { name: en.tickets.filters.assignee })).getByRole("button", {
-        name: en.tickets.filters.unassigned,
-      }),
-    );
+    /*
+     * A select, not a row of buttons. The assignee filter has to hold every
+     * person on the desk — a segmented group would wrap into a wall the first
+     * time somebody hired a fifth agent.
+     */
+    await userEvent.selectOptions(screen.getByLabelText(en.tickets.filters.assignee), "unassigned");
 
     // The URL is the only place list state lives — the screen never holds it.
     expect(onParamsChange).toHaveBeenCalledWith(
@@ -149,7 +150,15 @@ describe("the ticket list", () => {
 
     await screen.findByText("TKT-000042");
 
-    expect(screen.getByText(en.tickets.sla.state.at_risk)).toBeInTheDocument();
+    /*
+     * Scoped to the row. "At risk" is now also the name of a filter button,
+     * so an unscoped query matches the control as well as the badge — and
+     * would keep passing if the badge disappeared.
+     */
+    const badge = document.querySelector('[data-slot="sla-indicator"]');
+
+    expect(badge).toHaveAttribute("data-state", "at_risk");
+    expect(badge).toHaveTextContent(en.tickets.sla.state.at_risk);
   });
 
   it("says there are no matches rather than showing a bare table", async () => {

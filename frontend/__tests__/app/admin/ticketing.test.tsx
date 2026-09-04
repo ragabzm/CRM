@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@/__tests__/helpers/intl";
+import { en, render, screen, waitFor, within } from "@/__tests__/helpers/intl";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -28,7 +28,7 @@ function settingsPayload() {
   return {
     data: [
       {
-        key: "tickets.auto_close_hours",
+        key: "tickets.auto_close_window_hours",
         type: "int",
         value: autoCloseHours,
         default: 168,
@@ -37,12 +37,12 @@ function settingsPayload() {
         allowed_values: null,
       },
       {
-        key: "tickets.reopen_window_hours",
+        key: "tickets.reopen_window_days",
         type: "int",
-        value: 72,
-        default: 72,
+        value: 14,
+        default: 14,
         secret: false,
-        summary: "How long a closed ticket can be reopened.",
+        summary: "How long after closing a ticket can still be reopened.",
         allowed_values: null,
       },
     ],
@@ -81,7 +81,7 @@ beforeEach(() => {
 
       if (url.includes("/admin/settings") && method === "PATCH") {
         autoCloseHours = body.value;
-        return json({ key: "tickets.auto_close_hours", value: body.value });
+        return json({ key: "tickets.auto_close_window_hours", value: body.value });
       }
       if (url.includes("/admin/settings")) return json(settingsPayload());
 
@@ -150,7 +150,7 @@ describe("the ticketing console", () => {
 
     await waitFor(() => {
       const patch = writes().find((call) => call.method === "PATCH");
-      expect(patch?.url).toContain("/admin/settings/tickets.auto_close_hours");
+      expect(patch?.url).toContain("/admin/settings/tickets.auto_close_window_hours");
       expect(patch?.body).toEqual({ value: 24 });
     });
   });
@@ -177,7 +177,7 @@ describe("the ticketing console", () => {
   });
 
   it("shows the server's refusal inline and leaves the value alone", async () => {
-    failures["PATCH /admin/settings/tickets.auto_close_hours"] = () =>
+    failures["PATCH /admin/settings/tickets.auto_close_window_hours"] = () =>
       json(
         {
           type: "https://ragab.example/problems/platform/setting-invalid",
@@ -185,7 +185,7 @@ describe("the ticketing console", () => {
           status: 422,
           detail: "Auto-close must be between 1 hour and 90 days.",
           code: "platform.setting_invalid",
-          setting: "tickets.auto_close_hours",
+          setting: "tickets.auto_close_window_hours",
         },
         422,
       );
@@ -258,7 +258,12 @@ describe("the ticketing console", () => {
       ),
     ).toBeInTheDocument();
 
-    // Listed, but with no control that suggests otherwise.
-    expect(screen.getByText("urgent")).toBeInTheDocument();
+    /*
+     * The WORD, not the enum. The chips used to print `low normal high urgent`
+     * in lowercase Latin directly under a sentence naming all four properly —
+     * and in Arabic that was untranslated developer text on an admin screen.
+     */
+    expect(screen.getByText(en.tickets.priority.urgent)).toBeInTheDocument();
+    expect(screen.queryByText("urgent")).not.toBeInTheDocument();
   });
 });

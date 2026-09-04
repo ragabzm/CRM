@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@/__tests__/helpers/intl";
+import { en, render, screen, waitFor, within } from "@/__tests__/helpers/intl";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -108,28 +108,38 @@ describe("the property rail", () => {
      * customer something the business never agreed to, so it is rendered as a
      * reading rather than as a field.
      */
-    const sla = screen.getByRole("region", { name: "Service level" });
+    /*
+     * A FACT row now, not a labelled region: the rail is grouped into four
+     * bands and the service level lives in the live-state band beside the
+     * status, carrying the dashed editable edge that says "you cannot change
+     * this" without a sentence.
+     */
+    const sla = document.querySelector('[data-slot="rail-fact"]');
 
     expect(sla).toBeInTheDocument();
-    expect(within(sla).queryByRole("textbox")).toBeNull();
-    expect(within(sla).queryByRole("combobox")).toBeNull();
+    expect(within(sla as HTMLElement).queryByRole("textbox")).toBeNull();
+    expect(within(sla as HTMLElement).queryByRole("combobox")).toBeNull();
+
+    // The edge is what says it, and it must be the locked treatment.
+    expect(sla?.querySelector('[data-slot="editable-edge"]')).toHaveAttribute(
+      "data-editable",
+      "false",
+    );
   });
 
   it("shows a dash for a ticket nothing is tracking", () => {
     renderRail();
 
-    const sla = screen.getByRole("region", { name: "Service level" });
-
     // Never "on track": this fixture carries no SLA block, and a green badge
     // would be a claim the system cannot support.
-    expect(within(sla).getByText("Not tracked")).toBeInTheDocument();
+    expect(screen.getByText("Not tracked")).toBeInTheDocument();
   });
 
   it("sends the version it was loaded with, as If-Match", async () => {
     renderRail();
 
     await userEvent.click(screen.getByRole("combobox", { name: "Priority" }));
-    await userEvent.click(await screen.findByRole("option", { name: "urgent" }));
+    await userEvent.click(await screen.findByRole("option", { name: en.tickets.priority.urgent }));
 
     await waitFor(() => expect(requests.some((r) => r.method === "PATCH")).toBe(true));
 
@@ -145,7 +155,7 @@ describe("the property rail", () => {
     renderRail();
 
     await userEvent.click(screen.getByRole("combobox", { name: "Priority" }));
-    await userEvent.click(await screen.findByRole("option", { name: "urgent" }));
+    await userEvent.click(await screen.findByRole("option", { name: en.tickets.priority.urgent }));
 
     const alert = await screen.findByRole("alert");
 
@@ -158,7 +168,7 @@ describe("the property rail", () => {
     renderRail({ onReload });
 
     await userEvent.click(screen.getByRole("combobox", { name: "Priority" }));
-    await userEvent.click(await screen.findByRole("option", { name: "urgent" }));
+    await userEvent.click(await screen.findByRole("option", { name: en.tickets.priority.urgent }));
 
     const alert = await screen.findByRole("alert");
     await userEvent.click(within(alert).getByRole("button", { name: "Reload" }));
@@ -171,7 +181,7 @@ describe("the property rail", () => {
     renderRail();
 
     await userEvent.click(screen.getByRole("combobox", { name: "Priority" }));
-    await userEvent.click(await screen.findByRole("option", { name: "urgent" }));
+    await userEvent.click(await screen.findByRole("option", { name: en.tickets.priority.urgent }));
 
     // Said out loud, because the agent's next thought is "did I just lose what
     // I was writing?"
@@ -183,7 +193,7 @@ describe("the property rail", () => {
     renderRail({ onChanged });
 
     await userEvent.click(screen.getByRole("combobox", { name: "Priority" }));
-    await userEvent.click(await screen.findByRole("option", { name: "urgent" }));
+    await userEvent.click(await screen.findByRole("option", { name: en.tickets.priority.urgent }));
 
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     expect(onChanged.mock.calls[0]![0].version).toBe(4);

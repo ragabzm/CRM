@@ -19,6 +19,11 @@ namespace App\Modules\Platform\Support\Audit;
  * The target is a TYPE and an ID rather than one string, so the log can answer
  * "everything that happened to this record" without pattern-matching a label
  * whose format nobody agreed on.
+ *
+ * `actorLabel` is here because the seam used to carry only the numeric id, and
+ * the writer's fallback then rendered the actor as `user 3` — a string its own
+ * comment calls unreadable a year later. Every caller already knows the name;
+ * it was the interface that threw it away.
  */
 interface AuditLogger
 {
@@ -33,5 +38,12 @@ interface AuditLogger
         string $targetId,
         array $before,
         array $after,
+        /*
+         * The actor's name as the caller knows it. Denormalised on purpose:
+         * joining back to `users` loses the name the moment an account is
+         * renamed or removed, which is exactly when somebody is reading the
+         * log. Null falls back to whatever the request context knows.
+         */
+        ?string $actorLabel = null,
     ): void;
 }

@@ -86,10 +86,12 @@ final class TicketListCarriesTheNamesItNeedsTest extends TestCase
 
     public function test_the_category_name_is_in_the_readers_language(): void
     {
-        $reader = $this->agent();
-        $reader->forceFill(['preferred_locale' => 'ar'])->save();
+        // The header the client sends when somebody flips the switcher, not
+        // the account's stored preference: what matters is the language on
+        // the screen right now.
+        $this->withHeader('Accept-Language', 'ar');
 
-        $categories = $this->actingAs($reader)
+        $categories = $this->actingAs($this->agent())
             ->getJson('/api/v1/tickets?per_page=50')
             ->assertOk()
             ->json('included.categories');

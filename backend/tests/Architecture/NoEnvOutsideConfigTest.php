@@ -145,7 +145,7 @@ final class NoEnvOutsideConfigTest extends TestCase
 
         // Guards the scraper: an empty list would make the sweep above pass
         // while checking nothing at all.
-        $this->assertContains('tickets.auto_close_hours', $keys);
+        $this->assertContains('tickets.auto_close_window_hours', $keys);
         $this->assertContains('platform.attachments.max_bytes', $keys);
         $this->assertContains('sla.working_hours', $keys);
     }

@@ -58,42 +58,42 @@ final class SettingsRegistryTest extends TestCase
 
     public function test_the_default_is_returned_when_no_row_exists(): void
     {
-        $this->assertSame(168, $this->registry()->get('tickets.auto_close_hours'));
+        $this->assertSame(72, $this->registry()->get('tickets.auto_close_window_hours'));
     }
 
     public function test_a_write_is_visible_to_the_very_next_read(): void
     {
         $registry = $this->registry();
 
-        $registry->set('tickets.auto_close_hours', 24, null);
+        $registry->set('tickets.auto_close_window_hours', 24, null);
 
         // "Takes effect immediately" means THIS request, not the next one — the
         // cache and the per-request memo are both busted synchronously.
-        $this->assertSame(24, $registry->get('tickets.auto_close_hours'));
+        $this->assertSame(24, $registry->get('tickets.auto_close_window_hours'));
     }
 
     public function test_a_write_survives_a_fresh_registry(): void
     {
-        $this->registry()->set('tickets.auto_close_hours', 24, null);
+        $this->registry()->set('tickets.auto_close_window_hours', 24, null);
 
         $this->app->forgetInstance(SettingsRegistry::class);
 
-        $this->assertSame(24, $this->app->make(SettingsRegistry::class)->get('tickets.auto_close_hours'));
+        $this->assertSame(24, $this->app->make(SettingsRegistry::class)->get('tickets.auto_close_window_hours'));
     }
 
     public function test_set_reports_what_changed(): void
     {
-        $result = $this->registry()->set('tickets.auto_close_hours', 24, null);
+        $result = $this->registry()->set('tickets.auto_close_window_hours', 24, null);
 
         // before AND after: an audit entry recording only the new value cannot
         // answer "what did this used to be?".
-        $this->assertSame(['before' => 168, 'after' => 24], $result);
+        $this->assertSame(['before' => 72, 'after' => 24], $result);
     }
 
     public function test_an_invalid_value_is_refused_with_the_reason(): void
     {
         try {
-            $this->registry()->set('tickets.auto_close_hours', 0, null);
+            $this->registry()->set('tickets.auto_close_window_hours', 0, null);
             $this->fail('Expected the write to be refused.');
         } catch (ProblemException $e) {
             $this->assertSame(422, $e->problem->status);
@@ -106,7 +106,7 @@ final class SettingsRegistryTest extends TestCase
     {
         $this->expectException(ProblemException::class);
 
-        $this->registry()->set('tickets.auto_close_hours', 'twenty-four', null);
+        $this->registry()->set('tickets.auto_close_window_hours', 'twenty-four', null);
     }
 
     public function test_an_enum_refuses_a_value_outside_its_list(): void
@@ -119,15 +119,15 @@ final class SettingsRegistryTest extends TestCase
     public function test_a_refused_write_leaves_the_previous_value_intact(): void
     {
         $registry = $this->registry();
-        $registry->set('tickets.auto_close_hours', 24, null);
+        $registry->set('tickets.auto_close_window_hours', 24, null);
 
         try {
-            $registry->set('tickets.auto_close_hours', -5, null);
+            $registry->set('tickets.auto_close_window_hours', -5, null);
         } catch (ProblemException) {
             // expected
         }
 
-        $this->assertSame(24, $registry->get('tickets.auto_close_hours'));
+        $this->assertSame(24, $registry->get('tickets.auto_close_window_hours'));
     }
 
     public function test_a_stored_value_that_no_longer_passes_falls_back_to_the_default(): void
@@ -236,11 +236,9 @@ final class SettingsRegistryTest extends TestCase
             'sla.response_target_seconds.urgent',
             'sla.timezone',
             'sla.working_hours',
-            'tickets.auto_close_hours',
             'tickets.auto_close_window_hours',
             'tickets.quick_replies',
             'tickets.reopen_window_days',
-            'tickets.reopen_window_hours',
         ], $this->registry()->knownKeys());
     }
 

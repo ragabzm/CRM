@@ -14,6 +14,9 @@ import {
 } from "@/components/ui/select";
 import { ApiError } from "@/lib/api/errors";
 import { updateTicketProperties, type Ticket } from "@/lib/api/tickets";
+import { AvatarChip } from "@/components/domain/AvatarChip/AvatarChip";
+import { useFormat } from "@/lib/format/useFormat";
+import { cn } from "@/lib/utils";
 
 export interface TicketPropertyRailProps {
   ticket: Ticket;
@@ -53,6 +56,10 @@ export function TicketPropertyRail({
 }: TicketPropertyRailProps) {
   const t = useTranslations("ticket.propertyRail");
   const conflictCopy = useTranslations("ticket.conflict");
+  const tStatus = useTranslations("tickets.status");
+  const tPriority = useTranslations("tickets.priority");
+  const tChannel = useTranslations("tickets.channel");
+  const format = useFormat();
 
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState(false);
@@ -111,69 +118,173 @@ export function TicketPropertyRail({
 
       {failed && <FormAlert tone="error">{t("error")}</FormAlert>}
 
-      <RailSelect
-        label={t("status")}
-        value={ticket.status}
-        disabled={!editable || saving}
-        options={STATUSES.map((value) => ({ value, label: value }))}
-        onChange={pick("status")}
-      />
-
-      <RailSelect
-        label={t("priority")}
-        value={ticket.priority}
-        disabled={!editable || saving}
-        options={PRIORITIES.map((value) => ({ value, label: value }))}
-        onChange={pick("priority")}
-      />
-
-      <RailSelect
-        label={t("category")}
-        value={ticket.category_id === null ? "" : String(ticket.category_id)}
-        disabled={!editable || saving}
-        options={[
-          { value: "", label: t("none") },
-          ...categories.map((c) => ({ value: String(c.id), label: c.name })),
-        ]}
-        onChange={pick("category_id")}
-      />
-
-      <RailSelect
-        label={t("assignee")}
-        value={ticket.assignee_id === null ? "" : String(ticket.assignee_id)}
-        disabled={!editable || saving}
-        options={[
-          { value: "", label: t("unassigned") },
-          ...assignees.map((a) => ({ value: String(a.id), label: a.name })),
-        ]}
-        onChange={pick("assignee_id")}
-      />
-
-      <RailSelect
-        label={t("department")}
-        value={ticket.department_id === null ? "" : String(ticket.department_id)}
-        disabled={!editable || saving}
-        options={[
-          { value: "", label: t("none") },
-          ...departments.map((d) => ({ value: String(d.id), label: d.name })),
-        ]}
-        onChange={pick("department_id")}
-      />
-
       {/*
-        Read-only, and said so. The service level is DERIVED — from the targets,
-        the working-hours schedule and what has actually happened on the ticket.
-        An agent who could type it could promise the customer something the
-        business never agreed to.
+        FOUR BANDS, not a list of six labelled selects.
+        Grouping by WHAT KIND of thing a property is — what is happening right
+        now, who holds it, how it is filed, where it came from — is what turns
+        the rail from a form into something readable at a glance. The rail is
+        the workspace's signature in the design, and it had become the one
+        thing every screen already has: a column of dropdowns.
       */}
-      <section aria-label={t("sla")} className="flex flex-col gap-1">
-        <h3 className="text-sm font-medium text-fg-default">{t("sla")}</h3>
+      <Band title={t("bands.state")} note={t("bands.stateNote")}>
+        <div className="flex items-stretch gap-0">
+          <div className="flex-none basis-28">
+            <RailSelect
+              label={t("status")}
+              value={ticket.status}
+              disabled={!editable || saving}
+              options={STATUSES.map((value) => ({ value, label: tStatus(value) }))}
+              onChange={pick("status")}
+            />
+          </div>
 
-        <SlaIndicator sla={ticket.sla ?? null} variant="full" />
+          {/*
+            The only vertical hairline in the product. It marks this band as
+            the live one — everything else is separated by horizontal rules.
+          */}
+          <div aria-hidden="true" className="mx-3 w-px flex-none self-stretch bg-border-subtle" />
 
-        <p className="text-xs text-fg-muted">{t("slaReadOnly")}</p>
-      </section>
+          <div className="min-w-0 flex-1">
+            <RailFact label={t("sla")} note={t("slaReadOnly")}>
+              <SlaIndicator sla={ticket.sla ?? null} variant="full" />
+            </RailFact>
+          </div>
+        </div>
+
+        <RailSelect
+          label={t("priority")}
+          value={ticket.priority}
+          disabled={!editable || saving}
+          options={PRIORITIES.map((value) => ({ value, label: tPriority(value) }))}
+          onChange={pick("priority")}
+        />
+      </Band>
+
+      <Band title={t("bands.assignment")}>
+        <RailSelect
+          label={t("assignee")}
+          value={ticket.assignee_id === null ? "" : String(ticket.assignee_id)}
+          disabled={!editable || saving}
+          options={[
+            { value: "", label: t("unassigned") },
+            ...assignees.map((a) => ({ value: String(a.id), label: a.name })),
+          ]}
+          onChange={pick("assignee_id")}
+        >
+          {/* Who, as a face and a name, not only as the selected option. */}
+          <AvatarChip
+            name={assignees.find((a) => a.id === ticket.assignee_id)?.name ?? null}
+            showName
+            unassignedLabel={t("unassigned")}
+          />
+        </RailSelect>
+      </Band>
+
+      <Band title={t("bands.classification")}>
+        <RailSelect
+          label={t("category")}
+          value={ticket.category_id === null ? "" : String(ticket.category_id)}
+          disabled={!editable || saving}
+          options={[
+            { value: "", label: t("none") },
+            ...categories.map((c) => ({ value: String(c.id), label: c.name })),
+          ]}
+          onChange={pick("category_id")}
+        />
+
+        <RailSelect
+          label={t("department")}
+          value={ticket.department_id === null ? "" : String(ticket.department_id)}
+          disabled={!editable || saving}
+          options={[
+            { value: "", label: t("none") },
+            ...departments.map((d) => ({ value: String(d.id), label: d.name })),
+          ]}
+          onChange={pick("department_id")}
+        />
+      </Band>
+
+      <Band title={t("bands.origin")}>
+        {/*
+          Where the edge stops. Everything above can be changed; how a request
+          reached the desk cannot, and the dashed rule says so without a
+          sentence.
+        */}
+        <RailFact label={t("channel")}>
+          <span>{tChannel(ticket.channel)}</span>
+        </RailFact>
+
+        <RailFact label={t("openedAt")}>
+          <time dateTime={ticket.created_at ?? undefined}>
+            {ticket.created_at === null ? "—" : format.dateTime(ticket.created_at)}
+          </time>
+        </RailFact>
+      </Band>
     </section>
+  );
+}
+
+/**
+ * One band of related properties.
+ *
+ * The heading is what makes the grouping legible; without it the rail is the
+ * same six controls in a different order.
+ */
+function Band({
+  title,
+  note,
+  children,
+}: {
+  title: string;
+  note?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      aria-label={title}
+      data-slot="rail-band"
+      className="flex flex-col gap-2 border-b border-border-subtle pb-3 last:border-b-0"
+    >
+      <div className="flex items-baseline gap-2">
+        <h3 className="text-[13px] font-semibold text-fg-muted">{title}</h3>
+        {note !== undefined && <span className="ms-auto text-xs text-fg-subtle">{note}</span>}
+      </div>
+
+      {children}
+    </section>
+  );
+}
+
+/**
+ * THE EDITABLE EDGE.
+ *
+ * A 2px rule down the inside of every property: solid and accent-lit where the
+ * value can be changed, dashed and inert where it cannot. It runs continuously
+ * down the rail and then stops — and where it stops, facts begin.
+ *
+ * This is the clearest idea in the design system and it was in no screen. It
+ * answers "can I change this?" before the agent tries, without a sentence, in
+ * a place where the alternative is discovering the answer by clicking a
+ * disabled control.
+ *
+ * It is a presentation of something already true — a locked row has no control
+ * to focus — so it is `aria-hidden`. A screen reader learns the same fact from
+ * the absence of a form control, which is a better signal than a described
+ * line.
+ */
+function EditableEdge({ editable }: { editable: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      data-slot="editable-edge"
+      data-editable={editable}
+      className={cn(
+        "absolute inset-y-1 start-0 w-0.5 rounded-full",
+        editable
+          ? "bg-border-strong transition-colors group-focus-within:bg-accent-default group-hover:bg-accent-default"
+          : "bg-[repeating-linear-gradient(180deg,var(--border-strong)_0_3px,transparent_3px_6px)]",
+      )}
+    />
   );
 }
 
@@ -183,16 +294,21 @@ function RailSelect({
   options,
   disabled,
   onChange,
+  children,
 }: {
   label: string;
   value: string;
   options: Array<{ value: string; label: string }>;
   disabled: boolean;
   onChange: (value: string) => void;
+  /** Rendered under the control — a face, a chip, whatever reads better. */
+  children?: React.ReactNode;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium text-fg-default">{label}</span>
+    <label className="group relative flex flex-col gap-1 ps-3 text-sm">
+      <EditableEdge editable={!disabled} />
+
+      <span className="text-[13px] text-fg-muted">{label}</span>
 
       <Select value={value} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger aria-label={label}>
@@ -207,6 +323,31 @@ function RailSelect({
           ))}
         </SelectContent>
       </Select>
+
+      {children}
     </label>
+  );
+}
+
+/** A property nobody can change, drawn with the dashed edge. */
+function RailFact({
+  label,
+  note,
+  children,
+}: {
+  label: string;
+  note?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative flex flex-col gap-1 ps-3 text-sm" data-slot="rail-fact">
+      <EditableEdge editable={false} />
+
+      <span className="text-[13px] text-fg-muted">{label}</span>
+
+      <div className="text-fg-default">{children}</div>
+
+      {note !== undefined && <p className="text-xs text-fg-subtle">{note}</p>}
+    </div>
   );
 }

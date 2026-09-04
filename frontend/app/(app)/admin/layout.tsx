@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
+import { AdminContextLine } from "@/components/screens/admin/AdminContextLine";
 import { SectionIndex } from "@/components/screens/admin/SectionIndex";
 
 /**
@@ -17,7 +18,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   return (
     <>
       <div className="flex flex-col gap-6">
-        <h1 className="text-xl font-semibold text-fg-default">{t("title")}</h1>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-xl font-semibold text-fg-default">{t("title")}</h1>
+          <AdminContextLine />
+        </div>
 
         <div className="grid gap-8 tablet:grid-cols-[13rem_1fr]">
           <SectionIndex />

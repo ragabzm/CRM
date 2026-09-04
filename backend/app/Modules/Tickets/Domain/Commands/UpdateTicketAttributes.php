@@ -257,6 +257,13 @@ final class UpdateTicketAttributes
             (string) $ticket->getKey(),
             [$attribute => $before[$attribute] ?? null],
             [$attribute => $after[$attribute] ?? null],
+            /*
+             * The name, which this command has and the audit log had no way to
+             * receive. Without it the writer fell back to `user 3` — and a
+             * command running outside a request (the sweep, a seeder, the
+             * reply listener) has no request context to recover it from.
+             */
+            $actor->label(),
         );
     }
 }

@@ -86,7 +86,13 @@ export function NotificationBell({ items, unreadCount, onOpenTicket }: Notificat
               : t("actions.openNotifications")
           }
           data-testid="notification-bell"
-          className="relative"
+          /*
+           * `text-fg-default`, not the ghost variant's muted foreground. At
+           * the muted weight the bell was very nearly invisible on the white
+           * bar — an affordance nobody could find, next to a badge that only
+           * appears when there is something to find.
+           */
+          className="relative text-fg-default"
         >
           <Bell aria-hidden="true" />
 

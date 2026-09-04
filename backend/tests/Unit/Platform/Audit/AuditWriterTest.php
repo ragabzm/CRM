@@ -168,7 +168,7 @@ final class AuditWriterTest extends TestCase
 
     public function test_the_narrow_seam_writes_a_complete_row(): void
     {
-        $this->writer()->write(41, AuditAction::ConfigChanged->value, 'setting', 'tickets.auto_close_hours', ['value' => 168], ['value' => 24]);
+        $this->writer()->write(41, AuditAction::ConfigChanged->value, 'setting', 'tickets.auto_close_window_hours', ['value' => 168], ['value' => 24]);
 
         $entry = $this->lastEntry();
 
@@ -176,7 +176,7 @@ final class AuditWriterTest extends TestCase
         // row that the console then renders with blanks.
         $this->assertSame('config.changed', $entry->action);
         $this->assertSame('setting', $entry->target_type);
-        $this->assertSame('tickets.auto_close_hours', $entry->target_id);
+        $this->assertSame('tickets.auto_close_window_hours', $entry->target_id);
         $this->assertSame('user', $entry->actor_type);
         $this->assertSame('41', $entry->actor_id);
     }

@@ -45,7 +45,21 @@ export function SlaIndicator({ sla, variant = "compact" }: SlaIndicatorProps) {
   }
 
   if (variant === "compact") {
-    return <Badge state={sla.state} timer={worseOf(sla)} t={t} format={format} />;
+    const timer = worseOf(sla);
+
+    return (
+      <span data-slot="sla-cell" className="flex w-full flex-col items-end gap-1">
+        <Badge state={sla.state} timer={timer} t={t} format={format} />
+
+        {/*
+          Not on a finished clock. A bar under "Met" would invite the reader to
+          measure something that has stopped moving.
+        */}
+        {(sla.state === "on_track" || sla.state === "at_risk" || sla.state === "breached") && (
+          <Meter state={sla.state} timer={timer} />
+        )}
+      </span>
+    );
   }
 
   return (
@@ -63,12 +77,73 @@ export function SlaIndicator({ sla, variant = "compact" }: SlaIndicatorProps) {
  * state that asks nothing of the reader.
  */
 const TREATMENT: Record<SlaStateValue, string> = {
-  on_track: "text-fg-muted",
-  at_risk: "font-semibold text-state-warning",
-  breached: "font-semibold text-state-danger",
-  met: "text-state-success",
-  paused: "italic text-fg-muted",
+  /*
+   * From `clock-*` — the semantic alias for the palette `tokens.css` labels
+   * "The traffic light. Reserved for SLA."
+   *
+   * This used to read `text-state-warning` / `text-state-danger`: the generic
+   * feedback colours, borrowed because the SLA palette had no alias and no
+   * component could legally name it. So the traffic light stayed reserved for
+   * something that never arrived, while the one component it was built for
+   * used the colours meant for form errors.
+   */
+  on_track: "text-clock-on-track",
+  at_risk: "font-semibold text-clock-at-risk",
+  breached: "font-semibold text-clock-breached",
+  met: "text-clock-met",
+  paused: "italic text-clock-paused",
 };
+
+/** The filled part of the meter, per state. */
+const BAR: Record<SlaStateValue, string> = {
+  on_track: "bg-clock-on-track",
+  at_risk: "bg-clock-at-risk",
+  breached: "bg-clock-breached",
+  met: "bg-clock-met",
+  paused: "bg-clock-paused",
+};
+
+/**
+ * How much of the target has gone, 0-100.
+ *
+ * Capped at 100 so a breached ticket draws a full bar rather than one that
+ * overflows its own track — "how far past" is what the countdown says in
+ * words, and a bar cannot express it anyway.
+ */
+function elapsedPercent(timer: SlaTimer): number {
+  if (timer.target_minutes <= 0) return 0;
+
+  return Math.min(
+    100,
+    Math.max(0, Math.round((timer.elapsed_minutes / timer.target_minutes) * 100)),
+  );
+}
+
+/**
+ * The progress bar the design has always specified.
+ *
+ * `--color-sla-track` sat in the token file from the first commit with the
+ * comment saying what it was for, and nothing drew a bar. A time remaining
+ * with no bar makes an agent do the arithmetic — "is 40 minutes of a 4 hour
+ * target a lot?" — that the bar answers instantly.
+ *
+ * Decorative: the state and the countdown next to it already say everything
+ * this shows, so announcing it again would be noise.
+ */
+function Meter({ state, timer }: { state: SlaStateValue; timer: SlaTimer }) {
+  return (
+    <span
+      aria-hidden="true"
+      data-slot="sla-meter"
+      className="block h-1 w-full overflow-hidden rounded-full bg-clock-track"
+    >
+      <span
+        className={cn("block h-full rounded-full", BAR[state])}
+        style={{ width: `${elapsedPercent(timer)}%` }}
+      />
+    </span>
+  );
+}
 
 function Badge({
   state,
@@ -96,8 +171,8 @@ function Badge({
       {(state === "on_track" || state === "at_risk" || state === "breached") && (
         <span className="num" dir="ltr">
           {timer.remaining_minutes >= 0
-            ? t("remaining", { minutes: format.number(timer.remaining_minutes) })
-            : t("over", { minutes: format.number(Math.abs(timer.remaining_minutes)) })}
+            ? t("remaining", { duration: durationOf(timer.remaining_minutes, format) })
+            : t("over", { duration: durationOf(Math.abs(timer.remaining_minutes), format) })}
         </span>
       )}
     </span>
@@ -116,13 +191,70 @@ function Row({
   format: ReturnType<typeof useFormat>;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-fg-muted">{label}</dt>
-      <dd>
-        <Badge state={timer.state} timer={timer} t={t} format={format} />
-      </dd>
+    <div className="flex flex-col gap-1">
+      <div className="flex items-baseline justify-between gap-3">
+        <dt className="text-fg-muted">{label}</dt>
+        <dd>
+          <Badge state={timer.state} timer={timer} t={t} format={format} />
+        </dd>
+      </div>
+
+      {(timer.state === "on_track" || timer.state === "at_risk" || timer.state === "breached") && (
+        <>
+          <Meter state={timer.state} timer={timer} />
+
+          {/*
+            The two facts the API has sent since Story 5.3 and nothing showed:
+            how much of the target has gone, and when it runs out. "At risk"
+            without either is a colour with no argument behind it.
+          */}
+          <p className="flex flex-wrap gap-x-2 text-xs text-fg-muted">
+            <span className="num" dir="ltr">
+              {t("elapsedPercent", { percent: format.number(elapsedPercent(timer)) })}
+            </span>
+            {timer.due_at !== null && (
+              <span>{t("dueAt", { at: format.dateTime(timer.due_at) })}</span>
+            )}
+          </p>
+        </>
+      )}
     </div>
   );
+}
+
+/**
+ * A span of time somebody can read at a glance.
+ *
+ * This used to print raw minutes, so a ticket two weeks past its target read
+ * "20,880 min over" — a number nobody can convert while scanning a queue, on
+ * the badge that exists precisely to be scanned. Two units at most: the third
+ * adds precision nobody is acting on.
+ *
+ * Working days and hours, not calendar ones. The engine counts in working
+ * time, so dividing by 24 would promise a deadline the schedule does not.
+ */
+function durationOf(minutes: number, format: ReturnType<typeof useFormat>): string {
+  const WORKING_DAY = 8 * 60;
+
+  if (minutes >= WORKING_DAY) {
+    const days = Math.floor(minutes / WORKING_DAY);
+    const hours = Math.floor((minutes % WORKING_DAY) / 60);
+
+    return hours === 0
+      ? `${format.number(days)}d`
+      : `${format.number(days)}d ${format.number(hours)}h`;
+  }
+
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+
+    return rest === 0
+      ? `${format.number(hours)}h`
+      : `${format.number(hours)}h ${format.number(rest)}m`;
+  }
+
+  return `${format.number(minutes)}m`;
 }
 
 /** The timer the headline badge is about — the worse of the two. */

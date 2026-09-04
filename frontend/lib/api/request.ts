@@ -1,5 +1,6 @@
 "use client";
 
+import { DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/i18n/locale";
 import { SESSION_EXPIRED_CODES, SESSION_EXPIRED_EVENT, isProblem } from "./client";
 import { ApiError, TicketRefusedError, TicketStaleVersionError } from "./errors";
 import { ulid } from "./ulid";
@@ -95,6 +96,21 @@ function announceIfSessionEnded(status: number, problem: { code?: string } | nul
   window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
 }
 
+/**
+ * The locale this browser is showing, from the cookie the switcher writes.
+ *
+ * Read at call time rather than captured once: the switcher changes the cookie
+ * and refreshes, and a value bound at module load would keep sending the old
+ * one until a full reload.
+ */
+function currentLocale(): string {
+  if (typeof document === "undefined") return DEFAULT_LOCALE;
+
+  const match = document.cookie.match(new RegExp(`(?:^|; )${LOCALE_COOKIE}=([^;]*)`));
+
+  return match?.[1] ?? DEFAULT_LOCALE;
+}
+
 /** One JSON call against the API, with the cookie plumbing every request needs. */
 export async function request<T>(path: string, init: RequestInitWithFetch = {}): Promise<T> {
   const { fetchImpl = fetch, idempotencyKey, ...rest } = init;
@@ -107,6 +123,16 @@ export async function request<T>(path: string, init: RequestInitWithFetch = {}):
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
+      /*
+       * The language the person is READING, on every call.
+       *
+       * Some of what the API returns is prose the server has to choose the
+       * wording of — a category's name, most visibly. Without this the server
+       * fell back to the account's stored `preferred_locale`, so switching the
+       * interface to Arabic left those strings in English: a ticket list with
+       * Arabic headers, Arabic statuses, and an English category beside them.
+       */
+      "Accept-Language": currentLocale(),
       ...(token ? { "X-XSRF-TOKEN": token } : {}),
       // Every write, without the caller having to remember. The server rejects
       // a write that arrives without one.

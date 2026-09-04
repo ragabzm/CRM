@@ -26,19 +26,32 @@
   },
   "home": {
     "title": "Home",
-    "placeholder": "Your assigned work will appear here.",
     "counts": {
       "assignedToMe": "Assigned to me",
       "unassigned": "Unassigned",
       "atRisk": "At risk",
       "breached": "Breached",
       "pendingCustomerReply": "Waiting on the customer",
-      "notKnownHint": "Not tracked yet"
+      "notKnownHint": "Not tracked yet",
+      "loading": "Counting…"
     },
     "queue": {
       "title": "Your queue",
       "empty": "Nothing is waiting on you",
-      "emptyBody": "Unassigned tickets are one click away."
+      "emptyBody": "Unassigned tickets are one click away.",
+      "ordering": "Ordered by SLA urgency, then priority, then age.",
+      "groups": {
+        "breached": "Breached — act now",
+        "atRisk": "At risk",
+        "waiting": "Waiting on the customer",
+        "rest": "Everything else"
+      },
+      "groupNotes": {
+        "breached": "the target has already passed",
+        "atRisk": "the target is close",
+        "waiting": "the clock is stopped",
+        "rest": "on track"
+      }
     }
   },
   "errors": {
@@ -155,14 +168,41 @@
       "minutes": "minutes",
       "hours": "hours",
       "days": "days",
-      "genericError": "That value was not accepted."
+      "genericError": "That value was not accepted.",
+      "minutesSuffix": "(minutes)",
+      "minutesReading": "= {hours} working hours."
     },
     "organisation": {
       "departments": "Departments",
       "departmentsBody": "Departments group agents so a ticket can be routed to a team rather than a person.",
       "users": "Users",
       "usersBody": "Staff accounts and the role each one holds.",
-      "screensPending": "Managed through the API today. The screen arrives with the users story."
+      "columns": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "department": "Department",
+        "state": "State"
+      },
+      "roles": {
+        "administrator": "Administrator",
+        "supervisor": "Supervisor",
+        "agent": "Agent"
+      },
+      "active": "Active",
+      "inactive": "Deactivated",
+      "deactivate": "Deactivate",
+      "reactivate": "Reactivate",
+      "addUser": "Add a colleague",
+      "cancel": "Cancel",
+      "newDepartment": "New department",
+      "noDepartment": "No department",
+      "loading": "Loading…",
+      "loadError": "Could not load staff and departments.",
+      "saveError": "That could not be saved.",
+      "retry": "Try again",
+      "passwordNote": "No password is set here. The account is created without one and the person chooses their own through the \"forgot password\" link.",
+      "addDepartment": "Add department"
     },
     "ticketing": {
       "categories": "Categories",
@@ -182,7 +222,9 @@
       "quickReplies": "Quick replies",
       "quickRepliesHint": "Shared saved text agents can insert into a reply. Plain text — no variables.",
       "priorities": "Priorities",
-      "prioritiesFixed": "Priorities are fixed at Low · Normal · High · Urgent and are not editable here."
+      "prioritiesFixed": "Priorities are fixed at Low · Normal · High · Urgent and are not editable here.",
+      "autoClose": "Auto-close after (hours)",
+      "reopenWindow": "Reopen window (days)"
     },
     "quickReply": {
       "add": "Add quick reply",
@@ -205,7 +247,7 @@
     },
     "serviceLevels": {
       "targets": "Response and resolution targets",
-      "targetsHint": "Measured in working hours, per priority.",
+      "targetsHint": "In minutes of working time, per priority. Weekends, holidays and the hours outside the working day do not count.",
       "priority": "Priority",
       "response": "First response",
       "resolution": "Resolution",
@@ -216,7 +258,7 @@
       "holidaysHint": "One date per line, as YYYY-MM-DD.",
       "atRisk": "At-risk threshold",
       "atRiskHint": "A ticket is flagged before it breaches, at this share of its target.",
-      "notYetEnforced": "These targets are recorded now and start being enforced in a later story."
+      "preview": "From now, that is {due} ({timezone})."
     },
     "email": {
       "mailbox": "Mailbox",
@@ -305,7 +347,8 @@
     "blocked": {
       "cannotDelete": "Cannot delete: {count} tickets still use it.",
       "viewThem": "View them"
-    }
+    },
+    "context": "{people} people · {departments} departments"
   },
   "audit": {
     "title": "Audit log",
@@ -501,11 +544,6 @@
     }
   },
   "tickets": {
-    "staleVersion": {
-      "message": "This ticket was changed by someone else.",
-      "detail": "Reload to see the current version before saving your change.",
-      "reload": "Reload"
-    },
     "new": {
       "title": "New ticket",
       "subject": "Subject",
@@ -524,7 +562,8 @@
       "subjectRequired": "Give the ticket a subject.",
       "descriptionRequired": "Describe what happened.",
       "customerRequired": "Choose a customer.",
-      "error": "The ticket could not be created."
+      "error": "The ticket could not be created.",
+      "referenceError": "Some options could not be loaded. Reload the page before submitting, or the ticket may be filed without a category or department."
     },
     "priority": {
       "low": "Low",
@@ -575,7 +614,10 @@
       "assignee": "Assignee",
       "department": "Department",
       "any": "Any",
-      "unassigned": "Unassigned"
+      "unassigned": "Unassigned",
+      "category": "Category",
+      "sla": "Service level",
+      "clear": "Remove this filter"
     },
     "empty": {
       "title": "No tickets match these filters",
@@ -599,11 +641,25 @@
         "paused": "Paused"
       },
       "notTracked": "Not tracked",
-      "remaining": "{minutes} min left",
-      "over": "{minutes} min over",
+      "remaining": "{duration} left",
+      "over": "{duration} over",
       "pausedHint": "Waiting on the customer — the clock is stopped.",
       "response": "First reply",
-      "resolution": "Resolution"
+      "resolution": "Resolution",
+      "elapsedPercent": "{percent}% elapsed",
+      "dueAt": "due {at}"
+    },
+    "loading": "Loading tickets…",
+    "channel": {
+      "agent": "By phone",
+      "portal": "Portal",
+      "email": "Email",
+      "system": "Automatic"
+    },
+    "pager": {
+      "showing": "Showing {from}–{to} of {total}",
+      "previous": "Previous",
+      "next": "Next"
     }
   },
   "timeline": {
@@ -700,7 +756,16 @@
       "slaReadOnly": "Set by policy",
       "readOnly": "You can read this ticket but not change it.",
       "saving": "Saving…",
-      "error": "That change could not be saved."
+      "error": "That change could not be saved.",
+      "bands": {
+        "state": "Live state",
+        "stateNote": "changes without you",
+        "assignment": "Assigned to",
+        "classification": "Classification",
+        "origin": "Origin"
+      },
+      "channel": "Arrived by",
+      "openedAt": "Opened"
     },
     "conflict": {
       "title": "This ticket was changed by someone else",
@@ -716,7 +781,15 @@
       "never": "No messages yet",
       "openRecord": "Open full customer record"
     },
-    "loading": "Loading the ticket…"
+    "loading": "Loading the ticket…",
+    "actions": {
+      "resolve": "Resolve",
+      "reopen": "Reopen",
+      "cancel": "Cancel",
+      "resolutionNote": "What fixed it",
+      "resolutionNoteHint": "The sentence the next person reads if the customer writes back.",
+      "failed": "That could not be saved."
+    }
   },
   "portal": {
     "brand": "Support",

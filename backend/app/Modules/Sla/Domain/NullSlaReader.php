@@ -24,4 +24,27 @@ final class NullSlaReader implements SlaReader
     {
         return [];
     }
+
+    /**
+     * @param  list<string>  $ticketIds
+     * @return array{at_risk: null, breached: null}
+     */
+    public function countsAmong(array $ticketIds): array
+    {
+        // Null, not zero. See the class note.
+        return ['at_risk' => null, 'breached' => null];
+    }
+
+    /**
+     * @param  list<string>  $ticketIds
+     */
+    public function idsInState(string $state, array $ticketIds): ?array
+    {
+        /*
+         * Null and not `[]`: an empty array would mean "no ticket is at risk"
+         * and filter the list down to nothing, which reads as an answer. The
+         * caller must skip the filter entirely instead.
+         */
+        return null;
+    }
 }

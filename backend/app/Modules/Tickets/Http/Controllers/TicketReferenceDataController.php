@@ -8,7 +8,6 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Tickets\Domain\Category;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 /**
  * The two lists the ticket workspace needs to render its selects.
@@ -34,7 +33,7 @@ final class TicketReferenceDataController extends Controller
     /**
      * @response array{data: list<array{id:int,name:string}>}
      */
-    public function categories(Request $request): JsonResponse
+    public function categories(): JsonResponse
     {
         /*
          * One name, already in the reader's language. The admin endpoint
@@ -42,7 +41,7 @@ final class TicketReferenceDataController extends Controller
          * select is not, and handing it both would make every caller decide
          * which to show — with English as the accident when they forgot.
          */
-        $column = $request->user()?->preferredLocale() === 'ar' ? 'name_ar' : 'name_en';
+        $column = app()->getLocale() === 'ar' ? 'name_ar' : 'name_en';
 
         $categories = Category::query()
             ->orderBy('sort_order')
