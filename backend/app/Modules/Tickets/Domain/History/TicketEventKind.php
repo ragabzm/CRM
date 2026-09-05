@@ -56,6 +56,26 @@ enum TicketEventKind: string
     case SlaBreached = 'ticket.sla_breached';
 
     /**
+     * Somebody said this ticket is going wrong — or a missed target said it.
+     *
+     * Its own kind rather than a status change, because escalation is not a
+     * status: the ticket keeps whichever of Open · Pending · Resolved · Closed
+     * it had. A reader filtering history for "what happened to this" needs to
+     * see the escalation as its own fact, next to the status changes rather
+     * than inside them.
+     */
+    case Escalated = 'ticket.escalated';
+
+    /**
+     * The customer said whether it went well.
+     *
+     * Its own kind, and recorded like every other event — with the actor being
+     * the CUSTOMER, which is unusual enough on this ticket's history to be
+     * worth seeing as its own line rather than folded into a status change.
+     */
+    case Rated = 'ticket.rated';
+
+    /**
      * Whether this kind is written by a path that exists today.
      *
      * Used by the architecture test that would otherwise have no way to tell a

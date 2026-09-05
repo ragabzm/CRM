@@ -9,6 +9,12 @@ export interface SubmitButtonProps {
   /** Shown while the request is in flight; also disables the control. */
   pending?: boolean;
   pendingLabel?: ReactNode;
+  /**
+   * Held closed for a reason the form can already see — an empty required
+   * field, most often. Separate from `pending`, which is about a request in
+   * flight, because the two are cleared by different things.
+   */
+  disabled?: boolean;
   variant?: "primary" | "secondary";
   className?: string;
 }
@@ -24,6 +30,7 @@ export function SubmitButton({
   children,
   pending = false,
   pendingLabel,
+  disabled = false,
   variant = "primary",
   className,
 }: SubmitButtonProps) {
@@ -31,7 +38,7 @@ export function SubmitButton({
     <Button
       type="submit"
       variant={variant}
-      disabled={pending}
+      disabled={pending || disabled}
       aria-busy={pending || undefined}
       {...(className ? { className } : {})}
     >

@@ -26,7 +26,6 @@ final class StoreCustomerRequest extends FormRequest
             'full_name' => ['required', 'string', 'min:1', 'max:200'],
             'department_id' => ['required', 'integer', Rule::exists('departments', 'id')],
             'preferred_channel' => ['nullable', Rule::in(ContactKind::values())],
-            'notes' => ['nullable', 'string', 'max:10000'],
 
             /*
              * At least one way to reach them. A customer record with no contact

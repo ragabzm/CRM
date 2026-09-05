@@ -50,6 +50,20 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
+    volumes:
+      # SHARED. The web process receives an upload and writes the bytes into
+      # `quarantine/`; the WORKER scans it and moves it to `clean/`. Without a
+      # shared mount each container has its own copy of the directory from its
+      # own image layer, so the worker looked for a file that only ever existed
+      # in the web container and failed with:
+      #
+      #   UnableToMoveFile: quarantine/<id> to clean/<id>, because unknown reason
+      #
+      # It retried five times and gave up, leaving every uploaded attachment
+      # `pending` — quarantined, and by design undownloadable — for ever. The
+      # seeded attachments were fine only because the seeder runs the scan
+      # inline, inside the same container that wrote the file.
+      - attachments:/app/storage/app/attachments
 
   backend-worker:
     build: ./backend
@@ -62,6 +76,20 @@ services:
       # racing it to create the jobs table.
       backend-web:
         condition: service_started
+    volumes:
+      # SHARED. The web process receives an upload and writes the bytes into
+      # `quarantine/`; the WORKER scans it and moves it to `clean/`. Without a
+      # shared mount each container has its own copy of the directory from its
+      # own image layer, so the worker looked for a file that only ever existed
+      # in the web container and failed with:
+      #
+      #   UnableToMoveFile: quarantine/<id> to clean/<id>, because unknown reason
+      #
+      # It retried five times and gave up, leaving every uploaded attachment
+      # `pending` — quarantined, and by design undownloadable — for ever. The
+      # seeded attachments were fine only because the seeder runs the scan
+      # inline, inside the same container that wrote the file.
+      - attachments:/app/storage/app/attachments
 
   backend-scheduler:
     build: ./backend
@@ -72,6 +100,20 @@ services:
         condition: service_healthy
       backend-web:
         condition: service_started
+    volumes:
+      # SHARED. The web process receives an upload and writes the bytes into
+      # `quarantine/`; the WORKER scans it and moves it to `clean/`. Without a
+      # shared mount each container has its own copy of the directory from its
+      # own image layer, so the worker looked for a file that only ever existed
+      # in the web container and failed with:
+      #
+      #   UnableToMoveFile: quarantine/<id> to clean/<id>, because unknown reason
+      #
+      # It retried five times and gave up, leaving every uploaded attachment
+      # `pending` — quarantined, and by design undownloadable — for ever. The
+      # seeded attachments were fine only because the seeder runs the scan
+      # inline, inside the same container that wrote the file.
+      - attachments:/app/storage/app/attachments
 
   frontend:
     build: ./frontend
@@ -89,3 +131,6 @@ services:
 
 volumes:
   pgdata: {}
+  # Every backend process must see the same attachment bytes. See the mount
+  # comment on backend-web.
+  attachments: {}

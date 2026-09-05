@@ -13,6 +13,7 @@ use App\Modules\Tickets\Domain\Events\AgentReplyPosted;
 use App\Modules\Tickets\Domain\Events\CustomerReplyPosted;
 use App\Modules\Tickets\Domain\History\TicketEventKind;
 use App\Modules\Tickets\Domain\History\TicketEventRecorder;
+use App\Modules\Tickets\Domain\Personal\MentionRecorder;
 use App\Modules\Tickets\Domain\Ticket;
 use App\Modules\Tickets\Domain\TicketMessage;
 use Illuminate\Database\ConnectionInterface;
@@ -41,6 +42,7 @@ final class AppendMessage
     public function __construct(
         private readonly ConnectionInterface $db,
         private readonly TicketEventRecorder $history,
+        private readonly MentionRecorder $mentions,
     ) {}
 
     /**
@@ -63,7 +65,9 @@ final class AppendMessage
             );
         }
 
-        $message = $this->db->transaction(function () use ($actor, $ticketId, $direction, $body, $attachmentIds): TicketMessage {
+        $mentioned = [];
+
+        $message = $this->db->transaction(function () use ($actor, $ticketId, $direction, $body, $attachmentIds, &$mentioned): TicketMessage {
             // Read, not locked: nothing here contends with anything.
             $ticket = Ticket::query()->whereKey($ticketId)->first();
 
@@ -126,6 +130,27 @@ final class AppendMessage
                 versionAfter: $ticket->version,
             );
 
+            /*
+             * Mentions, inside the note's own transaction.
+             *
+             * INTERNAL ONLY. An `@name` in a reply to a customer is text the
+             * customer reads, not a way to pull a colleague in — and notifying
+             * on it would leak a colleague's name into a thread and tell them
+             * about a conversation they were never part of.
+             *
+             * Resolved from the body being stored, never from a list the
+             * client sent: that list is a field anybody can edit into a
+             * notification about a note that named somebody else.
+             */
+            if ($direction === MessageDirection::Internal) {
+                $mentioned = $this->mentions->record(
+                    (string) $message->getKey(),
+                    (string) $ticket->getKey(),
+                    $body,
+                    $actor->id(),
+                );
+            }
+
             if ($attachmentIds !== []) {
                 $this->history->record(
                     (string) $ticket->getKey(),
@@ -157,6 +182,15 @@ final class AppendMessage
         if ($direction === MessageDirection::Outbound) {
             Event::dispatch(new AgentReplyPosted($ticketId, (string) $message->getKey()));
         }
+
+        // After the transaction: the note is written whether or not anybody
+        // could be told about it.
+        $this->mentions->notify(
+            $mentioned,
+            $ticketId,
+            (string) $message->getKey(),
+            $actor->label(),
+        );
 
         if ($direction === MessageDirection::Inbound) {
             /*

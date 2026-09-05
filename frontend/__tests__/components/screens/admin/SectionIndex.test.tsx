@@ -17,10 +17,11 @@ describe("SectionIndex lists the configuration sections", () => {
 
     const links = screen.getAllByRole("link");
 
-    // Six, not "everything the product will eventually configure". An index
+    // Every registered section, not "everything the product will eventually
+    // configure". An index
     // listing destinations that do not exist teaches the reader that half the
     // navigation is decorative.
-    expect(links).toHaveLength(6);
+    expect(links).toHaveLength(ADMIN_SECTIONS.length);
     expect(links.map((link) => link.getAttribute("href"))).toEqual(
       ADMIN_SECTIONS.map((section) => SECTION_PATHS[section]),
     );
@@ -30,7 +31,13 @@ describe("SectionIndex lists the configuration sections", () => {
     pathname.current = "/admin/ticketing";
     render(<SectionIndex />);
 
-    for (const absent of [/knowledge/i, /integration/i, /portal/i, /\bAI\b/]) {
+    /*
+     * `knowledge` LEFT this list in Story 8.1, when the knowledge base was
+     * built. Everything still here is a destination that does not exist, and
+     * an index listing those teaches the reader that half the navigation is
+     * decorative.
+     */
+    for (const absent of [/integration/i, /portal/i, /\bAI\b/]) {
       expect(screen.queryByRole("link", { name: absent })).toBeNull();
     }
   });

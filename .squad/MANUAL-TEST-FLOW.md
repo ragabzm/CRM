@@ -80,9 +80,6 @@ docker compose exec backend-web php artisan db:counts
 - **الموظفين:** `http://localhost:3000/sign-in`
 - **العملاء:** `http://localhost:3000/portal/sign-in`
 
-⚠️ Chrome بيملالك صفحة `/sign-in` أوتوماتيك بـ `admin@pharmacy.local` — **دي
-بيانات مشروع تاني**. امسح الحقول قبل ما تكتب.
-
 **`admin@ragab.test` هو الوحيد اللي بيشوف قسم Administration.**
 
 ---

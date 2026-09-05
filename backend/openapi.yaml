@@ -86,6 +86,1438 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /admin/knowledge/categories:
+    get:
+      operationId: admin.knowledge.categories.index
+      tags:
+        - ArticleCategories
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: object
+                          properties:
+                            en:
+                              type: string
+                            ar:
+                              type: string
+                          required:
+                            - en
+                            - ar
+                        sort_order:
+                          type: integer
+                        article_count:
+                          type: integer
+                      required:
+                        - id
+                        - name
+                        - sort_order
+                        - article_count
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      operationId: admin.knowledge.categories.store
+      tags:
+        - ArticleCategories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: object
+                  properties:
+                    en:
+                      type: string
+                      description: "No `parent` rule, because there is no parent. Flat by\nconstruction — see the migration."
+                      minLength: 1.0
+                      maxLength: 120.0
+                    ar:
+                      type: string
+                      minLength: 1.0
+                      maxLength: 120.0
+                  required:
+                    - en
+                    - ar
+              required:
+                - name
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: object
+                    properties:
+                      en:
+                        type: string
+                      ar:
+                        type: string
+                    required:
+                      - en
+                      - ar
+                  sort_order:
+                    type: integer
+                  article_count:
+                    type: integer
+                required:
+                  - id
+                  - name
+                  - sort_order
+                  - article_count
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  '/admin/knowledge/categories/{category}':
+    patch:
+      operationId: admin.knowledge.categories.update
+      tags:
+        - ArticleCategories
+      parameters:
+        -
+          name: category
+          in: path
+          required: true
+          description: 'The category ID'
+          schema:
+            type: integer
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: object
+                  properties:
+                    en:
+                      type: string
+                      description: "No `parent` rule, because there is no parent. Flat by\nconstruction — see the migration."
+                      minLength: 1.0
+                      maxLength: 120.0
+                    ar:
+                      type: string
+                      minLength: 1.0
+                      maxLength: 120.0
+                  required:
+                    - en
+                    - ar
+              required:
+                - name
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: object
+                    properties:
+                      en:
+                        type: string
+                      ar:
+                        type: string
+                    required:
+                      - en
+                      - ar
+                  sort_order:
+                    type: integer
+                  article_count:
+                    type: integer
+                    minimum: 0
+                required:
+                  - id
+                  - name
+                  - sort_order
+                  - article_count
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    delete:
+      operationId: admin.knowledge.categories.destroy
+      description: "Every article belongs to exactly one category, so deleting an occupied\none has no correct outcome: the articles cannot be left pointing at\nnothing, and moving them somewhere the administrator did not choose is a\ndecision this endpoint has no business making."
+      summary: 'Delete — refused while articles still sit in it'
+      tags:
+        - ArticleCategories
+      parameters:
+        -
+          name: category
+          in: path
+          required: true
+          description: 'The category ID'
+          schema:
+            type: integer
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: integer
+                required:
+                  - deleted
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/admin/knowledge/articles/{article}/publish':
+    post:
+      operationId: admin.knowledge.articles.publish
+      summary: 'Draft or Archived → Published'
+      tags:
+        - ArticleLifecycle
+      parameters:
+        -
+          name: article
+          in: path
+          required: true
+          description: 'The article ID'
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/admin/knowledge/articles/{article}/archive':
+    post:
+      operationId: admin.knowledge.articles.archive
+      summary: 'Published → Archived'
+      tags:
+        - ArticleLifecycle
+      parameters:
+        -
+          name: article
+          in: path
+          required: true
+          description: 'The article ID'
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /knowledge/search:
+    get:
+      operationId: knowledge.search
+      tags:
+        - ArticleSearch
+      parameters:
+        -
+          name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 200.0
+        -
+          name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1.0
+            maximum: 50.0
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: {}
+                required:
+                  - data
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/admin/knowledge/articles/{article}/translations/{locale}':
+    put:
+      operationId: admin.knowledge.articles.translations.upsert
+      tags:
+        - ArticleTranslations
+      parameters:
+        -
+          name: article
+          in: path
+          required: true
+          description: 'The article ID'
+          schema:
+            type: string
+        -
+          name: locale
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertArticleTranslationRequest'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    delete:
+      operationId: admin.knowledge.articles.translations.destroy
+      description: "Refused for the article's default language while others exist, because\nthe default is the fallback every reader lands on when theirs is\nmissing. Removing it turns \"we do not have your language\" into a blank\npage."
+      summary: 'Removes one language version'
+      tags:
+        - ArticleTranslations
+      parameters:
+        -
+          name: article
+          in: path
+          required: true
+          description: 'The article ID'
+          schema:
+            type: string
+        -
+          name: locale
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  type:
+                    type: string
+                  category_id:
+                    type: integer
+                  internal_only:
+                    type: boolean
+                  status:
+                    type: string
+                  default_locale:
+                    type: string
+                  available_locales:
+                    type: array
+                    description: "Which languages exist, so a list can show an availability chip\nwithout fetching every body. An article that exists only in\nArabic is complete, not half-finished, and the chip is what says\nso."
+                    items: {}
+                  title:
+                    type:
+                      - string
+                      - 'null'
+                    description: "The title, in whichever language the reader would be served. On the LIST too, not only on the record. An article list showing\nidentifiers is a list nobody can find anything in — and the\nidentifier is the one thing about an article that means nothing\nto the person reading it."
+                  is_customer_visible:
+                    type: boolean
+                    description: "Never inferred by the caller from `status` and `internal_only`.\nBoth conditions, in one place — see `Article::isCustomerVisible`."
+                  can_delete:
+                    type: boolean
+                    description: "The interface offers Delete or Archive based on this, and the\nserver refuses on the same rule. Two answers computed once."
+                  has_been_published:
+                    type: boolean
+                  published_at:
+                    type:
+                      - string
+                      - 'null'
+                  published_by:
+                    type:
+                      - string
+                      - 'null'
+                  archived_at:
+                    type:
+                      - string
+                      - 'null'
+                  archived_by:
+                    type:
+                      - string
+                      - 'null'
+                  created_at:
+                    type:
+                      - string
+                      - 'null'
+                  updated_at:
+                    type:
+                      - string
+                      - 'null'
+                  '':
+                    anyOf:
+                      -
+                        type: array
+                        items:
+                          type: string
+                        minItems: 0
+                        maxItems: 0
+                        additionalItems: false
+                      -
+                        type: object
+                        properties:
+                          served_locale:
+                            type: 'null'
+                          title:
+                            type:
+                              - string
+                              - 'null'
+                          body:
+                            type:
+                              - string
+                              - 'null'
+                          translations:
+                            type: array
+                            items: {}
+                        required:
+                          - served_locale
+                          - title
+                          - body
+                          - translations
+                required:
+                  - id
+                  - type
+                  - category_id
+                  - internal_only
+                  - status
+                  - default_locale
+                  - available_locales
+                  - title
+                  - is_customer_visible
+                  - can_delete
+                  - has_been_published
+                  - published_at
+                  - published_by
+                  - archived_at
+                  - archived_by
+                  - created_at
+                  - updated_at
+                  - null
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /admin/knowledge/articles:
+    get:
+      operationId: admin.knowledge.articles.index
+      tags:
+        - Articles
+      parameters:
+        -
+          name: type
+          in: query
+          schema:
+            type: string
+            enum:
+              - faq
+              - help
+              - solution
+              - guide
+        -
+          name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - draft
+              - published
+              - archived
+        -
+          name: category_id
+          in: query
+          schema:
+            type: integer
+        -
+          name: internal_only
+          in: query
+          schema:
+            type: boolean
+        -
+          name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200.0
+        -
+          name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 1.0
+            maximum: 100.0
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: {}
+                  meta:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                required:
+                  - data
+                  - meta
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      operationId: admin.knowledge.articles.store
+      tags:
+        - Articles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreArticleRequest'
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  type:
+                    type: string
+                  category_id:
+                    type: integer
+                  internal_only:
+                    type: boolean
+                  status:
+                    type: string
+                  default_locale:
+                    type: string
+                  available_locales:
+                    type: array
+                    description: "Which languages exist, so a list can show an availability chip\nwithout fetching every body. An article that exists only in\nArabic is complete, not half-finished, and the chip is what says\nso."
+                    items: {}
+                  title:
+                    type:
+                      - string
+                      - 'null'
+                    description: "The title, in whichever language the reader would be served. On the LIST too, not only on the record. An article list showing\nidentifiers is a list nobody can find anything in — and the\nidentifier is the one thing about an article that means nothing\nto the person reading it."
+                  is_customer_visible:
+                    type: boolean
+                    description: "Never inferred by the caller from `status` and `internal_only`.\nBoth conditions, in one place — see `Article::isCustomerVisible`."
+                  can_delete:
+                    type: boolean
+                    description: "The interface offers Delete or Archive based on this, and the\nserver refuses on the same rule. Two answers computed once."
+                  has_been_published:
+                    type: boolean
+                  published_at:
+                    type:
+                      - string
+                      - 'null'
+                  published_by:
+                    type:
+                      - string
+                      - 'null'
+                  archived_at:
+                    type:
+                      - string
+                      - 'null'
+                  archived_by:
+                    type:
+                      - string
+                      - 'null'
+                  created_at:
+                    type:
+                      - string
+                      - 'null'
+                  updated_at:
+                    type:
+                      - string
+                      - 'null'
+                  '':
+                    anyOf:
+                      -
+                        type: array
+                        items:
+                          type: string
+                        minItems: 0
+                        maxItems: 0
+                        additionalItems: false
+                      -
+                        type: object
+                        properties:
+                          served_locale:
+                            type: 'null'
+                          title:
+                            type:
+                              - string
+                              - 'null'
+                          body:
+                            type:
+                              - string
+                              - 'null'
+                          translations:
+                            type: array
+                            items: {}
+                        required:
+                          - served_locale
+                          - title
+                          - body
+                          - translations
+                required:
+                  - id
+                  - type
+                  - category_id
+                  - internal_only
+                  - status
+                  - default_locale
+                  - available_locales
+                  - title
+                  - is_customer_visible
+                  - can_delete
+                  - has_been_published
+                  - published_at
+                  - published_by
+                  - archived_at
+                  - archived_by
+                  - created_at
+                  - updated_at
+                  - null
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  '/admin/knowledge/articles/{article}':
+    get:
+      operationId: admin.knowledge.articles.show
+      summary: "One article, in the reader's language where it exists"
+      tags:
+        - Articles
+      parameters:
+        -
+          name: article
+          in: path
+          required: true
+          description: 'The article ID'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      operationId: admin.knowledge.articles.update
+      tags:
+        - Articles
+      parameters:
+        -
+          name: article
+          in: path
+          required: true
+          description: 'The article ID'
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateArticleRequest'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  type:
+                    type: string
+                  category_id:
+                    type: integer
+                  internal_only:
+                    type: boolean
+                  status:
+                    type: string
+                  default_locale:
+                    type: string
+                  available_locales:
+                    type: array
+                    description: "Which languages exist, so a list can show an availability chip\nwithout fetching every body. An article that exists only in\nArabic is complete, not half-finished, and the chip is what says\nso."
+                    items: {}
+                  title:
+                    type:
+                      - string
+                      - 'null'
+                    description: "The title, in whichever language the reader would be served. On the LIST too, not only on the record. An article list showing\nidentifiers is a list nobody can find anything in — and the\nidentifier is the one thing about an article that means nothing\nto the person reading it."
+                  is_customer_visible:
+                    type: boolean
+                    description: "Never inferred by the caller from `status` and `internal_only`.\nBoth conditions, in one place — see `Article::isCustomerVisible`."
+                  can_delete:
+                    type: boolean
+                    description: "The interface offers Delete or Archive based on this, and the\nserver refuses on the same rule. Two answers computed once."
+                  has_been_published:
+                    type: boolean
+                  published_at:
+                    type:
+                      - string
+                      - 'null'
+                  published_by:
+                    type:
+                      - string
+                      - 'null'
+                  archived_at:
+                    type:
+                      - string
+                      - 'null'
+                  archived_by:
+                    type:
+                      - string
+                      - 'null'
+                  created_at:
+                    type:
+                      - string
+                      - 'null'
+                  updated_at:
+                    type:
+                      - string
+                      - 'null'
+                  '':
+                    anyOf:
+                      -
+                        type: array
+                        items:
+                          type: string
+                        minItems: 0
+                        maxItems: 0
+                        additionalItems: false
+                      -
+                        type: object
+                        properties:
+                          served_locale:
+                            type: 'null'
+                          title:
+                            type:
+                              - string
+                              - 'null'
+                          body:
+                            type:
+                              - string
+                              - 'null'
+                          translations:
+                            type: array
+                            items: {}
+                        required:
+                          - served_locale
+                          - title
+                          - body
+                          - translations
+                required:
+                  - id
+                  - type
+                  - category_id
+                  - internal_only
+                  - status
+                  - default_locale
+                  - available_locales
+                  - title
+                  - is_customer_visible
+                  - can_delete
+                  - has_been_published
+                  - published_at
+                  - published_by
+                  - archived_at
+                  - archived_by
+                  - created_at
+                  - updated_at
+                  - null
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    delete:
+      operationId: admin.knowledge.articles.destroy
+      summary: 'Delete — only for an article nobody has ever seen'
+      tags:
+        - Articles
+      parameters:
+        -
+          name: article
+          in: path
+          required: true
+          description: 'The article ID'
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: string
+                required:
+                  - deleted
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /admin/assignment-mappings:
+    get:
+      operationId: admin.assignment-mappings.index
+      tags:
+        - AssignmentMappings
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: {}
+                  precedence:
+                    type: array
+                    items:
+                      type: string
+                required:
+                  - data
+                  - precedence
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      operationId: admin.assignment-mappings.store
+      tags:
+        - AssignmentMappings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source_type:
+                  type: string
+                  enum:
+                    - category
+                    - department
+                source_id:
+                  type: integer
+                  minimum: 1.0
+                target_type:
+                  type: string
+                  enum:
+                    - agent
+                    - department
+                target_id:
+                  type: integer
+                  minimum: 1.0
+              required:
+                - source_type
+                - source_id
+                - target_type
+                - target_id
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  source_type:
+                    type: string
+                  source_id:
+                    type: integer
+                  target_type:
+                    type: string
+                  target_id:
+                    type: integer
+                  active:
+                    type: boolean
+                    description: "Whether this row can actually fire, and why not. A mapping pointing at somebody who left is worse than no mapping\nat all: it looks like the queue is being sorted while every\nmatching ticket quietly stays unassigned. Saying so on the row\nis the difference between a rule and a mystery."
+                  inactive_reason:
+                    type:
+                      - string
+                      - 'null'
+                    enum:
+                      - 'That department no longer exists.'
+                      - 'That department has been deactivated.'
+                      - 'That account no longer exists.'
+                      - 'That account has been deactivated.'
+                      - null
+                required:
+                  - id
+                  - source_type
+                  - source_id
+                  - target_type
+                  - target_id
+                  - active
+                  - inactive_reason
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  '/admin/assignment-mappings/{mapping}':
+    patch:
+      operationId: admin.assignment-mappings.update
+      tags:
+        - AssignmentMappings
+      parameters:
+        -
+          name: mapping
+          in: path
+          required: true
+          description: 'The mapping ID'
+          schema:
+            type: integer
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target_type:
+                  type: string
+                  enum:
+                    - agent
+                    - department
+                target_id:
+                  type: integer
+                  minimum: 1.0
+              required:
+                - target_type
+                - target_id
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  source_type:
+                    type: string
+                  source_id:
+                    type: integer
+                  target_type:
+                    type: string
+                  target_id:
+                    type: integer
+                  active:
+                    type: boolean
+                    description: "Whether this row can actually fire, and why not. A mapping pointing at somebody who left is worse than no mapping\nat all: it looks like the queue is being sorted while every\nmatching ticket quietly stays unassigned. Saying so on the row\nis the difference between a rule and a mystery."
+                  inactive_reason:
+                    type:
+                      - string
+                      - 'null'
+                    enum:
+                      - 'That department no longer exists.'
+                      - 'That department has been deactivated.'
+                      - 'That account no longer exists.'
+                      - 'That account has been deactivated.'
+                      - null
+                required:
+                  - id
+                  - source_type
+                  - source_id
+                  - target_type
+                  - target_id
+                  - active
+                  - inactive_reason
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    delete:
+      operationId: admin.assignment-mappings.destroy
+      tags:
+        - AssignmentMappings
+      parameters:
+        -
+          name: mapping
+          in: path
+          required: true
+          description: 'The mapping ID'
+          schema:
+            type: integer
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: "Existing tickets are untouched. A mapping decides where NEW work\nlands; rewriting history because a rule changed would move tickets\nout from under the people already working them."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: integer
+                required:
+                  - deleted
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /attachments:
     get:
       operationId: attachments.index
@@ -272,6 +1704,9 @@ paths:
               - department.updated
               - department.deleted
               - config.changed
+              - article.published
+              - article.archived
+              - article.deleted
               - ticket.field_changed
               - customer.field_changed
         -
@@ -882,6 +2317,96 @@ paths:
                   - deleted
         '404':
           $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /admin/channels:
+    get:
+      operationId: admin.channels.index
+      tags:
+        - ChannelAccounts
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: {}
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/admin/channels/{id}':
+    patch:
+      operationId: admin.channels.update
+      tags:
+        - ChannelAccounts
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_active:
+                  type: boolean
+                department_id:
+                  type:
+                    - integer
+                    - 'null'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        '422':
+          $ref: '#/components/responses/ValidationException'
         '401':
           $ref: '#/components/responses/AuthenticationException'
         default:
@@ -1862,6 +3387,37 @@ paths:
           schema:
             type: string
             maxLength: 40
+  '/feedback/{ticket}/{verdict}':
+    get:
+      operationId: tickets.feedback.invitation
+      tags:
+        - FeedbackInvitation
+      parameters:
+        -
+          name: ticket
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: verdict
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /healthz:
     get:
       operationId: platform.healthz
@@ -1937,6 +3493,82 @@ paths:
           schema:
             type: string
             maxLength: 40
+  /help/articles:
+    get:
+      operationId: help.articles.index
+      summary: 'Search first, categories second'
+      tags:
+        - HelpCentre
+      parameters:
+        -
+          name: q
+          in: query
+          schema:
+            type:
+              - string
+              - 'null'
+            maxLength: 200.0
+        -
+          name: category_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: {}
+                  categories:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: {}
+                required:
+                  - data
+                  - categories
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/help/articles/{article}':
+    get:
+      operationId: help.articles.show
+      summary: 'One article, if a customer may read it'
+      tags:
+        - HelpCentre
+      parameters:
+        -
+          name: article
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /inbound/email:
     post:
       operationId: inbound.email
@@ -2268,6 +3900,494 @@ paths:
           $ref: '#/components/responses/ValidationException'
         default:
           description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /me/tasks:
+    get:
+      operationId: me.tasks.index
+      description: "Completed tasks are included but sorted below: they are the evidence the\nwork happened, and hiding them makes an agent wonder whether the tick\nregistered."
+      summary: 'My tasks, open ones first and the soonest at the top'
+      tags:
+        - PersonalWork
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: {}
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      operationId: me.tasks.store
+      tags:
+        - PersonalWork
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 200.0
+                ticket_id:
+                  type:
+                    - string
+                    - 'null'
+                due_at:
+                  type:
+                    - string
+                    - 'null'
+                  format: date-time
+              required:
+                - title
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+                required:
+                  - data
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  '/me/tasks/{task}':
+    patch:
+      operationId: me.tasks.update
+      tags:
+        - PersonalWork
+      parameters:
+        -
+          name: task
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                completed:
+                  type: boolean
+                  description: "The ONLY editable field. A task has no description, no assignee\nand no sub-tasks to edit, and its title is what it is."
+              required:
+                - completed
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+                required:
+                  - data
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /me/reminders:
+    post:
+      operationId: me.reminders.store
+      tags:
+        - PersonalWork
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                remind_at:
+                  type: string
+                  format: date-time
+                ticket_id:
+                  type:
+                    - string
+                    - 'null'
+                task_id:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - remind_at
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      remind_at:
+                        type: string
+                      ticket_id:
+                        type:
+                          - string
+                          - 'null'
+                      task_id:
+                        type:
+                          - string
+                          - 'null'
+                    required:
+                      - id
+                      - remind_at
+                      - ticket_id
+                      - task_id
+                required:
+                  - data
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  /me/mentions:
+    get:
+      operationId: me.mentions.index
+      description: "Each carries enough to open the ticket AT the note — the reference, the\nsubject and the message id — because the whole content of a mention is\n\"come and read this sentence\", and landing at the top of a long thread\nasks somebody to search for it."
+      summary: 'The notes that named me, newest first'
+      tags:
+        - PersonalWork
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        message_id:
+                          type: string
+                        ticket_id:
+                          type: string
+                        reference:
+                          type: string
+                        subject:
+                          type: string
+                        author_name:
+                          type: string
+                        excerpt:
+                          type: string
+                          description: "A quoted extract, not the whole note. Home is a queue, and a\nlong internal note pasted into it pushes every other row off\nthe screen — the row is an invitation to open the ticket."
+                        read_at:
+                          type:
+                            - string
+                            - 'null'
+                        mentioned_at:
+                          type: string
+                      required:
+                        - id
+                        - message_id
+                        - ticket_id
+                        - reference
+                        - subject
+                        - author_name
+                        - excerpt
+                        - read_at
+                        - mentioned_at
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/me/mentions/{mention}/read':
+    post:
+      operationId: me.mentions.read
+      tags:
+        - PersonalWork
+      parameters:
+        -
+          name: mention
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      read_at:
+                        type:
+                          - string
+                          - 'null'
+                    required:
+                      - id
+                      - read_at
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/inbound/{channel}':
+    post:
+      operationId: inbound.phone
+      tags:
+        - PhoneWebhook
+      parameters:
+        -
+          name: channel
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/inbound/{channel}/receipts':
+    post:
+      operationId: inbound.phone.receipts
+      description: "Separate from the inbound route because it is a different fact about a\ndifferent message. `delivered` and `read` are set HERE and nowhere else\n— never inferred from a successful send, because \"we handed it over\" and\n\"it arrived\" are different things and an agent reading \"delivered\" is\nentitled to believe the second."
+      summary: 'A provider telling us what happened to something we sent'
+      tags:
+        - PhoneWebhook
+      parameters:
+        -
+          name: channel
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider_message_id:
+                  type: string
+                  maxLength: 320.0
+                state:
+                  type: string
+              required:
+                - provider_message_id
+                - state
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
           content:
             application/problem+json:
               schema:
@@ -2670,6 +4790,75 @@ paths:
           schema:
             type: string
             maxLength: 40
+  '/portal/requests/{id}/rating':
+    post:
+      operationId: portal.requests.rate
+      description: "`positive` is a boolean and there is no third value on the wire. A\nclient cannot send a 3, a 0 or a star count, because the validation\nrefuses anything that is not a boolean — which is the cheapest place to\nhold a decision the whole product depends on."
+      summary: 'How it went, in one tap'
+      tags:
+        - PortalRequests
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                positive:
+                  type: boolean
+                comment:
+                  type:
+                    - string
+                    - 'null'
+                  description: 'Optional, always, and never asked for before the rating.'
+                  maxLength: 2000.0
+              required:
+                - positive
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   '/portal/requests/{id}':
     get:
       operationId: portal.requests.show
@@ -3723,6 +5912,69 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  '/tickets/{ticket}/escalate':
+    post:
+      operationId: tickets.escalate
+      tags:
+        - TicketEscalation
+      parameters:
+        -
+          name: ticket
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  minLength: 3.0
+                  maxLength: 500.0
+              required:
+                - reason
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   '/tickets/{ticket}/events':
     get:
       operationId: tickets.events.index
@@ -4064,6 +6316,12 @@ paths:
               - breached
               - met
               - paused
+        -
+          name: escalated
+          in: query
+          description: "A filter, never a status. Escalation is a property an open,\npending, resolved or closed ticket can carry — `?escalated=1`\nnarrows within the lifecycle rather than replacing it."
+          schema:
+            type: boolean
         -
           name: created_from
           in: query
@@ -4855,6 +7113,161 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /inbound/web-form/attachments:
+    post:
+      operationId: channels.web_form.attachments
+      tags:
+        - WebFormAttachment
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                session_token:
+                  type: string
+                  minLength: 26.0
+                  maxLength: 26.0
+                file:
+                  type: string
+                  format: binary
+                  contentMediaType: application/octet-stream
+              required:
+                - session_token
+                - file
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  /inbound/web-form/session:
+    get:
+      operationId: channels.web_form.session
+      description: "The form needs somewhere to put a file before the ticket that will own it\nexists. Without a token the alternative is an upload endpoint that\naccepts anything from anyone, which is a public file store.\n\nThe categories come back with it, because the form needs them and the\nauthenticated `/ticket-categories` endpoint is gated on `ticket.read` —\nwhich a stranger does not have. One public call rather than a second\npublic endpoint duplicating the same list."
+      summary: 'A token anonymous uploads hang off, issued when the page is drawn'
+      tags:
+        - WebFormIntake
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_token:
+                    type: string
+                  expires_at:
+                    type: string
+                  categories:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                      required:
+                        - id
+                        - name
+                required:
+                  - session_token
+                  - expires_at
+                  - categories
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /inbound/web-form:
+    post:
+      operationId: channels.web_form.store
+      tags:
+        - WebFormIntake
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitWebFormRequest'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  reference:
+                    type: string
+                required:
+                  - status
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
 components:
   schemas:
     AppendMessageRequest:
@@ -5055,6 +7468,31 @@ components:
         - version
         - resolution_note
       title: ResolveTicketRequest
+    StoreArticleRequest:
+      type: object
+      description: "The attributes of a new article. Not its words, and not its state.\n\n`status`, `has_been_published` and the lifecycle stamps are absent by\nconstruction: they belong to `ArticleLifecycle`, and a request that could\nname them could publish an article without going through the rule that makes\npublishing permanent."
+      properties:
+        type:
+          type: string
+          enum:
+            - faq
+            - help
+            - solution
+            - guide
+        category_id:
+          type: integer
+        default_locale:
+          type: string
+          enum:
+            - en
+            - ar
+        internal_only:
+          type: boolean
+      required:
+        - type
+        - category_id
+        - default_locale
+      title: StoreArticleRequest
     StoreAttachmentRequest:
       type: object
       properties:
@@ -5064,6 +7502,8 @@ components:
             - customer
             - ticket
             - message
+            - web_form_draft
+            - article
         owner_id:
           type: string
           description: "ULID-shaped, and that is as far as the check goes. Platform is T0 and cannot look inside Customers or Tickets to\nconfirm the owner exists — a query from here would invert the\ndependency graph. The owning module checks existence when it\nbuilds the upload, and an attachment pointing at nothing is\ninvisible rather than dangerous: it is only ever read through\n\"everything attached to THIS record\"."
@@ -5095,12 +7535,8 @@ components:
           enum:
             - email
             - phone
+            - whatsapp
             - null
-        notes:
-          type:
-            - string
-            - 'null'
-          maxLength: 10000.0
         identifiers:
           type: array
           description: "At least one way to reach them. A customer record with no contact\ndetails cannot be replied to, which makes it a name in a list\nrather than a customer."
@@ -5112,6 +7548,7 @@ components:
                 enum:
                   - email
                   - phone
+                  - whatsapp
               value:
                 type: string
                 minLength: 1.0
@@ -5162,6 +7599,9 @@ components:
             - agent
             - portal
             - email
+            - web_form
+            - whatsapp
+            - sms
             - system
         category_id:
           type:
@@ -5225,6 +7665,76 @@ components:
         - email
         - role
       title: StoreUserRequest
+    SubmitWebFormRequest:
+      type: object
+      description: "The six fields, and nothing else that reaches the pipeline.\n\nThe set is fixed by the story and is not configurable: name, contact,\nsubject, category, message, attachment. Two more arrive with the request and\nneither is a field a person fills in — `hp_company` is the honeypot and\n`rendered_at` is when the page was drawn — so both are validated here and\ndropped before anything downstream sees them."
+      properties:
+        name:
+          type: string
+          maxLength: 200.0
+        contact:
+          type: string
+          maxLength: 320.0
+        subject:
+          type: string
+          maxLength: 200.0
+        category_id:
+          type: integer
+        message:
+          type: string
+          maxLength: 20000.0
+        attachment_ids:
+          type: array
+          items:
+            type: string
+            minLength: 26.0
+            maxLength: 26.0
+          maxItems: 10.0
+        session_token:
+          type:
+            - string
+            - 'null'
+          minLength: 26.0
+          maxLength: 26.0
+        hp_company:
+          type:
+            - string
+            - 'null'
+          description: "Must arrive; its CONTENTS are not validated here. A 422 saying \"this field must be empty\" tells whoever wrote the\nrobot exactly which field to stop filling in. The controller\nanswers a filled honeypot with 202 and a normal-looking body\ninstead, and that only works if validation lets it through."
+          maxLength: 200.0
+        rendered_at:
+          type: string
+          format: date-time
+      required:
+        - name
+        - contact
+        - subject
+        - category_id
+        - message
+        - hp_company
+        - rendered_at
+      title: SubmitWebFormRequest
+    UpdateArticleRequest:
+      type: object
+      description: "Editing an article's attributes.\n\nRefuses the lifecycle fields OUT LOUD rather than ignoring them. A request\nthat sends `status: published` and gets a 200 back has been told its edit\nworked; discovering later that the article is still a draft is worse than\nbeing refused, and it is the kind of thing a client keeps doing."
+      properties:
+        type:
+          type: string
+          enum:
+            - faq
+            - help
+            - solution
+            - guide
+        category_id:
+          type: integer
+        default_locale:
+          type: string
+          enum:
+            - en
+            - ar
+        internal_only:
+          type: boolean
+      title: UpdateArticleRequest
     UpdateCustomerRequest:
       type: object
       description: "Every field optional; supplying `identifiers` replaces the whole set.\n\nReplacement rather than merge, because the form the agent is looking at shows\nthe complete list — the rows they deleted are gone from what they submit, and\na merge would silently resurrect them."
@@ -5242,12 +7752,8 @@ components:
           enum:
             - email
             - phone
+            - whatsapp
             - null
-        notes:
-          type:
-            - string
-            - 'null'
-          maxLength: 10000.0
         identifiers:
           type: array
           items:
@@ -5258,6 +7764,7 @@ components:
                 enum:
                   - email
                   - phone
+                  - whatsapp
               value:
                 type: string
                 minLength: 1.0
@@ -5352,6 +7859,21 @@ components:
         is_active:
           type: boolean
       title: UpdateUserRequest
+    UpsertArticleTranslationRequest:
+      type: object
+      description: "One article in one language.\n\nThe body is validated as a string and nothing more. Trying to validate the\nSHAPE of HTML here would be a second, weaker copy of the sanitiser — and the\ntwo would disagree, which means either a body the validator accepts and the\nsanitiser empties, or one the validator rejects that was perfectly safe.\n`HtmlSanitiser` is the single authority, and it runs on write."
+      properties:
+        title:
+          type: string
+          minLength: 1.0
+          maxLength: 200.0
+        body:
+          type: string
+          maxLength: 200000.0
+      required:
+        - title
+        - body
+      title: UpsertArticleTranslationRequest
     Problem:
       type: object
       title: Problem

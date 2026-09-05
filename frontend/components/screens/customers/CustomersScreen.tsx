@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
+
+import { TOUCH_TARGET, cn } from "@/lib/utils";
 import { useCallback, useEffect, useState } from "react";
 
 import { BidiValue } from "@/components/domain/BidiValue/BidiValue";
@@ -96,7 +99,34 @@ export function CustomersScreen({ departments, onOpenCustomer }: CustomersScreen
       id: "full_name",
       header: t("columns.name"),
       identity: true,
-      cell: (customer) => <span>{customer.full_name}</span>,
+      /*
+       * A real link, the same as the ticket list's reference.
+       * This was a `<span>`, so the only way into a customer was the `…` menu
+       * at the end of the row — two clicks through something hidden, and no
+       * way at all to open one in a new tab, copy its address, or send it to
+       * a colleague. The fix landed on tickets and was not carried here.
+       */
+      cell: (customer) => (
+        <Link
+          href={`/customers/${customer.id}`}
+          onClick={(event) => {
+            // Anything that means "somewhere else" is left to the browser.
+            if (event.defaultPrevented) return;
+            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            if (event.button !== 0) return;
+
+            event.preventDefault();
+            onOpenCustomer(customer.id);
+          }}
+          dir="auto"
+          className={cn(
+            "rounded-sm font-medium text-fg-default underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-border-focus",
+            TOUCH_TARGET,
+          )}
+        >
+          {customer.full_name}
+        </Link>
+      ),
     },
     {
       id: "reference",

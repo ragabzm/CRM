@@ -116,6 +116,36 @@ final class PortalRequestsController extends Controller
     }
 
     /**
+     * How it went, in one tap.
+     *
+     * `positive` is a boolean and there is no third value on the wire. A
+     * client cannot send a 3, a 0 or a star count, because the validation
+     * refuses anything that is not a boolean — which is the cheapest place to
+     * hold a decision the whole product depends on.
+     *
+     * @response array<string, mixed>
+     */
+    public function rate(Request $request, string $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'positive' => ['required', 'boolean'],
+            // Optional, always, and never asked for before the rating.
+            'comment' => ['sometimes', 'nullable', 'string', 'max:'.CustomerRequestGateway::MAXIMUM_COMMENT],
+        ]);
+
+        $account = $request->user('portal');
+
+        return new JsonResponse($this->found($this->requests->rate(
+            $this->customerFor($request),
+            (string) $account?->getKey(),
+            (string) $account?->getAttribute('name'),
+            $id,
+            (bool) $validated['positive'],
+            isset($validated['comment']) ? (string) $validated['comment'] : null,
+        )));
+    }
+
+    /**
      * Turns "not yours" into "not found".
      *
      * 404, never 403. A 403 confirms the id exists, and ULIDs are guessable

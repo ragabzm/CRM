@@ -78,7 +78,6 @@ export function CustomerFormDialog({
     customer?.department.id ?? departments[0]?.id ?? "",
   );
   const [channel, setChannel] = useState<ContactKind | "">(customer?.preferred_channel ?? "");
-  const [notes, setNotes] = useState(customer?.notes ?? "");
   const [rows, setRows] = useState<Row[]>(() => rowsFrom(customer));
 
   const [matches, setMatches] = useState<DuplicateMatch[]>([]);
@@ -94,7 +93,6 @@ export function CustomerFormDialog({
     setName(customer?.full_name ?? "");
     setDepartmentId(customer?.department.id ?? departments[0]?.id ?? "");
     setChannel(customer?.preferred_channel ?? "");
-    setNotes(customer?.notes ?? "");
     setRows(rowsFrom(customer));
     setMatches([]);
     setError(null);
@@ -118,7 +116,6 @@ export function CustomerFormDialog({
       full_name: name.trim(),
       department_id: Number(departmentId),
       preferred_channel: channel === "" ? null : channel,
-      notes: notes.trim() === "" ? null : notes.trim(),
       identifiers: filled.map((row) => ({
         kind: row.kind,
         value: row.value.trim(),
@@ -330,16 +327,6 @@ export function CustomerFormDialog({
               <option value="email">{t("kindEmail")}</option>
               <option value="phone">{t("kindPhone")}</option>
             </select>
-          </label>
-
-          <label className="flex flex-col gap-1 text-sm font-medium text-fg-default">
-            {t("notes")}
-            <textarea
-              rows={3}
-              value={notes ?? ""}
-              onChange={(event) => setNotes(event.target.value)}
-              className="min-h-11 rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm"
-            />
           </label>
 
           {error && <FormAlert tone="error">{error}</FormAlert>}

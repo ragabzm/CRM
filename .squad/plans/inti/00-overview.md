@@ -30,6 +30,10 @@ Entry point for the **inti** feature. Stories execute in order by their `NN` pre
 | 21 | `21-story-512.md` | 6.1 Portal identity — registration, sign-in, password reset and the portal shell | 512 | — |
 | 22 | `22-story-513.md` | 6.2 My requests — submit, track, view, reply and reopen | 513 | — |
 | 23 | `23-story-514.md` | 1.5 Demo data seeders — every module, idempotent, and wired into the restart script | 514 | — |
+| 24 | `24-story-521.md` | 7.1 The channel spine and the public web form | 521 | — |
+| 25 | `25-story-522.md` | 7.2 WhatsApp and SMS on one provider gateway | 522 | — |
+| 26 | `26-story-523.md` | 7.3 Live chat | 523 | — |
+| 27 | `27-story-524.md` | 8.1 Articles, categories, publishing and both languages | 524 | — |
 
 ## Dependency notes
 

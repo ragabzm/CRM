@@ -33,6 +33,184 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/knowledge/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["admin.knowledge.categories.index"];
+        put?: never;
+        post: operations["admin.knowledge.categories.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/knowledge/categories/{category}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete — refused while articles still sit in it
+         * @description Every article belongs to exactly one category, so deleting an occupied
+         *     one has no correct outcome: the articles cannot be left pointing at
+         *     nothing, and moving them somewhere the administrator did not choose is a
+         *     decision this endpoint has no business making.
+         */
+        delete: operations["admin.knowledge.categories.destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["admin.knowledge.categories.update"];
+        trace?: never;
+    };
+    "/admin/knowledge/articles/{article}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Draft or Archived → Published */
+        post: operations["admin.knowledge.articles.publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/knowledge/articles/{article}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Published → Archived */
+        post: operations["admin.knowledge.articles.archive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/knowledge/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["knowledge.search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/knowledge/articles/{article}/translations/{locale}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["admin.knowledge.articles.translations.upsert"];
+        post?: never;
+        /**
+         * Removes one language version
+         * @description Refused for the article's default language while others exist, because
+         *     the default is the fallback every reader lands on when theirs is
+         *     missing. Removing it turns "we do not have your language" into a blank
+         *     page.
+         */
+        delete: operations["admin.knowledge.articles.translations.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/knowledge/articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["admin.knowledge.articles.index"];
+        put?: never;
+        post: operations["admin.knowledge.articles.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/knowledge/articles/{article}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One article, in the reader's language where it exists */
+        get: operations["admin.knowledge.articles.show"];
+        put?: never;
+        post?: never;
+        /** Delete — only for an article nobody has ever seen */
+        delete: operations["admin.knowledge.articles.destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["admin.knowledge.articles.update"];
+        trace?: never;
+    };
+    "/admin/assignment-mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["admin.assignment-mappings.index"];
+        put?: never;
+        post: operations["admin.assignment-mappings.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/assignment-mappings/{mapping}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["admin.assignment-mappings.destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["admin.assignment-mappings.update"];
+        trace?: never;
+    };
     "/attachments": {
         parameters: {
             query?: never;
@@ -222,6 +400,38 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["admin.categories.update"];
+        trace?: never;
+    };
+    "/admin/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["admin.channels.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/channels/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["admin.channels.update"];
         trace?: never;
     };
     "/tickets/{ticket}/customer-context": {
@@ -442,6 +652,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/feedback/{ticket}/{verdict}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tickets.feedback.invitation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -480,6 +706,40 @@ export interface paths {
          *     yet. Remove this once Story 1.2+ introduces genuine writes.
          */
         post: operations["platform.healthz-echo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/help/articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search first, categories second */
+        get: operations["help.articles.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/help/articles/{article}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One article, if a customer may read it */
+        get: operations["help.articles.show"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -634,6 +894,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/inbound/{channel}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["inbound.phone"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inbound/{channel}/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A provider telling us what happened to something we sent
+         * @description Separate from the inbound route because it is a different fact about a
+         *     different message. `delivered` and `read` are set HERE and nowhere else
+         *     — never inferred from a successful send, because "we handed it over" and
+         *     "it arrived" are different things and an agent reading "delivered" is
+         *     entitled to believe the second.
+         */
+        post: operations["inbound.phone.receipts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/portal/auth/register": {
         parameters: {
             query?: never;
@@ -740,6 +1040,29 @@ export interface paths {
         get: operations["portal.requests.index"];
         put?: never;
         post: operations["portal.requests.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/portal/requests/{id}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * How it went, in one tap
+         * @description `positive` is a boolean and there is no third value on the wire. A
+         *     client cannot send a 3, a 0 or a star count, because the validation
+         *     refuses anything that is not a boolean — which is the cheapest place to
+         *     hold a decision the whole product depends on.
+         */
+        post: operations["portal.requests.rate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -969,6 +1292,22 @@ export interface paths {
         get: operations["admin.sla.preview"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{ticket}/escalate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tickets.escalate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1237,6 +1576,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/inbound/web-form/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["channels.web_form.attachments"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inbound/web-form/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A token anonymous uploads hang off, issued when the page is drawn
+         * @description The form needs somewhere to put a file before the ticket that will own it
+         *     exists. Without a token the alternative is an upload endpoint that
+         *     accepts anything from anyone, which is a public file store.
+         *
+         *     The categories come back with it, because the form needs them and the
+         *     authenticated `/ticket-categories` endpoint is gated on `ticket.read` —
+         *     which a stranger does not have. One public call rather than a second
+         *     public endpoint duplicating the same list.
+         */
+        get: operations["channels.web_form.session"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inbound/web-form": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["channels.web_form.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1354,10 +1752,27 @@ export interface components {
             version: number;
             resolution_note: string;
         };
+        /**
+         * StoreArticleRequest
+         * @description The attributes of a new article. Not its words, and not its state.
+         *
+         *     `status`, `has_been_published` and the lifecycle stamps are absent by
+         *     construction: they belong to `ArticleLifecycle`, and a request that could
+         *     name them could publish an article without going through the rule that makes
+         *     publishing permanent.
+         */
+        StoreArticleRequest: {
+            /** @enum {string} */
+            type: "faq" | "help" | "solution" | "guide";
+            category_id: number;
+            /** @enum {string} */
+            default_locale: "en" | "ar";
+            internal_only?: boolean;
+        };
         /** StoreAttachmentRequest */
         StoreAttachmentRequest: {
             /** @enum {string} */
-            owner_type: "customer" | "ticket" | "message";
+            owner_type: "customer" | "ticket" | "message" | "web_form_draft" | "article";
             /**
              * @description ULID-shaped, and that is as far as the check goes. Platform is T0 and cannot look inside Customers or Tickets to
              *     confirm the owner exists — a query from here would invert the
@@ -1381,8 +1796,7 @@ export interface components {
             full_name: string;
             department_id: number;
             /** @enum {string|null} */
-            preferred_channel?: "email" | "phone" | null;
-            notes?: string | null;
+            preferred_channel?: "email" | "phone" | "whatsapp" | null;
             /**
              * @description At least one way to reach them. A customer record with no contact
              *     details cannot be replied to, which makes it a name in a list
@@ -1390,7 +1804,7 @@ export interface components {
              */
             identifiers: {
                 /** @enum {string} */
-                kind: "email" | "phone";
+                kind: "email" | "phone" | "whatsapp";
                 value: string;
                 is_primary?: boolean;
             }[];
@@ -1411,7 +1825,7 @@ export interface components {
             description: string;
             customer_id: string;
             /** @enum {string} */
-            channel: "agent" | "portal" | "email" | "system";
+            channel: "agent" | "portal" | "email" | "web_form" | "whatsapp" | "sms" | "system";
             category_id?: number | null;
             /** @enum {string|null} */
             priority?: "low" | "normal" | "high" | "urgent" | null;
@@ -1435,6 +1849,51 @@ export interface components {
             password_confirmation?: string | null;
         };
         /**
+         * SubmitWebFormRequest
+         * @description The six fields, and nothing else that reaches the pipeline.
+         *
+         *     The set is fixed by the story and is not configurable: name, contact,
+         *     subject, category, message, attachment. Two more arrive with the request and
+         *     neither is a field a person fills in — `hp_company` is the honeypot and
+         *     `rendered_at` is when the page was drawn — so both are validated here and
+         *     dropped before anything downstream sees them.
+         */
+        SubmitWebFormRequest: {
+            name: string;
+            contact: string;
+            subject: string;
+            category_id: number;
+            message: string;
+            attachment_ids?: string[];
+            session_token?: string | null;
+            /**
+             * @description Must arrive; its CONTENTS are not validated here. A 422 saying "this field must be empty" tells whoever wrote the
+             *     robot exactly which field to stop filling in. The controller
+             *     answers a filled honeypot with 202 and a normal-looking body
+             *     instead, and that only works if validation lets it through.
+             */
+            hp_company: string | null;
+            /** Format: date-time */
+            rendered_at: string;
+        };
+        /**
+         * UpdateArticleRequest
+         * @description Editing an article's attributes.
+         *
+         *     Refuses the lifecycle fields OUT LOUD rather than ignoring them. A request
+         *     that sends `status: published` and gets a 200 back has been told its edit
+         *     worked; discovering later that the article is still a draft is worse than
+         *     being refused, and it is the kind of thing a client keeps doing.
+         */
+        UpdateArticleRequest: {
+            /** @enum {string} */
+            type?: "faq" | "help" | "solution" | "guide";
+            category_id?: number;
+            /** @enum {string} */
+            default_locale?: "en" | "ar";
+            internal_only?: boolean;
+        };
+        /**
          * UpdateCustomerRequest
          * @description Every field optional; supplying `identifiers` replaces the whole set.
          *
@@ -1446,11 +1905,10 @@ export interface components {
             full_name?: string;
             department_id?: number;
             /** @enum {string|null} */
-            preferred_channel?: "email" | "phone" | null;
-            notes?: string | null;
+            preferred_channel?: "email" | "phone" | "whatsapp" | null;
             identifiers?: {
                 /** @enum {string} */
-                kind?: "email" | "phone";
+                kind?: "email" | "phone" | "whatsapp";
                 value?: string;
                 is_primary?: boolean;
             }[];
@@ -1503,6 +1961,20 @@ export interface components {
             role?: "administrator" | "supervisor" | "agent" | "customer";
             department_id?: number | null;
             is_active?: boolean;
+        };
+        /**
+         * UpsertArticleTranslationRequest
+         * @description One article in one language.
+         *
+         *     The body is validated as a string and nothing more. Trying to validate the
+         *     SHAPE of HTML here would be a second, weaker copy of the sanitiser — and the
+         *     two would disagree, which means either a body the validator accepts and the
+         *     sanitiser empties, or one the validator rejects that was perfectly safe.
+         *     `HtmlSanitiser` is the single authority, and it runs on write.
+         */
+        UpsertArticleTranslationRequest: {
+            title: string;
+            body: string;
         };
         /**
          * Problem
@@ -1690,6 +2162,1146 @@ export interface operations {
             };
         };
     };
+    "admin.knowledge.categories.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            id: number;
+                            name: {
+                                en: string;
+                                ar: string;
+                            };
+                            sort_order: number;
+                            article_count: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.knowledge.categories.store": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: {
+                        /**
+                         * @description No `parent` rule, because there is no parent. Flat by
+                         *     construction — see the migration.
+                         */
+                        en: string;
+                        ar: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: number;
+                        name: {
+                            en: string;
+                            ar: string;
+                        };
+                        sort_order: number;
+                        article_count: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.knowledge.categories.destroy": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description The category ID */
+                category: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        deleted: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.knowledge.categories.update": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description The category ID */
+                category: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: {
+                        /**
+                         * @description No `parent` rule, because there is no parent. Flat by
+                         *     construction — see the migration.
+                         */
+                        en: string;
+                        ar: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: number;
+                        name: {
+                            en: string;
+                            ar: string;
+                        };
+                        sort_order: number;
+                        article_count: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.knowledge.articles.publish": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description The article ID */
+                article: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.knowledge.articles.archive": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description The article ID */
+                article: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "knowledge.search": {
+        parameters: {
+            query: {
+                q: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.knowledge.articles.translations.upsert": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description The article ID */
+                article: string;
+                locale: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertArticleTranslationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.knowledge.articles.translations.destroy": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description The article ID */
+                article: string;
+                locale: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        type: string;
+                        category_id: number;
+                        internal_only: boolean;
+                        status: string;
+                        default_locale: string;
+                        /**
+                         * @description Which languages exist, so a list can show an availability chip
+                         *     without fetching every body. An article that exists only in
+                         *     Arabic is complete, not half-finished, and the chip is what says
+                         *     so.
+                         */
+                        available_locales: unknown[];
+                        /**
+                         * @description The title, in whichever language the reader would be served. On the LIST too, not only on the record. An article list showing
+                         *     identifiers is a list nobody can find anything in — and the
+                         *     identifier is the one thing about an article that means nothing
+                         *     to the person reading it.
+                         */
+                        title: string | null;
+                        /**
+                         * @description Never inferred by the caller from `status` and `internal_only`.
+                         *     Both conditions, in one place — see `Article::isCustomerVisible`.
+                         */
+                        is_customer_visible: boolean;
+                        /**
+                         * @description The interface offers Delete or Archive based on this, and the
+                         *     server refuses on the same rule. Two answers computed once.
+                         */
+                        can_delete: boolean;
+                        has_been_published: boolean;
+                        published_at: string | null;
+                        published_by: string | null;
+                        archived_at: string | null;
+                        archived_by: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        ""?: string[] | {
+                            served_locale: null;
+                            title: string | null;
+                            body: string | null;
+                            translations: unknown[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.knowledge.articles.index": {
+        parameters: {
+            query?: {
+                type?: "faq" | "help" | "solution" | "guide";
+                status?: "draft" | "published" | "archived";
+                category_id?: number;
+                internal_only?: boolean;
+                q?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        }[];
+                        meta: {
+                            [key: string]: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.knowledge.articles.store": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreArticleRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        type: string;
+                        category_id: number;
+                        internal_only: boolean;
+                        status: string;
+                        default_locale: string;
+                        /**
+                         * @description Which languages exist, so a list can show an availability chip
+                         *     without fetching every body. An article that exists only in
+                         *     Arabic is complete, not half-finished, and the chip is what says
+                         *     so.
+                         */
+                        available_locales: unknown[];
+                        /**
+                         * @description The title, in whichever language the reader would be served. On the LIST too, not only on the record. An article list showing
+                         *     identifiers is a list nobody can find anything in — and the
+                         *     identifier is the one thing about an article that means nothing
+                         *     to the person reading it.
+                         */
+                        title: string | null;
+                        /**
+                         * @description Never inferred by the caller from `status` and `internal_only`.
+                         *     Both conditions, in one place — see `Article::isCustomerVisible`.
+                         */
+                        is_customer_visible: boolean;
+                        /**
+                         * @description The interface offers Delete or Archive based on this, and the
+                         *     server refuses on the same rule. Two answers computed once.
+                         */
+                        can_delete: boolean;
+                        has_been_published: boolean;
+                        published_at: string | null;
+                        published_by: string | null;
+                        archived_at: string | null;
+                        archived_by: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        ""?: string[] | {
+                            served_locale: null;
+                            title: string | null;
+                            body: string | null;
+                            translations: unknown[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.knowledge.articles.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The article ID */
+                article: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.knowledge.articles.destroy": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description The article ID */
+                article: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        deleted: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.knowledge.articles.update": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description The article ID */
+                article: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateArticleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        type: string;
+                        category_id: number;
+                        internal_only: boolean;
+                        status: string;
+                        default_locale: string;
+                        /**
+                         * @description Which languages exist, so a list can show an availability chip
+                         *     without fetching every body. An article that exists only in
+                         *     Arabic is complete, not half-finished, and the chip is what says
+                         *     so.
+                         */
+                        available_locales: unknown[];
+                        /**
+                         * @description The title, in whichever language the reader would be served. On the LIST too, not only on the record. An article list showing
+                         *     identifiers is a list nobody can find anything in — and the
+                         *     identifier is the one thing about an article that means nothing
+                         *     to the person reading it.
+                         */
+                        title: string | null;
+                        /**
+                         * @description Never inferred by the caller from `status` and `internal_only`.
+                         *     Both conditions, in one place — see `Article::isCustomerVisible`.
+                         */
+                        is_customer_visible: boolean;
+                        /**
+                         * @description The interface offers Delete or Archive based on this, and the
+                         *     server refuses on the same rule. Two answers computed once.
+                         */
+                        can_delete: boolean;
+                        has_been_published: boolean;
+                        published_at: string | null;
+                        published_by: string | null;
+                        archived_at: string | null;
+                        archived_by: string | null;
+                        created_at: string | null;
+                        updated_at: string | null;
+                        ""?: string[] | {
+                            served_locale: null;
+                            title: string | null;
+                            body: string | null;
+                            translations: unknown[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.assignment-mappings.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        }[];
+                        precedence: string[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.assignment-mappings.store": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    source_type: "category" | "department";
+                    source_id: number;
+                    /** @enum {string} */
+                    target_type: "agent" | "department";
+                    target_id: number;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: number;
+                        source_type: string;
+                        source_id: number;
+                        target_type: string;
+                        target_id: number;
+                        /**
+                         * @description Whether this row can actually fire, and why not. A mapping pointing at somebody who left is worse than no mapping
+                         *     at all: it looks like the queue is being sorted while every
+                         *     matching ticket quietly stays unassigned. Saying so on the row
+                         *     is the difference between a rule and a mystery.
+                         */
+                        active: boolean;
+                        /** @enum {string|null} */
+                        inactive_reason: "That department no longer exists." | "That department has been deactivated." | "That account no longer exists." | "That account has been deactivated." | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.assignment-mappings.destroy": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description The mapping ID */
+                mapping: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /**
+             * @description Existing tickets are untouched. A mapping decides where NEW work
+             *     lands; rewriting history because a rule changed would move tickets
+             *     out from under the people already working them.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        deleted: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.assignment-mappings.update": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description The mapping ID */
+                mapping: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    target_type: "agent" | "department";
+                    target_id: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: number;
+                        source_type: string;
+                        source_id: number;
+                        target_type: string;
+                        target_id: number;
+                        /**
+                         * @description Whether this row can actually fire, and why not. A mapping pointing at somebody who left is worse than no mapping
+                         *     at all: it looks like the queue is being sorted while every
+                         *     matching ticket quietly stays unassigned. Saying so on the row
+                         *     is the difference between a rule and a mystery.
+                         */
+                        active: boolean;
+                        /** @enum {string|null} */
+                        inactive_reason: "That department no longer exists." | "That department has been deactivated." | "That account no longer exists." | "That account has been deactivated." | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "attachments.index": {
         parameters: {
             query: {
@@ -1853,7 +3465,7 @@ export interface operations {
             query?: {
                 actor_id?: string;
                 actor_search?: string;
-                action?: "auth.sign_in.succeeded" | "auth.sign_in.failed" | "user.created" | "user.updated" | "user.deactivated" | "user.reactivated" | "department.created" | "department.updated" | "department.deleted" | "config.changed" | "ticket.field_changed" | "customer.field_changed";
+                action?: "auth.sign_in.succeeded" | "auth.sign_in.failed" | "user.created" | "user.updated" | "user.deactivated" | "user.reactivated" | "department.created" | "department.updated" | "department.deleted" | "config.changed" | "article.published" | "article.archived" | "article.deleted" | "ticket.field_changed" | "customer.field_changed";
                 from?: string;
                 to?: string;
                 per_page?: number;
@@ -2307,6 +3919,101 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             404: components["responses"]["ModelNotFoundException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.channels.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "admin.channels.update": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    is_active?: boolean;
+                    department_id?: number | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
             /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
             409: {
                 headers: {
@@ -3241,6 +4948,37 @@ export interface operations {
             };
         };
     };
+    "tickets.feedback.invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket: string;
+                verdict: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "platform.healthz": {
         parameters: {
             query?: never;
@@ -3312,6 +5050,77 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "help.articles.index": {
+        parameters: {
+            query?: {
+                q?: string | null;
+                category_id?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        }[];
+                        categories: {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "help.articles.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                article: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description An RFC 9457 problem document. */
@@ -3682,6 +5491,120 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "inbound.phone": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                channel: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status: string;
+                    };
+                };
+            };
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "inbound.phone.receipts": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                channel: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    provider_message_id: string;
+                    state: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status: string;
+                    };
+                };
+            };
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description An RFC 9457 problem document. */
             default: {
                 headers: {
@@ -4068,6 +5991,69 @@ export interface operations {
                      */
                     category_id?: number | null;
                     attachment_ids?: string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "portal.requests.rate": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    positive: boolean;
+                    /** @description Optional, always, and never asked for before the rating. */
+                    comment?: string | null;
                 };
             };
         };
@@ -5016,6 +7002,67 @@ export interface operations {
             };
         };
     };
+    "tickets.escalate": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                ticket: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "tickets.events.index": {
         parameters: {
             query?: {
@@ -5287,6 +7334,12 @@ export interface operations {
                  *     every open ticket that could never match anything.
                  */
                 sla_state?: "on_track" | "at_risk" | "breached" | "met" | "paused";
+                /**
+                 * @description A filter, never a status. Escalation is a property an open,
+                 *     pending, resolved or closed ticket can carry — `?escalated=1`
+                 *     narrows within the lifecycle rather than replacing it.
+                 */
+                escalated?: boolean;
                 created_from?: string;
                 created_to?: string;
                 q?: string | null;
@@ -5995,6 +8048,158 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "channels.web_form.attachments": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    session_token: string;
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "channels.web_form.session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        session_token: string;
+                        expires_at: string;
+                        categories: {
+                            id: number;
+                            name: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "channels.web_form.store": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitWebFormRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status: string;
+                        reference?: string;
+                    };
+                };
+            };
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
             /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
             425: {
                 headers: {

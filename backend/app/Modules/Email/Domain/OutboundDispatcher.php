@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Email\Domain;
 
 use App\Modules\Email\Jobs\SendOutboundEmailJob;
+use App\Modules\Tickets\Domain\Feedback\FeedbackInvitation;
 use App\Modules\Platform\Support\Settings\SettingsRegistry;
 use Illuminate\Support\Facades\DB;
 
@@ -19,15 +20,32 @@ use Illuminate\Support\Facades\DB;
  */
 final class OutboundDispatcher
 {
-    public function __construct(private readonly SettingsRegistry $settings) {}
+    /**
+     * The channels an EMAIL reply is the right answer to.
+     *
+     * `agent` and `system` are here because a ticket somebody raised on the
+     * phone or the system opened has no other way back to the customer —
+     * email is the fallback, not a guess. `web_form` too: the person gave an
+     * address or a number, and where they gave an address this is how they
+     * hear back. WhatsApp and SMS are deliberately absent.
+     *
+     * @var list<string>
+     */
+    private const MINE = ['email', 'agent', 'portal', 'system', 'web_form'];
+
+    public function __construct(
+        private readonly SettingsRegistry $settings,
+        private readonly FeedbackInvitation $invitation,
+    ) {}
 
     /**
      * Queues an agent's reply.
      *
-     * Returns false when there is nothing to send — no channel, no address, or
-     * an internal note. Internal notes are the one that matters: a note is a
-     * colleague's private remark ABOUT the customer, and emailing it is the
-     * failure in this whole area that cannot be taken back.
+     * Returns false when there is nothing to send — no channel, no address,
+     * an internal note, or a ticket that arrived somewhere else. Internal
+     * notes are the one that matters: a note is a colleague's private remark
+     * ABOUT the customer, and emailing it is the failure in this whole area
+     * that cannot be taken back.
      */
     public function dispatchReply(string $messageId): bool
     {
@@ -43,6 +61,22 @@ final class OutboundDispatcher
             return false;
         }
 
+        if (! in_array($ticket->channel, self::MINE, true)) {
+            /*
+             * A reply goes out on the channel the ticket ARRIVED on.
+             *
+             * Until Story 7.2 there was no other outbound transport, so this
+             * dispatcher took every reply — and once WhatsApp and SMS could
+             * send, a reply to a WhatsApp ticket would have gone out BOTH
+             * ways: once on WhatsApp and once as an email the customer never
+             * asked for, to an address they may not have given us.
+             *
+             * `SendReplyOnItsChannel` has the same guard in reverse, so every
+             * ticket has exactly one listener that will act on it.
+             */
+            return false;
+        }
+
         $recipient = $this->recipient((string) $ticket->customer_id);
 
         if ($recipient === null) {
@@ -53,7 +87,7 @@ final class OutboundDispatcher
         // files this under the same conversation.
         $parent = DB::table('ticket_messages')
             ->where('ticket_id', $message->ticket_id)
-            ->whereNotNull('email_message_id')
+            ->whereNotNull('provider_message_id')
             ->where('id', '!=', $messageId)
             ->orderByDesc('sent_at')
             ->orderByDesc('id')
@@ -63,7 +97,7 @@ final class OutboundDispatcher
             domain: (string) $this->settings->get('email.domain'),
             ticketId: (string) $ticket->id,
             messageId: (string) $message->id,
-            parentMessageId: $parent?->email_message_id,
+            parentMessageId: $parent?->provider_message_id,
             parentReferences: ThreadHeaders::parseReferences($parent?->email_references),
         );
 
@@ -71,7 +105,7 @@ final class OutboundDispatcher
         // the value we can correlate against later — even if the send fails and
         // is retried on a different worker.
         DB::table('ticket_messages')->where('id', $messageId)->update([
-            'email_message_id' => $headers->messageId,
+            'provider_message_id' => $headers->messageId,
             'email_in_reply_to' => $headers->inReplyTo,
             'email_references' => $headers->references === [] ? null : implode(' ', $headers->references),
         ]);
@@ -144,6 +178,98 @@ final class OutboundDispatcher
             $body."\n\n".$ticket->reference,
             $headers->toArray(),
             $recipient['locale'],
+            null,
+            (string) $ticket->id,
+        );
+
+        return true;
+    }
+
+    /**
+     * Asks the customer how it went, once, when their request is finished.
+     *
+     * ONE email, ever. The listener only fires on a ticket's first finish, so
+     * a request that is resolved, reopened and resolved again does not ask the
+     * same person the same question twice — which is the chasing the story
+     * refuses by name. There is no reminder, no second attempt, and nothing
+     * that runs on a schedule looking for people who have not replied.
+     *
+     * The two links are the whole invitation. Tapping one records the answer;
+     * that is the entire cost of replying, and it is why this is worth sending
+     * at all. Nobody fills in a survey about a support ticket.
+     */
+    public function dispatchFeedbackInvitation(string $ticketId): bool
+    {
+        if (! (bool) $this->settings->get('email.feedback_invitation.enabled')) {
+            return false;
+        }
+
+        $ticket = DB::table('tickets')->where('id', $ticketId)->first();
+
+        if ($ticket === null) {
+            return false;
+        }
+
+        /*
+         * Same channel guard as a reply, and for the same reason. Somebody who
+         * asked on WhatsApp gets asked on WhatsApp or in the portal; emailing
+         * them as well is the double-notification this guard was added to stop.
+         */
+        if (! in_array($ticket->channel, self::MINE, true)) {
+            return false;
+        }
+
+        $recipient = $this->recipient((string) $ticket->customer_id);
+
+        if ($recipient === null) {
+            return false;
+        }
+
+        $locale = $recipient['locale'];
+
+        $templates = $this->settings->get('email.feedback_invitation_template');
+        $intro = is_array($templates)
+            // English is the fallback, not an error: a missing Arabic template
+            // should still ask the question.
+            ? (string) ($templates[$locale] ?? $templates['en'] ?? '')
+            : '';
+
+        if (trim($intro) === '') {
+            return false;
+        }
+
+        $links = $this->invitation->linksFor($ticketId);
+
+        $body = implode("\n", [
+            $intro,
+            '',
+            __('emails.feedback.good', [], $locale).': '.$links[FeedbackInvitation::UP],
+            __('emails.feedback.bad', [], $locale).': '.$links[FeedbackInvitation::DOWN],
+            '',
+            // Said out loud, because a link that has quietly stopped working is
+            // read as the product ignoring them.
+            __('emails.feedback.expiry', ['hours' => (string) $this->invitation->lifetimeHours()], $locale),
+            '',
+            (string) $ticket->reference,
+        ]);
+
+        $headers = ThreadHeaders::forReply(
+            domain: (string) $this->settings->get('email.domain'),
+            ticketId: (string) $ticket->id,
+            // In the SAME thread as the conversation it is about. A separate
+            // thread reads as a marketing email and is deleted unread.
+            messageId: 'feedback',
+            parentMessageId: null,
+            parentReferences: [],
+        );
+
+        SendOutboundEmailJob::dispatch(
+            $recipient['address'],
+            $recipient['name'],
+            SubjectTagger::tag((string) $ticket->subject, (string) $ticket->reference),
+            $body,
+            $headers->toArray(),
+            $locale,
             null,
             (string) $ticket->id,
         );

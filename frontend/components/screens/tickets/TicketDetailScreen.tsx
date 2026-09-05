@@ -130,7 +130,12 @@ export function TicketDetailScreen({
 
   const conversation = (
     <div className="flex flex-col gap-4">
-      <ConversationPanel key={conversationKey} ticketId={ticketId} onEditFailed={setSeedBody} />
+      <ConversationPanel
+        key={conversationKey}
+        ticketId={ticketId}
+        onEditFailed={setSeedBody}
+        ticketChannel={ticket?.channel}
+      />
 
       {/*
         The composer is NOT remounted by a reload. An agent three sentences
@@ -140,6 +145,10 @@ export function TicketDetailScreen({
       <TicketComposer
         ticketId={ticketId}
         seedBody={seedBody}
+        channelOpen={ticket?.channel_account_active ?? true}
+        // The same list the Assignee select uses: active staff only, loaded
+        // once for the screen rather than once per control.
+        mentionable={assignees}
         onSent={() => {
           setSeedBody(null);
           setConversationKey((n) => n + 1);

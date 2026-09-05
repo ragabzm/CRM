@@ -33,7 +33,9 @@ final class IdentifierNormaliser
     {
         return match ($kind) {
             ContactKind::Email => self::email($value),
-            ContactKind::Phone => self::phone($value),
+            // A WhatsApp number IS a phone number. Normalising it differently
+            // is how the same digits stop matching themselves.
+            ContactKind::Phone, ContactKind::WhatsApp => self::phone($value),
         };
     }
 

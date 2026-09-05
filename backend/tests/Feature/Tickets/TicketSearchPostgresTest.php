@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\MakesTickets;
+use Tests\Support\RunsAgainstRealPostgres;
 use Tests\TestCase;
 
 /**
@@ -27,42 +28,15 @@ use Tests\TestCase;
  */
 final class TicketSearchPostgresTest extends TestCase
 {
+    use RunsAgainstRealPostgres;
     use MakesTickets;
 
-    /**
-     * @return array{host:string,port:int,database:string,username:string,password:string}
-     */
-    private function postgresSettings(): array
-    {
-        /*
-         * DB_TEST_* rather than DB_*, because phpunit.xml deliberately
-         * overrides the ordinary connection to in-memory SQLite for every other
-         * test — reusing those values here would point the DSN at ":memory:".
-         */
-        return [
-            'host' => (string) env('DB_TEST_HOST', '127.0.0.1'),
-            'port' => (int) env('DB_TEST_PORT', 5432),
-            'database' => (string) env('DB_TEST_DATABASE', 'ragab_test'),
-            'username' => (string) env('DB_TEST_USERNAME', 'ragab'),
-            'password' => (string) env('DB_TEST_PASSWORD', 'ragab'),
-        ];
-    }
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $settings = $this->postgresSettings();
-        $this->skipUnlessPostgresIsReachable($settings);
-
-        Config::set('database.default', 'pgsql');
-
-        foreach ($settings as $key => $value) {
-            Config::set("database.connections.pgsql.{$key}", $value);
-        }
-
-        DB::purge('pgsql');
-        Artisan::call('migrate:fresh', ['--database' => 'pgsql', '--force' => true]);
+        $this->useRealPostgres('the Postgres search path');
 
         $this->seed(RolesAndPermissionsSeeder::class);
     }
@@ -71,30 +45,11 @@ final class TicketSearchPostgresTest extends TestCase
     {
         // Leaves no tables behind in a database someone may also be using by
         // hand.
-        if (Config::get('database.default') === 'pgsql') {
-            Artisan::call('migrate:reset', ['--database' => 'pgsql', '--force' => true]);
-        }
+        $this->releaseRealPostgres();
 
         parent::tearDown();
     }
 
-    /** @param array<string, mixed> $settings */
-    private function skipUnlessPostgresIsReachable(array $settings): void
-    {
-        try {
-            new \PDO(
-                sprintf('pgsql:host=%s;port=%d;dbname=%s', $settings['host'], $settings['port'], $settings['database']),
-                (string) $settings['username'],
-                (string) $settings['password'],
-                [\PDO::ATTR_TIMEOUT => 2],
-            );
-        } catch (\Throwable $e) {
-            $this->markTestSkipped(
-                'Postgres unreachable — the tsvector and trigram search paths were NOT covered. '.
-                'Create the database and set DB_TEST_* to run it. Reason: '.$e->getMessage(),
-            );
-        }
-    }
 
     /** @return list<string> */
     private function search(string $term): array

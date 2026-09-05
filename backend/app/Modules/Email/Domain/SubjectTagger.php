@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Email\Domain;
 
+use App\Modules\Channels\Domain\TicketReference;
+
 /**
  * Puts the ticket reference in the subject, once.
  *
@@ -20,11 +22,15 @@ namespace App\Modules\Email\Domain;
  */
 final class SubjectTagger
 {
-    /**
-     * Matches a tag anywhere in the line, so a client that puts `Re:` first
-     * does not defeat the check.
+    /*
+     * The PATTERN lives in `TicketReference`, in the Channels module.
+     *
+     * Reading a reference out of text is something every channel does; writing
+     * a subject tag is something only email does. Splitting them that way is
+     * what stops a second regex appearing the first time another transport
+     * needs to recognise a reference, and the two quietly disagreeing about
+     * what one looks like.
      */
-    private const TAG = '/\[#([A-Z]{2,5}-[0-9]{4,})\]/';
 
     public static function tag(string $subject, string $reference): string
     {
@@ -40,10 +46,10 @@ final class SubjectTagger
             /*
              * Tagged with a DIFFERENT ticket — a forward, or a reply that has
              * been dragged onto another thread. Replace rather than append: two
-             * references in one subject would make Story 5.2 guess which
+             * references in one subject would make correlation guess which
              * ticket the customer meant.
              */
-            $subject = trim((string) preg_replace(self::TAG, '', $subject));
+            $subject = TicketReference::stripFrom($subject);
         }
 
         $subject = trim($subject);
@@ -56,6 +62,6 @@ final class SubjectTagger
     /** The ticket reference a subject carries, if any. */
     public static function referenceIn(string $subject): ?string
     {
-        return preg_match(self::TAG, $subject, $matches) === 1 ? $matches[1] : null;
+        return TicketReference::inText($subject);
     }
 }

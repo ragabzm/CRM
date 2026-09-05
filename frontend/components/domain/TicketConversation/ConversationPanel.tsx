@@ -6,7 +6,12 @@ import { useCallback, useEffect, useState } from "react";
 import { EmptyState } from "@/components/domain/EmptyState/EmptyState";
 import { FormAlert } from "@/components/domain/FormAlert/FormAlert";
 import { Button } from "@/components/ui/button";
-import { listTicketMessages, retryTicketMessage, type TicketMessage } from "@/lib/api/tickets";
+import {
+  listTicketMessages,
+  retryTicketMessage,
+  type TicketChannel,
+  type TicketMessage,
+} from "@/lib/api/tickets";
 import { useFormat } from "@/lib/format/useFormat";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +19,15 @@ export interface ConversationPanelProps {
   ticketId: string;
   /** Re-hydrates the composer with a failed message's body so it can be fixed. */
   onEditFailed: (body: string) => void;
+  /**
+   * The channel this ticket arrived on, for the messages that WENT OUT.
+   *
+   * An inbound message says where it came from itself — `arrived_by` carries
+   * that. An outbound one has no such record, and a reply that does not say
+   * how it was sent leaves an agent unable to tell a WhatsApp answer from an
+   * email in a thread that may contain both.
+   */
+  ticketChannel?: TicketChannel | undefined;
 }
 
 /**
@@ -28,7 +42,11 @@ export interface ConversationPanelProps {
  * Each treatment carries its meaning in words as well as colour and position,
  * because colour alone is not a message a screen reader can read.
  */
-export function ConversationPanel({ ticketId, onEditFailed }: ConversationPanelProps) {
+export function ConversationPanel({
+  ticketId,
+  onEditFailed,
+  ticketChannel,
+}: ConversationPanelProps) {
   const t = useTranslations("ticket.conversation");
   const format = useFormat();
 
@@ -103,6 +121,7 @@ export function ConversationPanel({ ticketId, onEditFailed }: ConversationPanelP
           retrying={retrying === message.id}
           onRetry={() => void retry(message)}
           onEdit={() => onEditFailed(message.body)}
+          ticketChannel={ticketChannel}
         />
       ))}
     </ol>
@@ -124,8 +143,15 @@ function MessageRow({
   retrying,
   onRetry,
   onEdit,
+  ticketChannel,
 }: {
   message: TicketMessage;
+  /*
+   * `| undefined` as well as optional. `exactOptionalPropertyTypes` treats
+   * "absent" and "present but undefined" as different, and this is passed
+   * straight through from a prop that may be either.
+   */
+  ticketChannel?: TicketChannel | undefined;
   t: ReturnType<typeof useTranslations<"ticket.conversation">>;
   format: ReturnType<typeof useFormat>;
   retrying: boolean;
@@ -137,11 +163,26 @@ function MessageRow({
 
   return (
     <li
+      /*
+       * The anchor a mention notification lands on.
+       *
+       * "Open the ticket" is not precise enough for a mention: the whole
+       * content of one is "come and read this sentence", and dropping somebody
+       * at the top of a long thread asks them to search for it.
+       *
+       * `scroll-mt` because the workspace has a sticky header — without it the
+       * browser scrolls the row to y=0 and the header covers exactly the line
+       * the reader came for.
+       */
+      id={`note-${message.id}`}
       data-slot="conversation-message"
       data-direction={message.direction}
       data-delivery={message.delivery_state ?? undefined}
       className={cn(
         "flex max-w-[42rem] flex-col gap-2 rounded-md border p-3",
+        // The workspace header is sticky; without this the browser scrolls the
+        // row to y=0 and the header covers the line the reader came for.
+        "scroll-mt-24",
         TREATMENT[message.direction],
       )}
     >
@@ -160,6 +201,47 @@ function MessageRow({
 
         {message.sent_at !== null && (
           <time dateTime={message.sent_at}>{format.dateTime(message.sent_at)}</time>
+        )}
+
+        {/*
+          `??`, so a response without the field behaves like one that sent
+          null. A missing field and an explicit null mean the same thing here —
+          "this message did not arrive through a channel" — and treating the
+          first as an object is how a row that renders fine in production
+          throws in a test written before the field existed.
+        */}
+        {(message.arrived_by ?? null) === null &&
+          message.direction === "outbound" &&
+          ticketChannel !== undefined && (
+            /*
+             * How the reply went out. The conversation reads as ONE thread
+             * however many transports contributed to it — which is only true
+             * if each message says which one carried it.
+             */
+            <span data-slot="sent-by" data-channel={ticketChannel}>
+              {t(`channel.${ticketChannel}`)}
+            </span>
+          )}
+
+        {(message.arrived_by ?? null) !== null && (
+          <span
+            data-slot="arrived-by"
+            data-channel={message.arrived_by!.channel}
+            /*
+             * Where it came from, and why it is here. The second half is the
+             * part that matters: a reply on the wrong ticket is a question an
+             * agent can otherwise only answer by asking somebody to query the
+             * database, and by then the message that would explain it has been
+             * read and forgotten.
+             */
+            title={
+              message.arrived_by!.correlation_reason === null
+                ? undefined
+                : t(`correlation.${message.arrived_by!.correlation_reason}`)
+            }
+          >
+            {t(`channel.${message.arrived_by!.channel}`)}
+          </span>
         )}
 
         {message.delivery_state !== null && (

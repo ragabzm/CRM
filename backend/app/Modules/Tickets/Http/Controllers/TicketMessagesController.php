@@ -7,6 +7,7 @@ namespace App\Modules\Tickets\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Platform\Attachments\Domain\AttachmentOwnerType;
 use App\Modules\Platform\Exceptions\ProblemException;
+use App\Modules\Tickets\Contracts\InboundProvenance;
 use App\Modules\Tickets\Domain\Commands\AppendMessage;
 use App\Modules\Tickets\Domain\Enum\DeliveryState;
 use App\Modules\Tickets\Domain\Enum\MessageDirection;
@@ -30,6 +31,7 @@ final class TicketMessagesController extends Controller
     public function __construct(
         private readonly ActorResolver $actors,
         private readonly AppendMessage $append,
+        private readonly InboundProvenance $provenance,
     ) {}
 
     /**
@@ -56,8 +58,20 @@ final class TicketMessagesController extends Controller
             ->orderBy('id')
             ->get();
 
+        /*
+         * Where each message came from, and which rule put it here.
+         *
+         * Fetched once for the whole thread. "Why did this land on this
+         * ticket?" is the question a mis-correlated message raises, and
+         * answering it from the screen is the difference between a five-second
+         * check and asking somebody to query the database.
+         */
+        $provenance = $this->provenance->forMessages(
+            $messages->map(static fn (TicketMessage $m): string => (string) $m->getKey())->all(),
+        );
+
         return new JsonResponse([
-            'data' => $messages->map(fn (TicketMessage $m) => $this->shape($m))->all(),
+            'data' => $messages->map(fn (TicketMessage $m) => $this->shape($m, $provenance))->all(),
         ]);
     }
 
@@ -115,7 +129,11 @@ final class TicketMessagesController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function shape(TicketMessage $message): array
+    /**
+     * @param  array<string, array{channel: string, correlation_reason: string|null}>  $provenance
+     * @return array<string, mixed>
+     */
+    private function shape(TicketMessage $message, array $provenance = []): array
     {
         return [
             'id' => (string) $message->getKey(),
@@ -135,6 +153,12 @@ final class TicketMessagesController extends Controller
              * than labelling an arriving customer message "queued".
              */
             'delivery_state' => $message->delivery_state?->value,
+
+            /*
+             * Absent for anything an agent wrote here. Only a message that
+             * ARRIVED has a channel and a rule that placed it.
+             */
+            'arrived_by' => $provenance[(string) $message->getKey()] ?? null,
 
             'attachments' => $this->attachmentsOf($message),
         ];

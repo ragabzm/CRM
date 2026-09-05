@@ -204,10 +204,16 @@ final class SettingsRegistryTest extends TestCase
          * changing it WITHOUT noticing is the failure mode.
          */
         $this->assertSame([
+            // Story 7.1: the channel spine.
+            'channels.correlation_window_hours.email',
+            'channels.correlation_window_hours.web_form',
+            'channels.default_department_id',
             'email.acknowledgement.enabled',
             'email.acknowledgement_template',
             'email.domain',
             'email.enabled',
+            'email.feedback_invitation.enabled',
+            'email.feedback_invitation_template',
             'email.from_address',
             'email.from_name',
             'email.inbound.enabled',
@@ -225,6 +231,8 @@ final class SettingsRegistryTest extends TestCase
             'platform.attachments.max_bytes',
             'platform.default_locale',
             'sla.at_risk_threshold_percent',
+            // Story 10.1: the second, louder half of breach escalation.
+            'sla.breach_raises_priority',
             'sla.holidays',
             'sla.resolution_target_seconds.high',
             'sla.resolution_target_seconds.low',
@@ -238,6 +246,8 @@ final class SettingsRegistryTest extends TestCase
             'sla.working_hours',
             'tickets.auto_close_window_hours',
             'tickets.quick_replies',
+            // Story 11.1: how long a customer can change their answer.
+            'tickets.rating_change_window_hours',
             'tickets.reopen_window_days',
         ], $this->registry()->knownKeys());
     }

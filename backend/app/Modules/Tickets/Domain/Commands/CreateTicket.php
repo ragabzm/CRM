@@ -6,6 +6,7 @@ namespace App\Modules\Tickets\Domain\Commands;
 
 use App\Modules\Platform\Exceptions\ProblemException;
 use App\Modules\Tickets\Domain\Actor\Actor;
+use App\Modules\Tickets\Domain\Assignment\AutoAssignment;
 use App\Modules\Tickets\Domain\Enum\TicketStatus;
 use App\Modules\Tickets\Domain\Events\TicketOpened;
 use App\Modules\Tickets\Domain\Priority;
@@ -25,10 +26,14 @@ final class CreateTicket
     /** Retries for a reference collision, which only the SQLite path can hit. */
     private const REFERENCE_ATTEMPTS = 3;
 
+    /** What history calls the mapping table when it places a ticket. */
+    public const AUTO_ASSIGN_REASON = 'auto_assign';
+
     public function __construct(
         private readonly TicketReferenceAllocator $references,
         private readonly ConnectionInterface $db,
         private readonly TicketEventRecorder $history,
+        private readonly AutoAssignment $autoAssignment,
     ) {}
 
     public function handle(Actor $actor, CreateTicketInput $input): Ticket
@@ -40,6 +45,16 @@ final class CreateTicket
          */
         $ticket = $this->db->transaction(function () use ($actor, $input): Ticket {
             $ticket = $this->insert($actor, $input);
+
+            /*
+             * Inside the transaction, before the created event.
+             *
+             * A ticket must never be briefly visible as unassigned and then
+             * assigned a moment later: an agent watching the unassigned queue
+             * would see it appear and vanish, and the `ticket.created` event
+             * would record a state the ticket was never really in.
+             */
+            $mapping = $this->applyMapping($ticket, $input);
 
             /*
              * `before` is null: nothing preceded a ticket's creation. `after`
@@ -63,6 +78,30 @@ final class CreateTicket
                 versionAfter: $ticket->version,
             );
 
+            if ($mapping !== null) {
+                /*
+                 * Its own event, after the creation one, attributed to the
+                 * system and NAMING the mapping row that matched.
+                 *
+                 * "Why is this on Dana's queue?" has to be answerable from the
+                 * ticket. Folding the assignment into the created event would
+                 * make an automatic assignment indistinguishable from a ticket
+                 * somebody raised already assigned.
+                 */
+                $this->history->record(
+                    (string) $ticket->getKey(),
+                    TicketEventKind::AssigneeChanged,
+                    Actor::system(self::AUTO_ASSIGN_REASON),
+                    before: ['assignee_id' => null, 'department_id' => $input->departmentId],
+                    after: [
+                        'assignee_id' => $ticket->assignee_id,
+                        'department_id' => $ticket->department_id,
+                    ],
+                    meta: ["mapping_id" => $mapping["mapping_id"]],
+                    versionAfter: $ticket->version,
+                );
+            }
+
             return $ticket;
         });
 
@@ -77,6 +116,46 @@ final class CreateTicket
         Event::dispatch(new TicketOpened((string) $ticket->getKey(), $input->suppressAcknowledgement));
 
         return $ticket;
+    }
+
+    /**
+     * Applies the mapping table, if it has anything to say.
+     *
+     * An assignee the ACTING AGENT supplied is never overridden — they were
+     * looking at the ticket and made a decision, and a lookup table is not
+     * better informed than that.
+     *
+     * @return array{assignee_id?: int, department_id?: int, mapping_id: int}|null
+     */
+    private function applyMapping(Ticket $ticket, CreateTicketInput $input): ?array
+    {
+        if ($ticket->assignee_id !== null) {
+            return null;
+        }
+
+        $decision = $this->autoAssignment->decide($ticket->category_id, $ticket->department_id);
+
+        if ($decision === null) {
+            // No match, or the only match points at somebody who cannot take
+            // work. Unassigned is a valid, visible, workable state.
+            return null;
+        }
+
+        $ticket->forceFill(array_filter(
+            [
+                'assignee_id' => $decision['assignee_id'] ?? null,
+                /*
+                 * A department mapping MOVES the ticket and leaves it
+                 * unassigned there. AD-22 already resolved a department; this
+                 * is a recorded move on top of that answer, not a fifth rung
+                 * on its ladder.
+                 */
+                'department_id' => $decision['department_id'] ?? null,
+            ],
+            static fn (?int $value): bool => $value !== null,
+        ))->save();
+
+        return $decision;
     }
 
     private function insert(Actor $actor, CreateTicketInput $input): Ticket

@@ -118,6 +118,29 @@ export function TicketListTable({
           </Link>
 
           <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-fg-subtle">
+            {ticket.escalated_at !== null && (
+              <>
+                {/*
+                  On the IDENTITY line, not in a column of its own.
+                  Escalation is not a status — it is a property an open,
+                  pending, resolved or closed ticket can carry — so it sits
+                  beside the reference rather than competing with the status
+                  chip. A word, never a colour alone: a red dot tells a reader
+                  using assistive technology nothing, and tells everybody else
+                  nothing in greyscale.
+                */}
+                <span
+                  className="font-semibold text-state-danger"
+                  data-slot="escalated-marker"
+                  title={ticket.escalation_reason ?? undefined}
+                >
+                  {t("columns.escalated")}
+                </span>
+
+                <span aria-hidden="true">·</span>
+              </>
+            )}
+
             {/* An identifier, forced LTR so it reads the same in both
                 writing directions. */}
             <BidiValue>{ticket.reference}</BidiValue>

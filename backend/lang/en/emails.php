@@ -15,4 +15,15 @@ declare(strict_types=1);
  * architecture test once either side has real keys.
  */
 
-return [];
+return [
+    'feedback' => [
+        /*
+         * Words, not symbols. The two links are the only controls in this
+         * email, and a mail client that strips emoji or renders it as a box
+         * would leave the customer choosing between two identical links.
+         */
+        'good' => 'It went well',
+        'bad' => 'It did not go well',
+        'expiry' => 'You can change your answer for :hours hours.',
+    ],
+];

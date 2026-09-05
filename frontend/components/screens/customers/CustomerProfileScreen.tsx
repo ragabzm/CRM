@@ -181,14 +181,15 @@ export function CustomerProfileScreen({
         <p className="text-xs text-fg-muted">{t("department.note")}</p>
       </Section>
 
-      <Section title={t("profile.notes")}>
-        <p className="whitespace-pre-wrap text-sm text-fg-default">
-          {customer.notes && customer.notes.trim() !== ""
-            ? customer.notes
-            : t("profile.notesEmpty")}
-        </p>
-      </Section>
-
+      {/*
+        There is no second Notes panel any more.
+        A free-text `notes` column on the customer row used to render here
+        under the same heading as `NotesLane` below — so the screen printed
+        "No notes yet." with a real note visible directly underneath it, and
+        a colleague looking for what somebody had recorded had two places to
+        look and nothing telling them so. The column has been migrated into
+        the notes table and dropped.
+      */}
       <div className="rounded-lg border border-border-default bg-surface-base p-5">
         <NotesLane
           customerId={customer.id}

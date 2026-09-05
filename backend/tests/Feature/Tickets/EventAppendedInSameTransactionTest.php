@@ -10,6 +10,9 @@ use App\Modules\Tickets\Domain\Commands\AssignTicket;
 use App\Modules\Tickets\Domain\Commands\ChangeStatus;
 use App\Modules\Tickets\Domain\Commands\CreateTicket;
 use App\Modules\Tickets\Domain\Commands\CreateTicketInput;
+use App\Modules\Tickets\Domain\Commands\EscalateTicket;
+use App\Modules\Tickets\Domain\Commands\RaisePriorityOneStep;
+use App\Modules\Tickets\Domain\Commands\RateTicket;
 use App\Modules\Tickets\Domain\Commands\ReopenTicket;
 use App\Modules\Tickets\Domain\Commands\ResolveTicket;
 use App\Modules\Tickets\Domain\Commands\TicketAttributeChanges;
@@ -204,6 +207,54 @@ final class EventAppendedInSameTransactionTest extends TestCase
         $this->assertSame(1, Ticket::query()->findOrFail($ticket->getKey())->version);
     }
 
+    public function test_escalating_writes_its_event_in_the_same_transaction(): void
+    {
+        $ticket = $this->newTicket();
+
+        $statements = $this->statementsFor(fn () => $this->app->make(EscalateTicket::class)->handle(
+            $this->actor,
+            (string) $ticket->getKey(),
+            'The customer has waited four days for a part nobody ordered.',
+        ));
+
+        $this->assertWrittenTogether($statements, 'tickets');
+        $this->assertDatabaseHas('ticket_events', ['event_type' => 'ticket.escalated']);
+    }
+
+    public function test_raising_priority_writes_its_event_in_the_same_transaction(): void
+    {
+        $ticket = $this->newTicket();
+
+        $statements = $this->statementsFor(fn () => $this->app->make(RaisePriorityOneStep::class)->handle(
+            Actor::system('sla_breach'),
+            $ticket,
+        ));
+
+        $this->assertWrittenTogether($statements, 'tickets');
+        $this->assertDatabaseHas('ticket_events', ['event_type' => TicketEvent::PRIORITY_CHANGED]);
+    }
+
+    public function test_rating_writes_its_event_in_the_same_transaction(): void
+    {
+        $ticket = $this->newTicket();
+
+        $this->app->make(\App\Modules\Tickets\Domain\Commands\ResolveTicket::class)->handle(
+            $this->actor,
+            (string) $ticket->getKey(),
+            $ticket->version,
+            'Sorted.',
+        );
+
+        $statements = $this->statementsFor(fn () => $this->app->make(RateTicket::class)->handle(
+            Actor::portal('7', 'Hana Yousef'),
+            (string) $ticket->getKey(),
+            true,
+        ));
+
+        $this->assertWrittenTogether($statements, 'tickets');
+        $this->assertDatabaseHas('ticket_events', ['event_type' => 'ticket.rated']);
+    }
+
     public function test_every_command_with_a_handle_is_covered_here(): void
     {
         $commands = [];
@@ -219,8 +270,8 @@ final class EventAppendedInSameTransactionTest extends TestCase
         sort($commands);
 
         /*
-         * Pinned, so a seventh command cannot be added without either a test
-         * here or a deliberate decision to change this list. AppendMessage is
+         * Pinned, so a new command cannot be added without either a test here
+         * or a deliberate decision to change this list. AppendMessage is
          * listed and deliberately writes NO event — see its own suite.
          */
         $this->assertSame([
@@ -229,6 +280,9 @@ final class EventAppendedInSameTransactionTest extends TestCase
             'ChangeDepartment',
             'ChangeStatus',
             'CreateTicket',
+            'EscalateTicket',
+            'RaisePriorityOneStep',
+            'RateTicket',
             'ReopenTicket',
             'ResolveTicket',
             'UpdateTicketAttributes',

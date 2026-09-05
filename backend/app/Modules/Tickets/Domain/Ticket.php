@@ -53,6 +53,15 @@ final class Ticket extends Model
             'resolved_at' => 'immutable_datetime',
             'closed_at' => 'immutable_datetime',
             'last_customer_activity_at' => 'immutable_datetime',
+            'escalated_at' => 'immutable_datetime',
+            /*
+             * A nullable boolean, and the null is the third state: not rated.
+             * Casting it to `bool` would turn "nobody said" into "no", which
+             * is the one wrong answer available here.
+             */
+            'satisfaction' => 'boolean',
+            'satisfaction_at' => 'immutable_datetime',
+            'first_finished_at' => 'immutable_datetime',
         ];
     }
 

@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Email\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Modules\Email\Domain\Inbound\InboundMailIntake;
+use App\Modules\Channels\Domain\Intake\InboundIntake;
+use App\Modules\Email\Domain\Inbound\MailChannelAdapter;
 use App\Modules\Platform\Exceptions\ProblemException;
 use App\Modules\Platform\Support\Settings\SettingsRegistry;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +24,8 @@ use Illuminate\Support\Facades\DB;
 final class MailQuarantineController extends Controller
 {
     public function __construct(
-        private readonly InboundMailIntake $intake,
+        private readonly InboundIntake $intake,
+        private readonly MailChannelAdapter $adapter,
         private readonly SettingsRegistry $settings,
     ) {}
 
@@ -32,7 +34,16 @@ final class MailQuarantineController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = DB::table('mail_quarantine')
+        /*
+         * Filtered to email, not the whole table.
+         *
+         * Quarantine became shared in Story 7.1, but this endpoint is the MAIL
+         * quarantine and its response shape is a published contract. Showing a
+         * WhatsApp failure here would be a surprise to every existing caller;
+         * the channel-agnostic list is a separate surface.
+         */
+        $query = DB::table('channel_quarantine')
+            ->where('channel', 'email')
             // Outstanding first: the list exists to show what still needs a
             // person.
             ->orderByRaw('resolved_at is null desc')
@@ -127,12 +138,12 @@ final class MailQuarantineController extends Controller
          * intact as the evidence that it happened.
          */
         $result = $this->intake->accept(
-            (string) $row->raw,
-            (string) $row->provider,
+            $this->adapter,
+            ['raw' => (string) $row->raw],
             'replay:'.$row->id,
         );
 
-        DB::table('mail_quarantine')->where('id', $id)->update([
+        DB::table('channel_quarantine')->where('id', $id)->update([
             'resolved_at' => now(),
             'resolved_by' => (string) (request()->user()?->getAuthIdentifier() ?? ''),
             'updated_at' => now(),
@@ -143,7 +154,7 @@ final class MailQuarantineController extends Controller
 
     private function find(string $id): object
     {
-        $row = DB::table('mail_quarantine')->where('id', $id)->first();
+        $row = DB::table('channel_quarantine')->where('channel', 'email')->where('id', $id)->first();
 
         if ($row === null) {
             throw ProblemException::make(

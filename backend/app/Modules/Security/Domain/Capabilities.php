@@ -86,6 +86,18 @@ final class Capabilities
      */
     public const TICKET_REASSIGN_ANY = 'ticket.reassign_any';
 
+    /**
+     * Marking a ticket as going wrong.
+     *
+     * Its own capability rather than folded into `ticket.update`, because it
+     * is the one ticket action whose audience is other PEOPLE: it puts an
+     * alert in front of every supervisor in the department. An agent should be
+     * able to raise a hand — they are the one who can see the trouble — but it
+     * is a distinct thing from editing a field, and a deployment may want to
+     * say so.
+     */
+    public const TICKET_ESCALATE = 'ticket.escalate';
+
     public const TICKET_CHANGE_STATUS = 'ticket.change_status';
 
     public const TICKET_CHANGE_DEPARTMENT = 'ticket.change_department';
@@ -97,6 +109,31 @@ final class Capabilities
     public const CUSTOMER_READ = 'customer.read';
 
     public const CUSTOMER_MANAGE = 'customer.manage';
+
+    /**
+     * Turning a channel on or off and binding it to a department.
+     *
+     * Separate from `setting.manage` because it is not a setting: disabling a
+     * channel stops customers reaching the desk through it, which is an
+     * operational decision with a visible consequence, not a preference.
+     */
+    public const CHANNEL_MANAGE = 'channel.manage';
+
+    /** Reading the knowledge base, including articles not published to customers. */
+    public const KNOWLEDGE_VIEW = 'knowledge.view';
+
+    /** Writing and organising articles and their categories. */
+    public const KNOWLEDGE_MANAGE = 'knowledge.manage';
+
+    /**
+     * Putting an article in front of people, and taking it back out.
+     *
+     * Separate from `knowledge.manage` because publishing is the irreversible
+     * half: once an article has been published it can never be deleted, only
+     * archived, and a customer may already be holding the link. Writing a draft
+     * and deciding it is ready are two different decisions.
+     */
+    public const KNOWLEDGE_PUBLISH = 'knowledge.publish';
 
     /**
      * Every capability, read from the constants themselves so the list cannot

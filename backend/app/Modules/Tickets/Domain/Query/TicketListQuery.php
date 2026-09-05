@@ -128,6 +128,18 @@ final class TicketListQuery
             $query->whereIn('department_id', $filters->departmentIds);
         }
 
+        if ($filters->escalated !== null) {
+            /*
+             * Narrows WITHIN the lifecycle, never instead of it. An escalated
+             * ticket still has one of the four statuses, so this composes with
+             * the status filter rather than competing with it — "escalated and
+             * still open" is the query a supervisor actually wants.
+             */
+            $filters->escalated
+                ? $query->whereNotNull('escalated_at')
+                : $query->whereNull('escalated_at');
+        }
+
         if ($filters->assigneeIds !== []) {
             /*
              * Through TicketVisibility, which owns what "unassigned" means.

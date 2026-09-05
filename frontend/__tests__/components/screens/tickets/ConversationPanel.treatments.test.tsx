@@ -55,6 +55,8 @@ const MESSAGES = [
 
 let calls: string[] = [];
 let failOne = false;
+/** Overrides MESSAGES for one test. Null means "serve the standard three". */
+let messages: unknown[] | null = null;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -66,6 +68,7 @@ function json(body: unknown, status = 200) {
 beforeEach(() => {
   calls = [];
   failOne = false;
+  messages = null;
 
   vi.stubGlobal(
     "fetch",
@@ -77,7 +80,8 @@ beforeEach(() => {
         return json({ ...MESSAGES[1], id: "01M2", delivery_state: "queued" });
       }
 
-      const data = failOne ? [{ ...MESSAGES[1], delivery_state: "failed" }] : MESSAGES;
+      const data =
+        messages ?? (failOne ? [{ ...MESSAGES[1], delivery_state: "failed" }] : MESSAGES);
 
       return json({ data });
     }),
@@ -256,5 +260,73 @@ describe("a send that failed", () => {
     await userEvent.click(within(alert).getByRole("button", { name: "Edit" }));
 
     expect(onEdit).toHaveBeenCalledWith("Looking into it now.");
+  });
+});
+
+describe("why a message landed on this ticket", () => {
+  /**
+   * The question a mis-correlated message raises.
+   *
+   * Without this on the screen, an agent looking at a reply on the wrong
+   * ticket can only ask somebody to query the database — and by then the
+   * message that would explain it has been read and forgotten.
+   */
+  it("names the channel a message arrived on and the rule that placed it", async () => {
+    messages = [
+      {
+        ...MESSAGES[0]!,
+        arrived_by: { channel: "web_form", correlation_reason: "open_ticket" },
+      },
+    ];
+
+    render(<ConversationPanel ticketId="01T1" onEditFailed={vi.fn()} />);
+
+    const chip = await waitFor(() => {
+      const found = document.querySelector("[data-slot='arrived-by']");
+      expect(found).not.toBeNull();
+
+      return found!;
+    });
+
+    expect(chip.textContent).toBe(en.ticket.conversation.channel.web_form);
+    expect(chip.getAttribute("data-channel")).toBe("web_form");
+    // The rule, in words a person can act on.
+    expect(chip.getAttribute("title")).toBe(en.ticket.conversation.correlation.open_ticket);
+  });
+
+  it("says how a reply went out, so one thread can carry two transports", async () => {
+    messages = [{ ...MESSAGES[1]!, arrived_by: null }];
+
+    const { container } = render(
+      <ConversationPanel ticketId="01T1" onEditFailed={vi.fn()} ticketChannel="whatsapp" />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Looking into it now.")).toBeInTheDocument());
+
+    /*
+     * An inbound message says where it came from; an outbound one has no such
+     * record. A reply that does not say how it was sent leaves an agent unable
+     * to tell a WhatsApp answer from an email in a thread that holds both.
+     */
+    const chip = container.querySelector("[data-slot='sent-by']");
+
+    expect(chip).not.toBeNull();
+    expect(chip!.getAttribute("data-channel")).toBe("whatsapp");
+    expect(chip!.textContent).toBe(en.ticket.conversation.channel.whatsapp);
+  });
+
+  it("says nothing at all about a reply an agent wrote here", async () => {
+    messages = [{ ...MESSAGES[1]!, arrived_by: null }];
+
+    render(<ConversationPanel ticketId="01T1" onEditFailed={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("Looking into it now.")).toBeInTheDocument());
+
+    /*
+     * Absent, not "agent". Only a message that ARRIVED has a channel, and
+     * labelling an agent's own reply with one would assert something nobody
+     * recorded.
+     */
+    expect(document.querySelector("[data-slot='arrived-by']")).toBeNull();
   });
 });

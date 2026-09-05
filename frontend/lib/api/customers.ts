@@ -29,7 +29,6 @@ export interface Customer {
   state: CustomerState;
   preferred_channel: ContactKind | null;
   identifiers: CustomerIdentifier[];
-  notes?: string | null;
   created_at?: string | null;
   updated_at: string | null;
   deactivated_at: string | null;
@@ -61,7 +60,6 @@ export interface CustomerInput {
   full_name: string;
   department_id: number;
   preferred_channel?: ContactKind | null;
-  notes?: string | null;
   identifiers: Array<{ kind: ContactKind; value: string; is_primary?: boolean }>;
   confirm_create_duplicate?: boolean;
 }

@@ -18,6 +18,7 @@ use App\Modules\Tickets\Domain\Commands\UpdateTicketAttributes;
 use App\Modules\Tickets\Domain\Enum\TicketChannel;
 use App\Modules\Tickets\Domain\Priority;
 use App\Modules\Tickets\Contracts\SlaReader;
+use App\Modules\Tickets\Domain\Personal\PersonalCounts;
 use App\Modules\Tickets\Domain\Query\TicketCounts;
 use App\Modules\Tickets\Domain\Query\TicketListQuery;
 use App\Modules\Tickets\Domain\Query\TicketVisibility;
@@ -161,9 +162,24 @@ final class TicketsController extends Controller
      *
      * @response array<string, int|null>
      */
-    public function counts(Request $request, TicketCounts $counts): JsonResponse
+    public function counts(Request $request, TicketCounts $counts, PersonalCounts $personal): JsonResponse
     {
-        return new JsonResponse($counts->forActor($request->user()));
+        $actor = $request->user();
+
+        /*
+         * Home's tab badges ride along here rather than fetching themselves.
+         *
+         * They belong to the same screen, refreshed on the same interval, and
+         * a badge is not worth a round trip on the busiest page in the
+         * product. Reading them separately would also let the tab and the
+         * strip below it disagree, having been taken moments apart.
+         */
+        return new JsonResponse([
+            ...$counts->forActor($actor),
+            'personal' => $personal->forUser(
+                $actor === null ? null : (int) $actor->getAuthIdentifier(),
+            ),
+        ]);
     }
 
     /**

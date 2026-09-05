@@ -22,6 +22,7 @@ const COUNTS = {
   unassigned: 7,
   at_risk: null,
   breached: null,
+  personal: { tasks: 0, tasks_overdue: 0, mentions: 0 },
   pending_customer_reply: 2,
 };
 

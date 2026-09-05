@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
+import { ArticleFinder } from "@/components/domain/ArticleFinder/ArticleFinder";
 import { FormAlert } from "@/components/domain/FormAlert/FormAlert";
 import { SegmentedFilter } from "@/components/domain/SegmentedFilter/SegmentedFilter";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,23 @@ export interface TicketComposerProps {
   onSent: () => void;
   /** Set by ConversationPanel's "Edit" on a failed send. */
   seedBody?: string | null;
+  /**
+   * False when the channel this ticket arrived on has been switched off.
+   *
+   * Given to the composer rather than discovered by it, because the composer
+   * has to say so BEFORE the agent writes. Defaults to true so a caller that
+   * has not loaded the ticket yet does not flash a block that is not there.
+   */
+  channelOpen?: boolean;
+  /**
+   * Colleagues who can be named in an internal note.
+   *
+   * Handed in from the screen's own reference data, which is ACTIVE STAFF
+   * ONLY. Offering somebody who has left invites an agent to ask for help from
+   * an account nobody is watching — and the server refuses the note anyway, so
+   * the option could only ever produce an error.
+   */
+  mentionable?: Array<{ id: number; name: string }>;
 }
 
 /**
@@ -41,8 +59,15 @@ export interface TicketComposerProps {
  *    would eventually send "Dear ," to somebody, and the agent who pressed Send
  *    would have had no way to see it coming.
  */
-export function TicketComposer({ ticketId, onSent, seedBody }: TicketComposerProps) {
+export function TicketComposer({
+  ticketId,
+  onSent,
+  seedBody,
+  channelOpen = true,
+  mentionable = [],
+}: TicketComposerProps) {
   const t = useTranslations("ticket.composer");
+  const outbound = useTranslations("channels");
   const { recall, remember, forget, empty } = useComposerDraft(ticketId);
 
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -98,7 +123,14 @@ export function TicketComposer({ ticketId, onSent, seedBody }: TicketComposerPro
    * of their own first, and losing it to a template would make the picker
    * something to avoid.
    */
-  function insertQuickReply(body: string) {
+  /**
+   * Inserts text at the caret and puts the caret after it.
+   *
+   * Shared by the quick-reply menu and the article finder: both are "put this
+   * where I am typing", and two copies of the caret arithmetic would be two
+   * chances to leave the cursor at the end of the message.
+   */
+  function insertAtCaret(body: string) {
     const field = textarea.current;
     const at = field?.selectionStart ?? draft.body.length;
     const next = draft.body.slice(0, at) + body + draft.body.slice(at);
@@ -112,6 +144,8 @@ export function TicketComposer({ ticketId, onSent, seedBody }: TicketComposerPro
       field?.setSelectionRange(at + body.length, at + body.length);
     });
   }
+
+  const insertQuickReply = insertAtCaret;
 
   async function attach(file: File) {
     try {
@@ -163,6 +197,36 @@ export function TicketComposer({ ticketId, onSent, seedBody }: TicketComposerPro
 
   const note = draft.type === "note";
 
+  /*
+   * A reply cannot go out, and the agent is told before they write one.
+   *
+   * The whole point of the check is its TIMING. Refusing on Send, after
+   * somebody has composed three paragraphs, is the behaviour the story
+   * explicitly rules out — so the composer is disabled up front and the reason
+   * is the first thing on it.
+   *
+   * An internal note is still allowed: it never leaves the building, and
+   * blocking it would stop colleagues talking to each other because a customer
+   * cannot be reached.
+   */
+  if (!channelOpen && draft.type !== "note") {
+    return (
+      <section data-slot="ticket-composer" className="flex flex-col gap-3">
+        <SegmentedFilter
+          label={t("reply")}
+          value={draft.type}
+          options={[
+            { value: "reply", label: t("reply") },
+            { value: "note", label: t("note") },
+          ]}
+          onChange={(value) => update({ type: value === "note" ? "note" : "reply" })}
+        />
+
+        <FormAlert tone="error">{outbound("outboundBlocked")}</FormAlert>
+      </section>
+    );
+  }
+
   return (
     <section data-slot="ticket-composer" className="flex flex-col gap-3">
       <SegmentedFilter
@@ -206,6 +270,40 @@ export function TicketComposer({ ticketId, onSent, seedBody }: TicketComposerPro
       {error && <FormAlert tone="error">{`${t("error")} ${t("draftKept")}`}</FormAlert>}
 
       <div className="flex flex-wrap items-center gap-3">
+        {note && mentionable.length > 0 && (
+          /*
+             Only on a NOTE. An `@name` in a reply is text the customer reads,
+             not a way to pull a colleague in — offering the control there
+             would invite exactly that, and the server ignores mentions in
+             outbound messages for the same reason.
+          */
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="sm" data-slot="mention-picker">
+                {t("mention")}
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent>
+              {mentionable.map((person) => (
+                <DropdownMenuItem
+                  key={person.id}
+                  /*
+                     Inserts the NAME, in plain text, exactly as it will be
+                     stored. No hidden id and no markup: the note reads the
+                     same in the composer, in the thread, in an export and in a
+                     database client, and nothing has to un-parse it to show
+                     it. The server resolves the name from the stored body.
+                  */
+                  onSelect={() => insertAtCaret(`@${person.name} `)}
+                >
+                  {person.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="secondary" size="sm">
@@ -228,6 +326,14 @@ export function TicketComposer({ ticketId, onSent, seedBody }: TicketComposerPro
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/*
+          The article finder, beside the reply rather than on another screen.
+          It renders in place and never navigates, so the half-written reply
+          survives — a panel that cost an agent their draft is a panel nobody
+          uses twice.
+        */}
+        <ArticleFinder onInsert={insertAtCaret} />
 
         <FileInput
           label={t("attach")}

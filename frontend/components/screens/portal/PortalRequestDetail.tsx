@@ -10,7 +10,13 @@ import { SubmitButton } from "@/components/domain/SubmitButton/SubmitButton";
 import { ApiError } from "@/lib/api/errors";
 import { useFreshQuery } from "@/lib/data/useFreshQuery";
 import { useFormat } from "@/lib/format/useFormat";
-import { getPortalRequest, replyToPortalRequest, reopenPortalRequest } from "@/lib/portal/api";
+import { SatisfactionPrompt } from "@/components/domain/SatisfactionPrompt/SatisfactionPrompt";
+import {
+  getPortalRequest,
+  ratePortalRequest,
+  replyToPortalRequest,
+  reopenPortalRequest,
+} from "@/lib/portal/api";
 
 export interface PortalRequestDetailProps {
   requestId: string;
@@ -142,6 +148,27 @@ export function PortalRequestDetail({ requestId }: PortalRequestDetailProps) {
           />
         ))}
       </ol>
+
+      {/*
+        Asked once the request is finished, and only then. Asking somebody how
+        it went while it is still going asks them to judge unfinished work, and
+        their answer would be about the wait rather than the outcome.
+      */}
+      {(request.status === "resolved" || request.status === "closed") && (
+        <SatisfactionPrompt
+          satisfaction={request.satisfaction}
+          satisfactionComment={request.satisfaction_comment}
+          canRate={request.can_rate}
+          onRate={async (positive, comment) => {
+            await ratePortalRequest(requestId, positive, comment);
+
+            // Refetched rather than patched locally: `can_rate` is a server
+            // rule, and the answer to "may I still change this?" has to come
+            // back from the thing that will enforce it.
+            query.refetch();
+          }}
+        />
+      )}
 
       {request.status === "closed" ? (
         <form

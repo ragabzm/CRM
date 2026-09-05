@@ -22,6 +22,24 @@ enum Priority: string
     case Urgent = 'urgent';
 
     /**
+     * The next step up, or this one when there is nowhere further.
+     *
+     * Urgent returns Urgent rather than throwing. A breach sweep raising the
+     * priority of a ticket that is already Urgent has nothing to do and no
+     * problem to report — refusing would turn a routine no-op into an error in
+     * a log nobody can act on, once a minute, for as long as the ticket stays
+     * late.
+     */
+    public function raisedOneStep(): self
+    {
+        return match ($this) {
+            self::Low => self::Normal,
+            self::Normal => self::High,
+            self::High, self::Urgent => self::Urgent,
+        };
+    }
+
+    /**
      * In severity order, lowest first. The order is part of the contract —
      * the console renders it and SLA matrices are keyed by it.
      *

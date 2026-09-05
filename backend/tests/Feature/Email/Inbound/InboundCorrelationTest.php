@@ -86,7 +86,7 @@ final class InboundCorrelationTest extends TestCase
         );
 
         DB::table('ticket_messages')->where('id', $message->getKey())
-            ->update(['email_message_id' => $messageId]);
+            ->update(['provider_message_id' => $messageId]);
     }
 
     private function deliver(array $headers, string $body = 'Any news?'): \Illuminate\Testing\TestResponse
@@ -103,7 +103,7 @@ final class InboundCorrelationTest extends TestCase
 
     private function trace(): array
     {
-        return json_decode((string) DB::table('mail_inbound')->latest('received_at')->value('correlation_trace'), true);
+        return json_decode((string) DB::table('inbound_messages')->latest('received_at')->value('correlation_trace'), true);
     }
 
     public function test_in_reply_to_wins_when_the_client_threaded_properly(): void

@@ -50,8 +50,23 @@ final class RolesAndPermissionsSeeder extends Seeder
             Capabilities::TICKET_CHANGE_DEPARTMENT,
             Capabilities::TICKET_RESOLVE,
             Capabilities::TICKET_REOPEN,
+            Capabilities::TICKET_ESCALATE,
             Capabilities::CUSTOMER_READ,
             Capabilities::CUSTOMER_MANAGE,
+
+            /*
+             * A supervisor writes AND publishes.
+             *
+             * The story says "an authorised user publishes directly" and gives
+             * no approval step, so somebody below administrator has to hold
+             * this or the lifecycle stalls on one person's availability. A
+             * supervisor already decides what a customer is told on a ticket;
+             * deciding what the same answer says in an article is the same
+             * judgement.
+             */
+            Capabilities::KNOWLEDGE_VIEW,
+            Capabilities::KNOWLEDGE_MANAGE,
+            Capabilities::KNOWLEDGE_PUBLISH,
         ],
         Roles::AGENT => [
             Capabilities::DEPARTMENT_READ,
@@ -60,11 +75,37 @@ final class RolesAndPermissionsSeeder extends Seeder
             Capabilities::TICKET_UPDATE,
             Capabilities::TICKET_CLOSE,
             Capabilities::TICKET_ASSIGN,
+
+            /*
+             * An agent raises a hand.
+             *
+             * They are the person who can actually see the trouble — a
+             * supervisor who has to notice it themselves has already lost the
+             * time escalating was meant to save. It costs nothing to be wrong
+             * about: an unnecessary escalation is a supervisor glancing at a
+             * ticket, and the reason is required so the glance is short.
+             */
+            Capabilities::TICKET_ESCALATE,
+
             Capabilities::TICKET_CHANGE_STATUS,
             Capabilities::TICKET_CHANGE_DEPARTMENT,
             Capabilities::TICKET_RESOLVE,
             Capabilities::TICKET_REOPEN,
             Capabilities::CUSTOMER_READ,
+
+            /*
+             * An agent reads and writes, and does NOT publish.
+             *
+             * Reading includes the internal articles — those exist precisely
+             * so agents can read them. Writing lets an agent draft the answer
+             * they have just worked out on a ticket, which is where the good
+             * ones come from. Publishing is where it stops: putting an answer
+             * in front of every customer is a decision with an audience, and
+             * it can never be undone — a published article can only ever be
+             * archived, never deleted.
+             */
+            Capabilities::KNOWLEDGE_VIEW,
+            Capabilities::KNOWLEDGE_MANAGE,
         ],
         Roles::CUSTOMER => [
             // Reading is capped to their OWN tickets by TicketVisibility. The

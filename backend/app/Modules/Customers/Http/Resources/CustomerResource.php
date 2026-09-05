@@ -26,7 +26,6 @@ final class CustomerResource
     {
         return [
             ...self::summary($customer, $departmentName),
-            'notes' => $customer->notes,
             'created_at' => $customer->created_at?->toIso8601String(),
         ];
     }

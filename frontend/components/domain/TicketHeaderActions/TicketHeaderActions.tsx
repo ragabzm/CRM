@@ -8,7 +8,7 @@ import { FormAlert } from "@/components/domain/FormAlert/FormAlert";
 import { FormField } from "@/components/domain/FormField/FormField";
 import { SubmitButton } from "@/components/domain/SubmitButton/SubmitButton";
 import { ApiError } from "@/lib/api/errors";
-import { reopenTicket, resolveTicket, type Ticket } from "@/lib/api/tickets";
+import { escalateTicket, reopenTicket, resolveTicket, type Ticket } from "@/lib/api/tickets";
 
 export interface TicketHeaderActionsProps {
   ticket: Ticket;
@@ -44,6 +44,8 @@ export function TicketHeaderActions({
   const conflictCopy = useTranslations("ticket.conflict");
 
   const [resolving, setResolving] = useState(false);
+  const [escalating, setEscalating] = useState(false);
+  const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState(false);
@@ -61,7 +63,9 @@ export function TicketHeaderActions({
     try {
       onChanged(await work());
       setResolving(false);
+      setEscalating(false);
       setNote("");
+      setReason("");
     } catch (caught) {
       /*
        * 409 is not a failure — it is somebody else having moved first. It gets
@@ -85,7 +89,55 @@ export function TicketHeaderActions({
 
       {failed && <FormAlert tone="error">{t("failed")}</FormAlert>}
 
-      {resolving ? (
+      {/*
+        Already escalated: the state and its reason, not another button.
+        Escalating twice is allowed by the API — two people who agree have not
+        conflicted — but offering the action again invites somebody to press it
+        expecting something to happen.
+      */}
+      {ticket.escalated_at !== null && (
+        <p
+          className="text-sm font-medium text-state-danger"
+          data-slot="escalated-marker"
+          data-escalated="true"
+        >
+          {t("escalatedBanner")}
+          {ticket.escalation_reason !== null && (
+            <span className="font-normal text-fg-muted"> — {ticket.escalation_reason}</span>
+          )}
+        </p>
+      )}
+
+      {escalating ? (
+        <form
+          className="flex flex-wrap items-end gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+
+            void run(() => escalateTicket(ticket.id, reason.trim()));
+          }}
+        >
+          <FormField
+            label={t("escalationReason")}
+            /*
+             * Required, and the hint says why. An escalation with no reason
+             * reaches a supervisor as an alarm they cannot act on without
+             * opening the ticket and working out the problem themselves —
+             * which is the work escalating was supposed to save them.
+             */
+            hint={t("escalationReasonHint")}
+            required
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+          />
+
+          <SubmitButton pending={busy}>{t("escalate")}</SubmitButton>
+
+          <ActionBar
+            actions={[{ id: "cancel", label: t("cancel"), onSelect: () => setEscalating(false) }]}
+          />
+        </form>
+      ) : resolving ? (
         <form
           className="flex flex-wrap items-end gap-3"
           onSubmit={(event) => {
@@ -121,6 +173,16 @@ export function TicketHeaderActions({
                   },
                 ]
               : [
+                  ...(ticket.escalated_at === null
+                    ? [
+                        {
+                          id: "escalate",
+                          label: t("escalate"),
+                          disabled: busy,
+                          onSelect: () => setEscalating(true),
+                        },
+                      ]
+                    : []),
                   {
                     id: "resolve",
                     label: t("resolve"),

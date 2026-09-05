@@ -9,6 +9,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { TicketComposer } from "@/components/domain/TicketComposer/TicketComposer";
+import en from "@/messages/en.json";
 
 const QUICK_REPLIES = [
   { id: 1, title: "Ask for the invoice number", body: "Could you send us the invoice number?" },
@@ -261,5 +262,42 @@ describe("sending", () => {
     );
 
     await waitFor(() => expect(box()).toHaveValue("The one that failed"));
+  });
+});
+
+describe("a channel that has been switched off", () => {
+  /**
+   * The whole point of this check is its TIMING.
+   *
+   * Refusing on Send, after somebody has composed three paragraphs, is the
+   * behaviour the story explicitly rules out — so the reason has to be on the
+   * screen before there is anywhere to type.
+   */
+  it("says so before the agent writes, not after", () => {
+    render(<TicketComposer ticketId="01T1" onSent={vi.fn()} channelOpen={false} />);
+
+    expect(screen.getByText(en.channels.outboundBlocked)).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("still lets colleagues leave an internal note", async () => {
+    render(<TicketComposer ticketId="01T1" onSent={vi.fn()} channelOpen={false} />);
+
+    await userEvent.click(screen.getByRole("button", { name: en.ticket.composer.note }));
+
+    /*
+     * A note never leaves the building. Blocking it would stop colleagues
+     * talking to each other because a CUSTOMER cannot be reached, which is a
+     * different problem with a different answer.
+     */
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
+    expect(screen.queryByText(en.channels.outboundBlocked)).not.toBeInTheDocument();
+  });
+
+  it("is out of the way when the channel is open", () => {
+    render(<TicketComposer ticketId="01T1" onSent={vi.fn()} />);
+
+    expect(screen.queryByText(en.channels.outboundBlocked)).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
   });
 });

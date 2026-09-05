@@ -161,7 +161,7 @@ final class CustomersController extends Controller
 
             $customer->fill(array_intersect_key(
                 $data,
-                array_flip(['full_name', 'department_id', 'preferred_channel', 'notes']),
+                array_flip(['full_name', 'department_id', 'preferred_channel']),
             ))->save();
 
             if (isset($data['identifiers'])) {
@@ -265,7 +265,6 @@ final class CustomersController extends Controller
                     'department_id' => (int) $data['department_id'],
                     'state' => CustomerState::Active->value,
                     'preferred_channel' => $data['preferred_channel'] ?? null,
-                    'notes' => $data['notes'] ?? null,
                 ]);
             } catch (QueryException $e) {
                 // Only a reference collision is worth retrying; anything else

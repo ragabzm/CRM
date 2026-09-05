@@ -148,6 +148,26 @@ export function TicketPropertyRail({
             <RailFact label={t("sla")} note={t("slaReadOnly")}>
               <SlaIndicator sla={ticket.sla ?? null} variant="full" />
             </RailFact>
+
+            {ticket.satisfaction !== null && (
+              /*
+               * What the customer said, and NOT editable by anybody here —
+               * it sits in the read-only band beside the SLA for that reason.
+               * A word, never a colour alone: it has to survive greyscale and
+               * be announced to somebody not looking at it.
+               */
+              <RailFact label={t("satisfaction")} note={t("satisfactionReadOnly")}>
+                <span data-slot="satisfaction" data-value={ticket.satisfaction ? "good" : "bad"}>
+                  {t(ticket.satisfaction ? "satisfactionGood" : "satisfactionBad")}
+                </span>
+
+                {ticket.satisfaction_comment !== null && (
+                  <span className="mt-1 block text-xs text-fg-muted" dir="auto">
+                    {ticket.satisfaction_comment}
+                  </span>
+                )}
+              </RailFact>
+            )}
           </div>
         </div>
 

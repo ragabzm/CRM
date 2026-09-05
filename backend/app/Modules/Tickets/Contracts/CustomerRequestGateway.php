@@ -22,6 +22,16 @@ namespace App\Modules\Tickets\Contracts;
 interface CustomerRequestGateway
 {
     /**
+     * How long a customer's comment may be.
+     *
+     * On the CONTRACT rather than on the command, so the portal can validate
+     * against it without importing Tickets' domain — which is the whole point
+     * of there being a contract. `PortalImportsOnlyContractsTest` catches the
+     * shortcut.
+     */
+    public const MAXIMUM_COMMENT = 2000;
+
+    /**
      * The customer's own requests, newest first.
      *
      * @return list<array<string, mixed>>
@@ -80,4 +90,33 @@ interface CustomerRequestGateway
      * @return array<string, mixed>|null  Null when the request is not theirs.
      */
     public function reopen(string $customerId, string $accountId, string $accountName, string $ticketId): ?array;
+
+    /**
+     * Records what the customer thought of a finished request.
+     *
+     * Two values and no third: `true` is thumbs up, `false` is thumbs down.
+     * There is no scale, so there is nothing to convert and no midpoint to
+     * argue about — and a caller cannot pass a 3 because the signature will
+     * not carry one.
+     *
+     * `$customerId` is the confinement, exactly as it is for `show` and
+     * `reply`: a rating call for somebody else's ticket returns NULL, which
+     * the portal turns into the same 404 a nonexistent id gets. A 403 would
+     * confirm the ticket is real.
+     *
+     * Throws the module's own refusal past the change window rather than
+     * returning a flag — the reason and the moment it locked live in Tickets,
+     * and a boolean would make the portal invent an explanation.
+     *
+     * @param  string|null  $comment  Optional, always. A rating alone is complete.
+     * @return array<string, mixed>|null  Null when the request is not theirs.
+     */
+    public function rate(
+        string $customerId,
+        string $accountId,
+        string $accountName,
+        string $ticketId,
+        bool $positive,
+        ?string $comment,
+    ): ?array;
 }

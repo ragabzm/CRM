@@ -111,7 +111,7 @@ final class InboundLoopAndAccessTest extends TestCase
     {
         $this->deliver($this->mail(['Auto-Submitted: auto-replied']))->assertOk();
 
-        $trace = json_decode((string) DB::table('mail_inbound')->value('correlation_trace'), true);
+        $trace = json_decode((string) DB::table('inbound_messages')->value('correlation_trace'), true);
 
         // So a decision not to reply is auditable after the fact, rather than
         // looking like a bug in the acknowledgement.

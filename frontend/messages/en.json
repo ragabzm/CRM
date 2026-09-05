@@ -52,6 +52,30 @@
         "waiting": "the clock is stopped",
         "rest": "on track"
       }
+    },
+    "tabs": {
+      "label": "What is on your desk",
+      "queue": "Attention",
+      "tasks": "Tasks and reminders ({count})",
+      "mentions": "Mentions ({count})"
+    },
+    "tasks": {
+      "titleLabel": "What do you need to do?",
+      "dueLabel": "Due (optional)",
+      "add": "Add task",
+      "toggle": "Mark \"{title}\" done",
+      "standalone": "Not attached to a ticket",
+      "overdue": "Overdue",
+      "empty": "Nothing written down",
+      "emptyBody": "Tasks you add here stay until you tick them off — including the ones that are late.",
+      "failed": "That did not save. Try again."
+    },
+    "mentions": {
+      "mentionedYouOn": "mentioned you on",
+      "open": "Open {reference}",
+      "markRead": "Mark as read",
+      "empty": "Nobody has asked for you",
+      "emptyBody": "When a colleague names you in an internal note, it appears here."
     }
   },
   "errors": {
@@ -139,7 +163,10 @@
     "indexLabel": "Configuration sections",
     "sections": {
       "organisation": "Organisation",
+      "channels": "Channels",
+      "knowledge": "Knowledge base",
       "ticketing": "Ticketing",
+      "autoAssignment": "Auto-assignment",
       "serviceLevels": "Service levels",
       "email": "Email",
       "platform": "Platform",
@@ -147,7 +174,10 @@
     },
     "sectionSummaries": {
       "organisation": "Departments and the people who work in them.",
+      "channels": "How customers reach the desk, and which team each one lands in.",
+      "knowledge": "The answers we have written down, and whether each one is ready.",
       "ticketing": "Categories, priorities, saved replies, and how tickets close.",
+      "autoAssignment": "Where a new ticket lands, by category or by department.",
       "serviceLevels": "Response and resolution targets, working hours, and holidays.",
       "email": "The mailbox tickets arrive in, and the acknowledgement customers receive.",
       "platform": "Attachments and the default language.",
@@ -351,11 +381,98 @@
     "context": "{people} people · {departments} departments",
     "counts": {
       "organisation": "{people} people · {departments} teams",
+      "channels": "{accounts} channels · {active} active",
+      "knowledge": "{articles} articles · {published} published",
       "ticketing": "{categories} categories",
+      "autoAssignment": "{mappings} rules",
       "serviceLevels": "{targets} targets",
       "email": "{settings} settings",
       "platform": "{settings} settings",
       "auditLog": "{entries} entries"
+    },
+    "knowledge": {
+      "title": "Knowledge base",
+      "hint": "The answers we have written down. Publishing puts one in front of people — and it can never be deleted afterwards, only archived.",
+      "newArticle": "New article",
+      "backToList": "Back to the list",
+      "loading": "Loading articles…",
+      "empty": "Nothing is written yet.",
+      "needsACategory": "Create a category before writing an article — every article is filed in exactly one.",
+      "loadFailed": "The article list could not be loaded.",
+      "actionFailed": "That did not go through.",
+      "saveFailed": "That version was not saved.",
+      "all": "All",
+      "search": "Search titles",
+      "filterType": "Type",
+      "filterStatus": "State",
+      "filterAudience": "Audience",
+      "columnTitle": "Article",
+      "columnType": "Type",
+      "columnCategory": "Category",
+      "columnLanguages": "Languages",
+      "columnStatus": "State",
+      "columnAudience": "Audience",
+      "noLanguages": "Not written yet",
+      "publish": "Publish",
+      "archive": "Archive",
+      "delete": "Delete",
+      "deleteBlocked": "Published articles cannot be deleted — archive it instead.",
+      "deleteConsequence": "This will permanently remove the article and every language version of it. It has never been published, so nobody outside the team has seen it.",
+      "language": "Language",
+      "title_field": "Title",
+      "body": "Body",
+      "bodyHint": "Formatting, lists, links and images are kept. Scripts, embeds and styles are removed.",
+      "save": "Save this version",
+      "saving": "Saving…",
+      "notWritten": "not written",
+      "notWrittenHint": "This article has no {locale} version yet. Writing one is optional — an article in a single language is complete.",
+      "type": {
+        "faq": "FAQ",
+        "help": "Help article",
+        "solution": "Solution",
+        "guide": "Guide"
+      },
+      "status": {
+        "draft": "Draft",
+        "published": "Published",
+        "archived": "Archived"
+      },
+      "visibility": {
+        "internal": "Internal",
+        "public": "Public"
+      },
+      "locale": {
+        "en": "English",
+        "ar": "Arabic"
+      },
+      "untitled": "Untitled"
+    },
+    "autoAssignment": {
+      "title": "Auto-assignment",
+      "hint": "One line per rule: a category or a department, and where its tickets go. There is no ordering and no conditions — each source maps to exactly one target.",
+      "precedence": "Where both match, the {first} rule wins over the {second} one.",
+      "loading": "Loading rules…",
+      "empty": "Nothing is mapped yet.",
+      "emptyHint": "Until a rule matches, new tickets stay unassigned — which is a valid, visible place for them to be.",
+      "loadFailed": "The rules could not be loaded.",
+      "saveFailed": "That change was not saved.",
+      "columnSource": "When",
+      "columnTarget": "Send it to",
+      "columnState": "State",
+      "active": "Active",
+      "add": "Add rule",
+      "remove": "Remove",
+      "choose": "Choose…",
+      "chooseSource": "Which one",
+      "chooseTarget": "Which one",
+      "source": {
+        "category": "Category",
+        "department": "Department"
+      },
+      "target": {
+        "agent": "Agent",
+        "department": "Department"
+      }
     }
   },
   "audit": {
@@ -495,8 +612,6 @@
     },
     "profile": {
       "contactDetails": "Contact details",
-      "notes": "Notes",
-      "notesEmpty": "No notes yet.",
       "history": "Interaction history",
       "historyAll": "All",
       "historyPlaceholder": "Tickets and messages for this customer will appear here.",
@@ -614,7 +729,8 @@
       "sla": "SLA",
       "assignee": "Assignee",
       "category": "Category",
-      "updated": "Updated"
+      "updated": "Updated",
+      "escalated": "Escalated"
     },
     "filters": {
       "status": "Status",
@@ -625,7 +741,10 @@
       "unassigned": "Unassigned",
       "category": "Category",
       "sla": "Service level",
-      "clear": "Remove this filter"
+      "clear": "Remove this filter",
+      "escalated": "Escalation",
+      "escalatedOnly": "Escalated",
+      "notEscalated": "Not escalated"
     },
     "empty": {
       "title": "No tickets match these filters",
@@ -667,7 +786,10 @@
       "agent": "By phone",
       "portal": "Portal",
       "email": "Email",
-      "system": "Automatic"
+      "web_form": "Web form",
+      "system": "Automatic",
+      "whatsapp": "WhatsApp",
+      "sms": "Text message"
     },
     "pager": {
       "showing": "Showing {from}–{to} of {total}",
@@ -731,13 +853,32 @@
       "delivery": {
         "queued": "Sending",
         "sent": "Sent",
-        "failed": "Not sent"
+        "failed": "Not sent",
+        "delivered": "Delivered",
+        "read": "Read"
       },
       "failedBody": "This reply did not reach the customer.",
       "retry": "Retry",
       "edit": "Edit",
       "attachments": "Attachments",
-      "scanning": "Being checked"
+      "scanning": "Being checked",
+      "channel": {
+        "agent": "By phone",
+        "portal": "Portal",
+        "email": "Email",
+        "web_form": "Web form",
+        "system": "Automatic",
+        "whatsapp": "WhatsApp",
+        "sms": "Text message"
+      },
+      "correlation": {
+        "in_reply_to": "Threaded by the sender’s mail client.",
+        "references": "Threaded by the sender’s mail client.",
+        "subject_token": "The subject quoted this ticket’s reference.",
+        "body_token": "The message quoted this ticket’s reference.",
+        "open_ticket": "The sender had one open ticket on this channel.",
+        "new_ticket": "Nothing matched, so this opened a new ticket."
+      }
     },
     "internalNote": {
       "badge": "Not visible to the customer"
@@ -754,7 +895,8 @@
       "sending": "Sending…",
       "sendNote": "Save note",
       "error": "Your message could not be sent.",
-      "draftKept": "Your draft is kept."
+      "draftKept": "Your draft is kept.",
+      "mention": "Mention a colleague"
     },
     "propertyRail": {
       "title": "Properties",
@@ -778,7 +920,11 @@
         "origin": "Origin"
       },
       "channel": "Arrived by",
-      "openedAt": "Opened"
+      "openedAt": "Opened",
+      "satisfaction": "How it went",
+      "satisfactionReadOnly": "The customer's own answer. Nobody here can change it.",
+      "satisfactionGood": "Went well",
+      "satisfactionBad": "Did not go well"
     },
     "conflict": {
       "title": "This ticket was changed by someone else",
@@ -801,7 +947,11 @@
       "cancel": "Cancel",
       "resolutionNote": "What fixed it",
       "resolutionNoteHint": "The sentence the next person reads if the customer writes back.",
-      "failed": "That could not be saved."
+      "failed": "That could not be saved.",
+      "escalate": "Escalate",
+      "escalationReason": "Why is this going wrong?",
+      "escalationReasonHint": "Supervisors see this instead of having to open the ticket. Say what is stuck.",
+      "escalatedBanner": "Escalated"
     }
   },
   "portal": {
@@ -880,6 +1030,106 @@
       "categoryAny": "I am not sure",
       "submit": "Send the request",
       "error": "We could not send that. Try again."
+    },
+    "help": {
+      "title": "Help centre",
+      "hint": "Search for an answer, or browse by topic.",
+      "search": "What do you need help with?",
+      "searchPlaceholder": "Refunds, invoices, signing in…",
+      "browse": "Browse by topic",
+      "allCategories": "Everything",
+      "loading": "Loading…",
+      "emptyLibrary": "There is nothing here yet.",
+      "noResults": "Nothing matches “{term}”.",
+      "noResultsHint": "Try fewer words, or browse the topics above.",
+      "askInstead": "Ask us instead",
+      "failed": "The help centre could not be loaded.",
+      "failedHint": "Try again in a moment, or send us a message.",
+      "goneTitle": "That article is not available",
+      "gone": "It may have been withdrawn.",
+      "backToHelp": "Back to the help centre",
+      "servedLocale": "This article is available in {locale} only.",
+      "locale": {
+        "en": "English",
+        "ar": "Arabic"
+      }
+    },
+    "feedback": {
+      "title": "How did that go?",
+      "answeredTitle": "Thanks — you told us how that went.",
+      "good": "It went well",
+      "bad": "It did not",
+      "addComment": "Say more (optional)",
+      "editComment": "Change what you said",
+      "commentLabel": "Anything you would like to add?",
+      "saveComment": "Save",
+      "locked": "Your answer was recorded. The time to change it has passed.",
+      "failed": "That did not go through. Please try again.",
+      "linkBrokenTitle": "This link is incomplete",
+      "linkBroken": "It may have been cut short by your email app. Sign in to the portal and you can answer on the request itself.",
+      "landingTitle": "How it went"
+    }
+  },
+  "webForm": {
+    "title": "Ask us for help",
+    "hint": "Tell us what happened and we will get back to you.",
+    "name": "Your name",
+    "contact": "Email or phone",
+    "contactHint": "However you would like us to reply.",
+    "subject": "What is this about?",
+    "category": "Category",
+    "categoryPlaceholder": "Choose one",
+    "message": "What happened?",
+    "attachment": "Attach a file (optional)",
+    "scanPending": "Awaiting scan",
+    "scanClean": "Ready",
+    "send": "Send",
+    "sending": "Sending…",
+    "genericError": "That did not go through. Please try again.",
+    "submittedTitle": "We have it",
+    "submittedBody": "Keep this reference — quote it if you write to us again.",
+    "reference": "Your reference:"
+  },
+  "channels": {
+    "admin": {
+      "title": "Channels",
+      "hint": "How customers reach the desk. Disabling one stops new messages arriving on it.",
+      "channel": "Channel",
+      "name": "Name",
+      "department": "Department",
+      "inbound": "Last 7 days",
+      "active": "Active",
+      "noDepartment": "None",
+      "disableTitle": "Disable this channel?",
+      "disableBody": "Existing tickets remain workable, but new inbound is blocked.",
+      "disableConfirm": "Disable",
+      "cancel": "Cancel",
+      "empty": "No channels are configured.",
+      "loading": "Loading channels…",
+      "loadFailed": "The channel list could not be loaded.",
+      "saveFailed": "That change was not saved."
+    },
+    "outboundBlocked": "This channel is disabled; new outbound is blocked."
+  },
+  "knowledge": {
+    "finder": {
+      "label": "Find an article",
+      "placeholder": "Search the knowledge base",
+      "searching": "Searching…",
+      "internal": "Internal",
+      "noResults": "Nothing matches “{term}”.",
+      "noResultsHint": "Try fewer words, or a word from the title. You can also write the answer down afterwards.",
+      "status": {
+        "draft": "Draft",
+        "published": "Published",
+        "archived": "Archived"
+      },
+      "type": {
+        "faq": "FAQ",
+        "help": "Help article",
+        "solution": "Solution",
+        "guide": "Guide"
+      }
     }
   }
 }

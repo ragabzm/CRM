@@ -94,6 +94,26 @@ export interface PortalRequestSummary {
   status: "open" | "pending" | "resolved" | "closed";
   created_at: string | null;
   updated_at: string | null;
+
+  /**
+   * What they said about how it went, if they said anything.
+   *
+   * `null` is the THIRD state and means nobody answered — never neutral,
+   * never zero. The screen renders an invitation for null and the answer they
+   * gave otherwise.
+   */
+  satisfaction: boolean | null;
+  satisfaction_comment: string | null;
+
+  /**
+   * Whether they can still answer or change their answer.
+   *
+   * Computed on the SERVER, because the change window is a server rule. A
+   * screen that worked it out itself would offer a control the API then
+   * refuses — which is the same as lying to somebody about what will happen
+   * when they tap.
+   */
+  can_rate: boolean;
 }
 
 export interface PortalMessage {
@@ -108,6 +128,65 @@ export interface PortalMessage {
 export interface PortalRequestDetail extends PortalRequestSummary {
   description: string;
   messages: PortalMessage[];
+}
+
+/**
+ * Says whether it went well. One tap, and the comment is optional.
+ *
+ * `positive` is a boolean and there is no third value on the wire — no stars,
+ * no scale, nothing to average or convert.
+ */
+export function ratePortalRequest(
+  id: string,
+  positive: boolean,
+  comment?: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<PortalRequestDetail> {
+  return request<PortalRequestDetail>(`/portal/requests/${encodeURIComponent(id)}/rating`, {
+    method: "POST",
+    body: JSON.stringify({ positive, ...(comment === undefined ? {} : { comment }) }),
+    fetchImpl,
+  });
+}
+
+/**
+ * The same answer, sent from an emailed invitation instead of a session.
+ *
+ * The signature IS the authorisation — there is no cookie here and the person
+ * may have no account at all. It travelled from the email to the address bar
+ * to here, and is passed back untouched: `expires` before `signature`, in the
+ * order the server signed them, because the server rebuilds the string it
+ * hashed from exactly these two.
+ */
+export async function rateByInvitation(
+  input: { ticket: string; verdict: "up" | "down"; expires: string; signature: string },
+  comment?: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ satisfaction: boolean; satisfaction_comment: string | null }> {
+  /*
+   * CSRF first, and it is NOT optional here.
+   *
+   * The API routes are Sanctum-stateful, so a same-site POST is checked
+   * against the XSRF cookie — and somebody arriving from an email has never
+   * had one. Without this the comment box returned 419 while the rating
+   * itself, which the GET link had already recorded, looked fine: the
+   * customer wrote a sentence, pressed save, and was told nothing worked.
+   *
+   * The signature is still what authorises the write. This only proves the
+   * request came from the page we served.
+   */
+  await getCsrf(fetchImpl);
+
+  const query = `expires=${encodeURIComponent(input.expires)}&signature=${encodeURIComponent(input.signature)}`;
+
+  return request<{ satisfaction: boolean; satisfaction_comment: string | null }>(
+    `/feedback/${encodeURIComponent(input.ticket)}/${input.verdict}?${query}`,
+    {
+      method: "POST",
+      body: JSON.stringify(comment === undefined ? {} : { comment }),
+      fetchImpl,
+    },
+  );
 }
 
 export async function listPortalRequests(

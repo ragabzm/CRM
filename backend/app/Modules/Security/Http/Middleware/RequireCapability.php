@@ -9,6 +9,7 @@ use App\Modules\Security\Domain\Capabilities;
 use Closure;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -38,7 +39,7 @@ final class RequireCapability
 
         $user = $request->user();
 
-        if ($user === null || ! $user->can($capability)) {
+        if ($user === null || ! $this->holds($user, $capability)) {
             throw ProblemException::make(
                 'security.forbidden',
                 'Forbidden',
@@ -53,5 +54,29 @@ final class RequireCapability
         }
 
         return $next($request);
+    }
+
+    /**
+     * Does this person hold it — including when nobody does yet?
+     *
+     * `$user->can()` asks spatie, which THROWS when the permission has no row
+     * rather than answering false. That is the state between deploying code
+     * that declares a new capability and running the seeder that grants it,
+     * and it is a state every deployment passes through. Left unhandled it
+     * turns the endpoint into a 500: an outage, in the logs as an exception,
+     * for what is really "nobody has this yet".
+     *
+     * A capability nobody holds refuses everybody, which is the correct and
+     * safe answer. The typo case — a capability that does not exist in PHP at
+     * all — is already refused loudly above, so nothing is being swallowed
+     * here that was worth hearing about.
+     */
+    private function holds(object $user, string $capability): bool
+    {
+        try {
+            return method_exists($user, 'can') && $user->can($capability);
+        } catch (PermissionDoesNotExist) {
+            return false;
+        }
     }
 }

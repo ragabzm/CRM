@@ -41,6 +41,25 @@ final class ListTicketsRequest extends FormRequest
             'assignee_id' => $this->split('assignee_id'),
             'department_id' => $this->split('department_id'),
         ], static fn (?array $value): bool => $value !== null));
+
+        /*
+         * `?escalated=true` normalised before validation.
+         *
+         * Laravel's `boolean` rule accepts 1, 0, "1", "0", true and false —
+         * and NOT "true", which is what a person types into the address bar
+         * and what most clients send. Worse, `(bool) "false"` is `true`, so a
+         * value that slipped past validation would mean the opposite of what
+         * was asked. Normalised here so the rule and the cast agree.
+         */
+        if ($this->has('escalated')) {
+            $this->merge([
+                'escalated' => filter_var(
+                    $this->input('escalated'),
+                    FILTER_VALIDATE_BOOLEAN,
+                    FILTER_NULL_ON_FAILURE,
+                ),
+            ]);
+        }
     }
 
     /**
@@ -71,6 +90,13 @@ final class ListTicketsRequest extends FormRequest
              * every open ticket that could never match anything.
              */
             'sla_state' => ['sometimes', Rule::in(TicketListFilters::SLA_STATES)],
+
+            /*
+             * A filter, never a status. Escalation is a property an open,
+             * pending, resolved or closed ticket can carry — `?escalated=1`
+             * narrows within the lifecycle rather than replacing it.
+             */
+            'escalated' => ['sometimes', 'boolean'],
 
             'created_from' => ['sometimes', 'date'],
             'created_to' => ['sometimes', 'date'],
@@ -121,6 +147,7 @@ final class ListTicketsRequest extends FormRequest
             assigneeIds: $this->assignees($data['assignee_id'] ?? []),
             departmentIds: array_values(array_map('intval', $data['department_id'] ?? [])),
             slaState: isset($data['sla_state']) ? (string) $data['sla_state'] : null,
+            escalated: array_key_exists('escalated', $data) ? (bool) $data['escalated'] : null,
             createdFrom: isset($data['created_from']) ? (string) $data['created_from'] : null,
             // The whole of the closing day, not up to its first second.
             createdTo: isset($data['created_to'])

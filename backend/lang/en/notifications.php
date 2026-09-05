@@ -14,6 +14,18 @@ declare(strict_types=1);
  */
 
 return [
+    'mentioned' => [
+        'subject' => ':actor asked for you on ticket :reference',
+        'line' => ':actor mentioned you in a note on ":subject".',
+        'action' => 'Read the note',
+    ],
+
+    'reminder' => [
+        'subject' => 'Reminder: :about',
+        'line' => 'You asked to be reminded about ":about".',
+        'action' => 'Open it',
+    ],
+
     'assigned' => [
         'subject' => 'Ticket :reference has been assigned to you',
         'line' => ':actor assigned ":subject" to you.',
@@ -35,6 +47,20 @@ return [
     'sla_breached' => [
         'subject' => 'Ticket :reference has missed its target',
         'line' => '":subject" missed its :timer target by :minutes minutes.',
+        'action' => 'Open the ticket',
+    ],
+
+    /*
+     * The reason is IN the line, not behind the link.
+     *
+     * "TKT-000042 was escalated" is an alarm. ":actor escalated it because the
+     * customer has waited four days for a part nobody ordered" is something a
+     * supervisor can act on from their phone — which is the whole point of
+     * escalating.
+     */
+    'escalated' => [
+        'subject' => 'Ticket :reference has been escalated',
+        'line' => ':by escalated ":subject" — :reason',
         'action' => 'Open the ticket',
     ],
 

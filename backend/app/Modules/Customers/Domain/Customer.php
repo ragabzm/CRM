@@ -23,8 +23,15 @@ final class Customer extends Model
 
     protected $table = 'customers';
 
+    /*
+     * No `notes`. A free-text column on the record used to live here beside
+     * the `customer_notes` table, and the profile rendered both under one
+     * heading — so the screen said "No notes yet." with a note printed
+     * directly under it. The column had no author, no timestamp and no
+     * history; the table has all three, so the column went.
+     */
     protected $fillable = [
-        'reference', 'full_name', 'department_id', 'state', 'preferred_channel', 'preferred_locale', 'notes',
+        'reference', 'full_name', 'department_id', 'state', 'preferred_channel', 'preferred_locale',
     ];
 
     /**

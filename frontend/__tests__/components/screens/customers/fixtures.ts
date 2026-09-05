@@ -17,7 +17,6 @@ export function customer(overrides: Partial<Customer> = {}): Customer {
       { id: "01I1", kind: "email", value: "hana@example.test", is_primary: true },
       { id: "01I2", kind: "phone", value: "+44 20 7946 0958" },
     ],
-    notes: null,
     updated_at: "2026-09-02T09:15:00+00:00",
     deactivated_at: null,
     ...overrides,

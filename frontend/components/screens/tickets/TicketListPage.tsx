@@ -95,6 +95,17 @@ export function TicketListPage() {
       built.sla_state = slaState;
     }
 
+    /*
+     * Read from the URL so the filter survives a reload and can be shared as
+     * a link — which is the whole reason these live in the address bar. Both
+     * spellings are accepted because both are things a person types.
+     */
+    const escalated = search.get("escalated");
+    if (escalated !== null) {
+      if (escalated === "1" || escalated === "true") built.escalated = true;
+      else if (escalated === "0" || escalated === "false") built.escalated = false;
+    }
+
     const q = search.get("q");
     if (q !== null && q !== "") built.q = q;
 

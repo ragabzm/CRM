@@ -32,6 +32,17 @@ enum AuditAction: string
 
     case ConfigChanged = 'config.changed';
 
+    /*
+     * Publishing and archiving are recorded because they change who can see an
+     * answer, and deleting because it removes one. Editing a draft is not
+     * audited: a draft nobody has seen is a document somebody is still writing,
+     * and recording every keystroke-sized save would bury the three events that
+     * matter.
+     */
+    case ArticlePublished = 'article.published';
+    case ArticleArchived = 'article.archived';
+    case ArticleDeleted = 'article.deleted';
+
     case TicketFieldChanged = 'ticket.field_changed';
     case CustomerFieldChanged = 'customer.field_changed';
 

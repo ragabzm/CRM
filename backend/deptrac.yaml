@@ -2,7 +2,7 @@
 #
 # One layer per module so that same-tier dependencies are visible: a per-tier
 # layering would let Sla depend on Email (deptrac permits intra-layer edges by
-# default), and the three T4 modules must not call each other.
+# default), and modules that share a tier must not call each other.
 #
 # The allowed lists below are exactly "every module in a strictly lower tier",
 # derived from app/Modules/module-tiers.php.
@@ -23,6 +23,10 @@ deptrac:
       collectors:
         - type: directory
           value: app/Modules/Customers/.*
+    - name: T2_Knowledge
+      collectors:
+        - type: directory
+          value: app/Modules/Knowledge/.*
     - name: T3_Tickets
       collectors:
         - type: directory
@@ -31,7 +35,11 @@ deptrac:
       collectors:
         - type: directory
           value: app/Modules/Sla/.*
-    - name: T4_Email
+    - name: T4_Channels
+      collectors:
+        - type: directory
+          value: app/Modules/Channels/.*
+    - name: T5_Email
       collectors:
         - type: directory
           value: app/Modules/Email/.*
@@ -47,7 +55,7 @@ deptrac:
     - name: Vendor
       collectors:
         - type: classNameRegex
-          value: '#^(Illuminate|Symfony|Laravel|Monolog|Psr|Dedoc|Carbon|Ramsey|Brick|Nesbot|ZBateson)\\.*#'
+          value: '#^(Illuminate|Symfony|Laravel|Monolog|Psr|Dedoc|Carbon|Ramsey|Brick|Nesbot|ZBateson|Spatie)\\.*#'
     - name: AppShared
       collectors:
         - type: classNameRegex
@@ -59,10 +67,12 @@ deptrac:
 
   ruleset:
     T4_Sla: [T3_Tickets, T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
-    T4_Email: [T3_Tickets, T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
+    T5_Email: [T4_Channels, T3_Tickets, T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
+    T4_Channels: [T3_Tickets, T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
     T4_Portal: [T3_Tickets, T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
     T3_Tickets: [T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
     T2_Customers: [T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
+    T2_Knowledge: [T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
     T1_Security: [T0_Platform, Vendor, AppShared, PhpInternal]
     T0_Platform: [Vendor, AppShared, PhpInternal]
     Vendor: ~

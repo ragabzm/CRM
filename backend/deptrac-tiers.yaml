@@ -20,7 +20,7 @@ deptrac:
     - name: T2
       collectors:
         - type: directory
-          value: app/Modules/Customers/.*
+          value: app/Modules/(Customers|Knowledge)/.*
     - name: T3
       collectors:
         - type: directory
@@ -28,7 +28,11 @@ deptrac:
     - name: T4
       collectors:
         - type: directory
-          value: app/Modules/(Sla|Email|Portal)/.*
+          value: app/Modules/(Sla|Portal|Channels)/.*
+    - name: T5
+      collectors:
+        - type: directory
+          value: app/Modules/Email/.*
 
     # Everything the modules are allowed to reach that is not itself a module.
     # Declaring these explicitly is what makes --fail-on-uncovered meaningful:
@@ -37,7 +41,7 @@ deptrac:
     - name: Vendor
       collectors:
         - type: classNameRegex
-          value: '#^(Illuminate|Symfony|Laravel|Monolog|Psr|Dedoc|Carbon|Ramsey|Brick|Nesbot|ZBateson)\\.*#'
+          value: '#^(Illuminate|Symfony|Laravel|Monolog|Psr|Dedoc|Carbon|Ramsey|Brick|Nesbot|ZBateson|Spatie)\\.*#'
     - name: AppShared
       collectors:
         - type: classNameRegex
@@ -48,6 +52,7 @@ deptrac:
           value: '.*'
 
   ruleset:
+    T5: [T4, T3, T2, T1, T0, Vendor, AppShared, PhpInternal]
     T4: [T3, T2, T1, T0, Vendor, AppShared, PhpInternal]
     T3: [T2, T1, T0, Vendor, AppShared, PhpInternal]
     T2: [T1, T0, Vendor, AppShared, PhpInternal]

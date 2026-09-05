@@ -16,6 +16,28 @@ enum TicketChannel: string
     case Agent = 'agent';
     case Portal = 'portal';
     case Email = 'email';
+    /**
+     * The public web form.
+     *
+     * Its own value rather than folding into `portal`: a portal request comes
+     * from somebody who signed in and whose identity we know, and a form comes
+     * from a stranger. An agent reading a queue needs to be able to tell those
+     * apart before they answer.
+     */
+    case WebForm = 'web_form';
+
+    /**
+     * WhatsApp and SMS, which are two channels and one implementation.
+     *
+     * Separate values rather than one `phone`, because a reply has to go back
+     * the way it came: somebody holding WhatsApp is not reachable by text
+     * unless they said so, and the ticket is the only record of which they
+     * used.
+     */
+    case WhatsApp = 'whatsapp';
+
+    case Sms = 'sms';
+
     case System = 'system';
 
     /** @return list<string> */

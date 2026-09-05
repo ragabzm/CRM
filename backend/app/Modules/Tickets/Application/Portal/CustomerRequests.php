@@ -10,6 +10,7 @@ use App\Modules\Tickets\Domain\Actor\Actor;
 use App\Modules\Tickets\Domain\Commands\AppendMessage;
 use App\Modules\Tickets\Domain\Commands\CreateTicket;
 use App\Modules\Tickets\Domain\Commands\CreateTicketInput;
+use App\Modules\Tickets\Domain\Commands\RateTicket;
 use App\Modules\Tickets\Domain\Commands\ReopenTicket;
 use App\Modules\Tickets\Domain\Enum\MessageDirection;
 use App\Modules\Tickets\Domain\Enum\TicketChannel;
@@ -39,6 +40,7 @@ final class CustomerRequests implements CustomerRequestGateway
         private readonly CreateTicket $create,
         private readonly AppendMessage $append,
         private readonly ReopenTicket $reopen,
+        private readonly RateTicket $rate,
     ) {}
 
     /**
@@ -214,6 +216,34 @@ final class CustomerRequests implements CustomerRequestGateway
         return $this->show($customerId, $ticketId);
     }
 
+    public function rate(
+        string $customerId,
+        string $accountId,
+        string $accountName,
+        string $ticketId,
+        bool $positive,
+        ?string $comment,
+    ): ?array {
+        $ticket = $this->find($customerId, $ticketId);
+
+        if ($ticket === null) {
+            return null;
+        }
+
+        /*
+         * The window check and the "is it finished" check both live in
+         * `RateTicket` and throw from there. Not repeated here: a second copy
+         * of "how long is too long" is a second thing to get wrong, and the
+         * one that is wrong would be the one customers actually hit.
+         *
+         * The actor is the CUSTOMER — this is the one thing on a ticket's
+         * history that they wrote themselves.
+         */
+        $this->rate->handle(Actor::portal($accountId, $accountName), $ticketId, $positive, $comment);
+
+        return $this->show($customerId, $ticketId);
+    }
+
     private function find(string $customerId, string $ticketId): ?Ticket
     {
         /*
@@ -234,7 +264,14 @@ final class CustomerRequests implements CustomerRequestGateway
      * ask for them by name and turns a desk into a set of personal queues. No
      * priority — it is the business's own triage, and a customer reading "low"
      * hears "we do not care". No SLA — a countdown a customer can watch is a
-     * promise nobody made to them.
+     * promise nobody made to them. No ESCALATION — that is a conversation
+     * between colleagues about this person, and telling them their ticket has
+     * been escalated invites exactly the question escalating was meant to
+     * answer before they had to ask it.
+     *
+     * The safeguard is that this list is an ALLOW-LIST built by hand rather
+     * than a model serialised whole: a column added to `tickets` tomorrow
+     * cannot appear here by accident, it has to be typed in.
      *
      * @return array<string, mixed>
      */
@@ -247,6 +284,20 @@ final class CustomerRequests implements CustomerRequestGateway
             'status' => $ticket->status->value,
             'created_at' => $ticket->created_at?->toIso8601ZuluString(),
             'updated_at' => $ticket->updated_at?->toIso8601ZuluString(),
+
+            /*
+             * What they said, and whether they can still say it.
+             *
+             * `null` is not neutral — it means nobody has answered, and the
+             * portal renders an invitation rather than a middling verdict.
+             *
+             * `can_rate` is computed HERE rather than in the browser, because
+             * the window is a server rule and a screen that worked it out
+             * itself would offer a control the API then refuses.
+             */
+            'satisfaction' => $ticket->satisfaction,
+            'satisfaction_comment' => $ticket->satisfaction_comment,
+            'can_rate' => $this->rate->isOpenForRating($ticket),
         ];
     }
 

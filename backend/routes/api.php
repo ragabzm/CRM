@@ -2,6 +2,16 @@
 
 declare(strict_types=1);
 
+use App\Modules\Channels\Http\Controllers\Admin\ChannelAccountsController;
+use App\Modules\Knowledge\Http\Controllers\Admin\ArticleCategoriesController;
+use App\Modules\Knowledge\Http\Controllers\ArticleSearchController;
+use App\Modules\Knowledge\Http\Controllers\HelpCentreController;
+use App\Modules\Knowledge\Http\Controllers\Admin\ArticleLifecycleController;
+use App\Modules\Knowledge\Http\Controllers\Admin\ArticlesController;
+use App\Modules\Knowledge\Http\Controllers\Admin\ArticleTranslationsController;
+use App\Modules\Channels\Http\Controllers\PhoneWebhookController;
+use App\Modules\Channels\Http\Controllers\WebFormAttachmentController;
+use App\Modules\Channels\Http\Controllers\WebFormIntakeController;
 use App\Modules\Email\Http\Controllers\EmailTestSendController;
 use App\Modules\Email\Http\Controllers\InboundWebhookController;
 use App\Modules\Email\Http\Controllers\MailLogController;
@@ -23,8 +33,10 @@ use App\Modules\Security\Http\Controllers\PasswordResetController;
 use App\Modules\Security\Http\Controllers\ProfileController;
 use App\Modules\Security\Http\Controllers\UsersController;
 use App\Modules\Tickets\Domain\Category;
+use App\Modules\Tickets\Http\Controllers\Admin\AssignmentMappingsController;
 use App\Modules\Tickets\Http\Controllers\Admin\CategoriesController;
 use App\Modules\Tickets\Http\Controllers\CustomerTimelineController;
+use App\Modules\Tickets\Http\Controllers\TicketEscalationController;
 use App\Modules\Portal\Http\Controllers\PortalAuthController;
 use App\Modules\Portal\Http\Controllers\PortalPasswordController;
 use App\Modules\Portal\Http\Controllers\PortalRequestsController;
@@ -33,6 +45,8 @@ use App\Modules\Tickets\Http\Controllers\NotificationsController;
 use App\Modules\Tickets\Http\Controllers\TicketEventsController;
 use App\Modules\Tickets\Http\Controllers\TicketMessagesController;
 use App\Modules\Tickets\Http\Controllers\TicketReferenceDataController;
+use App\Modules\Tickets\Http\Controllers\FeedbackInvitationController;
+use App\Modules\Tickets\Http\Controllers\PersonalWorkController;
 use App\Modules\Tickets\Http\Controllers\TicketsController;
 use App\Modules\Tickets\Http\Controllers\Admin\PrioritiesController;
 use Illuminate\Http\JsonResponse;
@@ -175,6 +189,37 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/notifications/{id}/read', [NotificationsController::class, 'markRead'])
             ->name('notifications.read');
 
+        /*
+         * An agent's own tasks, reminders and mentions.
+         *
+         * `/me/…`, and no capability gate — for the same reason the bell has
+         * none. These are the notes somebody writes to themselves, and an
+         * administrator being able to switch off a colleague's to-do list is
+         * not a permission anybody asked for.
+         *
+         * Under `/me` rather than a top-level `/tasks`: there is no global
+         * task list and no destination in the sidebar, which is the settled IA
+         * decision. The URL says whose these are, and there is no shape of
+         * request that asks for anybody else's.
+         */
+        Route::prefix('me')->name('me.')->group(function (): void {
+            Route::get('/tasks', [PersonalWorkController::class, 'tasks'])->name('tasks.index');
+            Route::post('/tasks', [PersonalWorkController::class, 'storeTask'])->name('tasks.store');
+
+            Route::patch('/tasks/{task}', [PersonalWorkController::class, 'updateTask'])
+                ->whereUlid('task')
+                ->name('tasks.update');
+
+            Route::post('/reminders', [PersonalWorkController::class, 'storeReminder'])
+                ->name('reminders.store');
+
+            Route::get('/mentions', [PersonalWorkController::class, 'mentions'])->name('mentions.index');
+
+            Route::post('/mentions/{mention}/read', [PersonalWorkController::class, 'readMention'])
+                ->whereUlid('mention')
+                ->name('mentions.read');
+        });
+
         Route::prefix('tickets')->name('tickets.')->group(function (): void {
             /*
              * The list and the counts strip. Read-only, so no Idempotency-Key.
@@ -244,6 +289,22 @@ Route::prefix('v1')->group(function (): void {
                 ->name('messages.store');
 
             /*
+             * Escalation: a POST to a named sub-resource, not a PATCH.
+             *
+             * A PATCH on the ticket carries `If-Match` and would be refused
+             * when a colleague had touched the ticket first. Escalation must
+             * never be refused for that reason — two people escalating the
+             * same ticket agree, and the second is confirmation rather than
+             * conflict. Its own capability for the same reason it is its own
+             * endpoint: it is the one ticket action whose audience is other
+             * people.
+             */
+            Route::post('/{ticket}/escalate', [TicketEscalationController::class, 'store'])
+                ->middleware('can.capability:'.Capabilities::TICKET_ESCALATE)
+                ->whereUlid('ticket')
+                ->name('escalate');
+
+            /*
              * History. GET and nothing else — deliberately no POST, PATCH, PUT
              * or DELETE on this URI or below it. `TicketEventsAppendOnlyTest`
              * fails if one is ever added, because a route is the easiest of the
@@ -302,6 +363,82 @@ Route::prefix('v1')->group(function (): void {
          * enforced identically, and keeps one answer to "who may configure
          * this?".
          */
+        /*
+         * Staff search, outside the admin prefix.
+         *
+         * An agent searches from INSIDE a ticket; the URL has nothing to do
+         * with administration and putting it under /admin would make the
+         * busiest read in the product look like a console call.
+         */
+        Route::get('/knowledge/search', [ArticleSearchController::class, 'index'])
+            ->middleware('can.capability:'.Capabilities::KNOWLEDGE_VIEW)
+            ->name('knowledge.search');
+
+        /*
+         * The knowledge base.
+         *
+         * Deliberately OUTSIDE the `setting.manage` console group below,
+         * though its URLs sit under the same prefix. Nesting it there would
+         * mean only an administrator could write an article — and the answers
+         * worth writing down are the ones an agent has just worked out on a
+         * ticket. An outer gate that swallows three inner ones is a gate that
+         * makes them decorative.
+         *
+         * Three capabilities, not one. Reading an article includes reading the
+         * internal ones. Writing is a separate decision. PUBLISHING is separate
+         * again, because it is the irreversible half: once published, an
+         * article can never be deleted, only archived.
+         */
+        Route::prefix('admin/knowledge')->name('admin.knowledge.')->group(function (): void {
+            Route::middleware('can.capability:'.Capabilities::KNOWLEDGE_VIEW)->group(function (): void {
+                Route::get('/articles', [ArticlesController::class, 'index'])->name('articles.index');
+                Route::get('/articles/{article}', [ArticlesController::class, 'show'])
+                    ->whereUlid('article')->name('articles.show');
+                Route::get('/categories', [ArticleCategoriesController::class, 'index'])
+                    ->name('categories.index');
+            });
+
+            Route::middleware('can.capability:'.Capabilities::KNOWLEDGE_MANAGE)->group(function (): void {
+                Route::post('/articles', [ArticlesController::class, 'store'])->name('articles.store');
+                Route::patch('/articles/{article}', [ArticlesController::class, 'update'])
+                    ->whereUlid('article')->name('articles.update');
+                Route::delete('/articles/{article}', [ArticlesController::class, 'destroy'])
+                    ->whereUlid('article')->name('articles.destroy');
+
+                Route::put('/articles/{article}/translations/{locale}', [ArticleTranslationsController::class, 'upsert'])
+                    ->whereUlid('article')->name('articles.translations.upsert');
+                Route::delete('/articles/{article}/translations/{locale}', [ArticleTranslationsController::class, 'destroy'])
+                    ->whereUlid('article')->name('articles.translations.destroy');
+
+            });
+
+            /*
+             * Organising the library is the administrator's, not the author's.
+             *
+             * `setting.manage`, the same gate the ticket category list sits
+             * behind. Writing an article is an agent's job; renaming a
+             * category under forty of them, or deleting one, is a change
+             * everybody else has to live with. Reading the list stays open to
+             * anyone who may write an article — they have to file it
+             * somewhere.
+             */
+            Route::middleware('can.capability:'.Capabilities::SETTING_MANAGE)->group(function (): void {
+                Route::post('/categories', [ArticleCategoriesController::class, 'store'])
+                    ->name('categories.store');
+                Route::patch('/categories/{category}', [ArticleCategoriesController::class, 'update'])
+                    ->name('categories.update');
+                Route::delete('/categories/{category}', [ArticleCategoriesController::class, 'destroy'])
+                    ->name('categories.destroy');
+            });
+
+            Route::middleware('can.capability:'.Capabilities::KNOWLEDGE_PUBLISH)->group(function (): void {
+                Route::post('/articles/{article}/publish', [ArticleLifecycleController::class, 'publish'])
+                    ->whereUlid('article')->name('articles.publish');
+                Route::post('/articles/{article}/archive', [ArticleLifecycleController::class, 'archive'])
+                    ->whereUlid('article')->name('articles.archive');
+            });
+        });
+
         Route::middleware('can.capability:'.Capabilities::SETTING_MANAGE)
             ->prefix('admin')
             ->name('admin.')
@@ -353,6 +490,41 @@ Route::prefix('v1')->group(function (): void {
                     ->middleware('can.capability:'.Capabilities::QUARANTINE_REPLAY)
                     ->whereUlid('id')
                     ->name('email.quarantine.replay');
+
+                /*
+                 * The channel list an administrator switches on and off.
+                 *
+                 * Its own capability rather than `setting.manage`: disabling a
+                 * channel stops customers reaching the desk through it, which
+                 * is an operational decision with a visible consequence, not a
+                 * preference.
+                 */
+                Route::get('/channels', [ChannelAccountsController::class, 'index'])
+                    ->middleware('can.capability:'.Capabilities::CHANNEL_MANAGE)
+                    ->name('channels.index');
+
+                Route::patch('/channels/{id}', [ChannelAccountsController::class, 'update'])
+                    ->middleware('can.capability:'.Capabilities::CHANNEL_MANAGE)
+                    ->whereUlid('id')
+                    ->name('channels.update');
+
+                /*
+                 * Where new tickets land. A lookup table an administrator
+                 * reads in one line per row — no conditions, no ordering, no
+                 * enable switch, because `unique(source_type, source_id)`
+                 * leaves nothing to resolve.
+                 *
+                 * Behind `setting.manage` with the rest of the console: this
+                 * decides where everybody else's work arrives.
+                 */
+                Route::get('/assignment-mappings', [AssignmentMappingsController::class, 'index'])
+                    ->name('assignment-mappings.index');
+                Route::post('/assignment-mappings', [AssignmentMappingsController::class, 'store'])
+                    ->name('assignment-mappings.store');
+                Route::patch('/assignment-mappings/{mapping}', [AssignmentMappingsController::class, 'update'])
+                    ->name('assignment-mappings.update');
+                Route::delete('/assignment-mappings/{mapping}', [AssignmentMappingsController::class, 'destroy'])
+                    ->name('assignment-mappings.destroy');
 
                 Route::get('/email/log', [MailLogController::class, 'index'])
                     ->name('email.log');
@@ -535,6 +707,108 @@ Route::prefix('v1')->group(function (): void {
         ->name('inbound.email');
 
     /*
+     * The public web form: the second unauthenticated write, and the first one
+     * a PERSON uses.
+     *
+     * It has no shared secret, because the caller is a stranger's browser and
+     * there is nowhere to put one. What stands in for it is bot protection the
+     * controller applies — a honeypot and a minimum fill time — and two rate
+     * limiters registered in ChannelsServiceProvider: one by IP, one by the
+     * contact given, because a botnet defeats the first and a script defeats
+     * the second.
+     *
+     * Exempt from Idempotency-Key for the same reason the mail webhook is: a
+     * browser form does not send one, and idempotency here is enforced on the
+     * minted message id, which is stronger.
+     */
+    /*
+     * The customer help centre. Public, like the web form beside it.
+     *
+     * Requiring an account to read an answer is a help centre that only helps
+     * people who already got in — and the whole point of writing the answer
+     * down was to stop somebody having to ask for it.
+     *
+     * Its own controller and its own query: every field a customer must not
+     * see is one this path never fetches.
+     */
+    Route::prefix('help')->name('help.')->group(function (): void {
+        Route::get('/articles', [HelpCentreController::class, 'index'])->name('articles.index');
+        Route::get('/articles/{article}', [HelpCentreController::class, 'show'])
+            ->whereUlid('article')
+            ->name('articles.show');
+    });
+
+    /*
+     * "How did it go?", answered from an inbox.
+     *
+     * Unauthenticated in the sense that there is no session, and authorised in
+     * the only sense that matters: the `signed` middleware proves this exact
+     * URL — this ticket, this answer, this expiry — was minted by us and
+     * emailed to the address on the ticket. Editing the id in the address bar
+     * invalidates the signature, so a guessed ticket is refused before the
+     * controller runs.
+     *
+     * GET is the tap in the email; POST is the thank-you page sending the
+     * optional comment back to the same signed URL. Exempt from
+     * Idempotency-Key because an email client cannot send one, and because a
+     * repeat is harmless here by construction: rating twice with the same
+     * answer leaves the ticket exactly as it was.
+     */
+    Route::match(['get', 'post'], '/feedback/{ticket}/{verdict}', FeedbackInvitationController::class)
+        ->middleware('signed')
+        ->whereUlid('ticket')
+        ->whereIn('verdict', ['up', 'down'])
+        ->withoutMiddleware([IdempotencyKey::class])
+        ->name('tickets.feedback.invitation');
+
+    /*
+     * WhatsApp and SMS: one signed route per channel, and a second for the
+     * receipts those providers send back.
+     *
+     * A ROUTE, not the deferred webhook subsystem — FR-128 stays deferred and
+     * this deliberately does not grow into a general framework. The signature
+     * is verified before the payload is read, against the secrets of the
+     * ACTIVE accounts on that channel: a disabled channel's secret does not
+     * open the door, because stopping inbound is the whole point of the
+     * switch.
+     *
+     * Exempt from Idempotency-Key like the mail webhook: providers do not send
+     * one, and idempotency here is enforced on the provider's own message id,
+     * which survives a retry from a different process.
+     */
+    Route::post('/inbound/{channel}', [PhoneWebhookController::class, 'store'])
+        ->whereIn('channel', ['whatsapp', 'sms'])
+        ->withoutMiddleware([IdempotencyKey::class])
+        ->name('inbound.phone');
+
+    Route::post('/inbound/{channel}/receipts', [PhoneWebhookController::class, 'receipt'])
+        ->whereIn('channel', ['whatsapp', 'sms'])
+        ->withoutMiddleware([IdempotencyKey::class])
+        ->name('inbound.phone.receipts');
+
+    Route::prefix('inbound/web-form')->name('channels.web_form.')->group(function (): void {
+        Route::get('/session', [WebFormIntakeController::class, 'session'])->name('session');
+
+        /*
+         * `withoutMiddleware` per route, not on the group.
+         *
+         * Chained after `group()` it applies to the registrar and not to the
+         * routes inside it, which fails silently: every request is refused for
+         * a missing Idempotency-Key that a browser form was never going to
+         * send.
+         */
+        Route::post('/attachments', [WebFormAttachmentController::class, 'store'])
+            ->middleware('throttle:web-form-ip')
+            ->withoutMiddleware([IdempotencyKey::class])
+            ->name('attachments');
+
+        Route::post('/', [WebFormIntakeController::class, 'store'])
+            ->middleware(['throttle:web-form-ip', 'throttle:web-form-identifier'])
+            ->withoutMiddleware([IdempotencyKey::class])
+            ->name('store');
+    });
+
+    /*
      * The portal's unauthenticated doors.
      *
      * Outside `auth:portal` by necessity — somebody registering or recovering
@@ -576,6 +850,15 @@ Route::prefix('v1')->group(function (): void {
          */
         Route::get('/requests', [PortalRequestsController::class, 'index'])->name('requests.index');
         Route::post('/requests', [PortalRequestsController::class, 'store'])->name('requests.store');
+
+        /*
+         * How it went. A POST to a named sub-resource, not a PATCH on the
+         * request — a PATCH carries `If-Match`, and a customer has no version
+         * to be stale against and never sees one.
+         */
+        Route::post('/requests/{id}/rating', [PortalRequestsController::class, 'rate'])
+            ->whereUlid('id')
+            ->name('requests.rate');
 
         Route::get('/requests/{id}', [PortalRequestsController::class, 'show'])
             ->whereUlid('id')->name('requests.show');

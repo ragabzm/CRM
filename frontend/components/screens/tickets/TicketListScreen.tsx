@@ -205,6 +205,29 @@ export function TicketListScreen({
         />
 
         <ListFilter
+          label={t("filters.escalated")}
+          anyLabel={t("filters.any")}
+          /*
+           * Its own filter, beside the status one rather than inside it.
+           * Escalation is a property an open, pending, resolved or closed
+           * ticket can carry, so "escalated AND still open" is a question a
+           * supervisor can ask here — and could not if it were a fifth status.
+           */
+          options={[
+            { value: "1", name: t("filters.escalatedOnly") },
+            { value: "0", name: t("filters.notEscalated") },
+          ]}
+          value={params.escalated === undefined ? null : params.escalated ? "1" : "0"}
+          onChange={(value) => {
+            const rest = { ...params };
+
+            delete rest.escalated;
+
+            onParamsChange(value === null ? rest : { ...rest, escalated: value === "1" });
+          }}
+        />
+
+        <ListFilter
           label={t("filters.assignee")}
           anyLabel={t("filters.any")}
           options={[

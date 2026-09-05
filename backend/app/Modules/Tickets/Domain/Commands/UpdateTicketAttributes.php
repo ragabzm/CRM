@@ -11,6 +11,7 @@ use App\Modules\Tickets\Domain\Actor\Actor;
 use App\Modules\Tickets\Domain\Concurrency\VersionGuard;
 use App\Modules\Tickets\Domain\Enum\TicketStatus;
 use App\Modules\Tickets\Domain\Events\TicketAssigned;
+use App\Modules\Tickets\Domain\Events\TicketFinished;
 use App\Modules\Tickets\Domain\Lifecycle\TicketLifecycle;
 use App\Modules\Tickets\Domain\History\TicketEventKind;
 use App\Modules\Tickets\Domain\History\TicketEventRecorder;
@@ -78,9 +79,10 @@ final class UpdateTicketAttributes
         }
 
         $assigneeChanged = false;
+        $justFinished = null;
 
         $ticket = $this->db->transaction(function () use (
-            $actor, $ticketId, $submittedVersion, $changes, $overrideEvent, $extraPayload, &$assigneeChanged
+            $actor, $ticketId, $submittedVersion, $changes, $overrideEvent, $extraPayload, &$assigneeChanged, &$justFinished
         ): Ticket {
             /*
              * Locked for the whole transaction. Without the lock two requests
@@ -136,6 +138,22 @@ final class UpdateTicketAttributes
                 // transition rather than passed in — a caller could otherwise
                 // resolve a ticket without a resolved_at and break the sweep.
                 $stamps = $this->lifecycle->stampsFor($ticket, $target);
+
+                /*
+                 * The first time this ticket has ever been finished, stamped
+                 * in the same write that finishes it.
+                 *
+                 * Set once and never cleared, so a ticket that is resolved,
+                 * reopened and resolved again keeps the original date — which
+                 * is what makes the feedback invitation a thing that happens
+                 * once rather than every time an agent presses Resolve.
+                 */
+                if (in_array($target, [TicketStatus::Resolved, TicketStatus::Closed], true)
+                    && $ticket->first_finished_at === null
+                ) {
+                    $stamps['first_finished_at'] = now();
+                    $justFinished = $target->value;
+                }
             }
 
             $before = VersionGuard::contendedValues($ticket);
@@ -223,6 +241,15 @@ final class UpdateTicketAttributes
          * wired to only one of the two doors is a trigger that misses half the
          * assignments.
          */
+        /*
+         * Announced after the transaction and only on the FIRST finish. A
+         * listener that emails the customer must not run inside the write: an
+         * unreachable mail host would roll back the resolution itself.
+         */
+        if ($justFinished !== null) {
+            Event::dispatch(new TicketFinished($ticketId, $justFinished));
+        }
+
         if ($assigneeChanged) {
             Event::dispatch(new TicketAssigned(
                 $ticketId,

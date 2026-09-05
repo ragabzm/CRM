@@ -43,6 +43,16 @@ abstract class Actor
         return new PortalActor($portalAccountId, $displayName);
     }
 
+    /**
+     * A customer with no portal session — an emailed invitation they tapped.
+     *
+     * The id is a CUSTOMER id, not a portal account id. See CustomerActor.
+     */
+    public static function customer(string $customerId, string $displayName): CustomerActor
+    {
+        return new CustomerActor($customerId, $displayName);
+    }
+
     public static function system(string $reason): SystemActor
     {
         return new SystemActor($reason);

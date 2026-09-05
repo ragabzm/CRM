@@ -185,6 +185,23 @@ final class SlaServiceProvider extends ServiceProvider implements RegistersSetti
                 : 'Must be between 1 and 99 percent. At 100 a ticket would only be at risk once it had already breached.',
             summary: 'How much of the target must elapse before a ticket is at risk.',
         ));
+
+        /*
+         * Off by default, and that is the cautious choice rather than the
+         * timid one.
+         *
+         * A breach sweep that silently raises priority changes what every
+         * agent's queue is sorted by, at 02:00, without anybody having decided
+         * it should. Escalation itself always happens on a breach — that is
+         * the AC — and this governs only the second, louder action. A team
+         * that wants it turns it on deliberately.
+         */
+        $registry->register(new SettingDefinition(
+            key: 'sla.breach_raises_priority',
+            type: SettingType::Bool,
+            default: false,
+            summary: 'Whether a missed target also raises the ticket’s priority by one step.',
+        ));
     }
 
     /** @return \Closure(mixed): (true|string) */

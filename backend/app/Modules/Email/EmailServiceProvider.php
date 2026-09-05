@@ -10,15 +10,15 @@ use App\Modules\Email\Domain\MailLog;
 use App\Modules\Email\Domain\OutboundMailer;
 use App\Modules\Email\Domain\SubjectTagger;
 use App\Modules\Email\Infrastructure\LaravelMailTransport;
-use App\Modules\Email\Domain\Inbound\InboundMailIntake;
+use App\Modules\Email\Domain\Inbound\MailChannelAdapter;
 use App\Modules\Email\Domain\Inbound\MailParser;
-use App\Modules\Email\Domain\Inbound\SenderResolver;
-use App\Modules\Email\Domain\Inbound\TicketCorrelator;
 use App\Modules\Email\Domain\OutboundDispatcher;
 use App\Modules\Email\Infrastructure\NullMailTransport;
+use App\Modules\Email\Listeners\InviteFeedback;
 use App\Modules\Email\Listeners\SendAcknowledgement;
 use App\Modules\Email\Listeners\SendAgentReply;
 use App\Modules\Tickets\Domain\Events\AgentReplyPosted;
+use App\Modules\Tickets\Domain\Events\TicketFinished;
 use App\Modules\Tickets\Domain\Events\TicketOpened;
 use App\Modules\Platform\Support\Settings\RegistersSettings;
 use App\Modules\Platform\Support\Settings\SettingDefinition;
@@ -80,9 +80,14 @@ final class EmailServiceProvider extends ServiceProvider implements RegistersSet
 
         $this->app->singleton(OutboundDispatcher::class);
         $this->app->singleton(MailParser::class);
-        $this->app->singleton(TicketCorrelator::class);
-        $this->app->singleton(SenderResolver::class);
-        $this->app->singleton(InboundMailIntake::class);
+
+        /*
+         * The adapter, not a pipeline. Correlation, the idempotency claim and
+         * the department rule moved to the Channels module in Story 7.1 so
+         * that every transport shares one of each; what Email still owns is
+         * turning RFC 5322 bytes into a payload.
+         */
+        $this->app->singleton(MailChannelAdapter::class);
 
         /*
          * Email listens to Tickets, never the other way round. T4 depending on
@@ -91,6 +96,7 @@ final class EmailServiceProvider extends ServiceProvider implements RegistersSet
          */
         Event::listen(TicketOpened::class, SendAcknowledgement::class);
         Event::listen(AgentReplyPosted::class, SendAgentReply::class);
+        Event::listen(TicketFinished::class, InviteFeedback::class);
     }
 
     public function registerSettings(SettingsRegistry $registry): void
@@ -156,6 +162,13 @@ final class EmailServiceProvider extends ServiceProvider implements RegistersSet
             type: SettingType::Bool,
             default: true,
             summary: 'Send an automatic acknowledgement when a ticket is created.',
+        ));
+
+        $registry->register(new SettingDefinition(
+            key: 'email.feedback_invitation.enabled',
+            type: SettingType::Bool,
+            default: true,
+            summary: 'Ask the customer how it went when their request is finished.',
         ));
 
         $registry->register(new SettingDefinition(
@@ -238,6 +251,29 @@ final class EmailServiceProvider extends ServiceProvider implements RegistersSet
             default: 'ssl',
             allowedValues: ['ssl', 'tls', 'none'],
             summary: 'Transport encryption for the mailbox connection.',
+        ));
+
+        $registry->register(new SettingDefinition(
+            key: 'email.feedback_invitation_template',
+            type: SettingType::Json,
+            default: [
+                'en' => 'Your request is finished. Could you tell us how it went? One tap is enough.',
+                'ar' => 'تم إنهاء طلبك. هل يمكنك إخبارنا كيف سارت الأمور؟ نقرة واحدة تكفي.',
+            ],
+            validator: static function (mixed $value): true|string {
+                if (! is_array($value)) {
+                    return 'Must provide the template in both languages.';
+                }
+
+                foreach (['en', 'ar'] as $locale) {
+                    if (! isset($value[$locale]) || ! is_string($value[$locale]) || trim($value[$locale]) === '') {
+                        return "The {$locale} invitation cannot be empty — a customer writing in that language would be asked nothing.";
+                    }
+                }
+
+                return true;
+            },
+            summary: 'The message that asks a customer how their finished request went.',
         ));
 
         $registry->register(new SettingDefinition(

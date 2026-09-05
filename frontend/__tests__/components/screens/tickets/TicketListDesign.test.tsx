@@ -135,11 +135,15 @@ describe("the filter bar", () => {
     const bar = document.querySelector('[data-slot="ticket-filters"]');
 
     /*
-     * Six selects and no button groups. The bar used to mix segmented groups
-     * (unlabelled) with selects (labelled), so the same strip was read two
-     * ways and the word "Any" appeared three times meaning three things.
+     * Every filter is a labelled select and none is a button group. The bar
+     * used to mix segmented groups (unlabelled) with selects (labelled), so
+     * the same strip was read two ways and the word "Any" appeared three times
+     * meaning three things.
+     *
+     * The COUNT is what changes when a filter is added — seven since Story
+     * 10.1 added escalation — and the shape is what must not.
      */
-    expect(bar?.querySelectorAll("select")).toHaveLength(6);
+    expect(bar?.querySelectorAll("select")).toHaveLength(7);
     expect(bar?.querySelectorAll('[role="group"]')).toHaveLength(0);
   });
 

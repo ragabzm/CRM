@@ -58,7 +58,7 @@ final class InboundQuarantineTest extends TestCase
     {
         $this->deliver(self::UNPARSEABLE)->assertOk()->assertJsonPath('status', 'quarantined');
 
-        $this->assertSame(1, DB::table('mail_quarantine')->count());
+        $this->assertSame(1, DB::table('channel_quarantine')->count());
         $this->assertSame(0, Ticket::query()->count());
     }
 
@@ -68,14 +68,14 @@ final class InboundQuarantineTest extends TestCase
 
         // A parser bug is only diagnosable against the bytes that broke it, and
         // replaying once it is fixed is why this is kept.
-        $this->assertSame(self::UNPARSEABLE, DB::table('mail_quarantine')->value('raw'));
+        $this->assertSame(self::UNPARSEABLE, DB::table('channel_quarantine')->value('raw'));
     }
 
     public function test_it_records_the_parsers_own_words(): void
     {
         $this->deliver(self::UNPARSEABLE)->assertOk();
 
-        $reason = (string) DB::table('mail_quarantine')->value('reason');
+        $reason = (string) DB::table('channel_quarantine')->value('reason');
 
         // "Could not process" would leave an administrator with nothing to act
         // on.
@@ -90,7 +90,7 @@ final class InboundQuarantineTest extends TestCase
             ->postJson('/api/v1/inbound/email', ['raw' => ''])
             ->assertStatus(422);
 
-        $this->assertSame(0, DB::table('mail_quarantine')->count());
+        $this->assertSame(0, DB::table('channel_quarantine')->count());
     }
 
     public function test_a_retried_unparseable_message_is_quarantined_once(): void
@@ -100,7 +100,7 @@ final class InboundQuarantineTest extends TestCase
 
         // Otherwise a provider retrying for an hour fills quarantine with
         // copies of one message.
-        $this->assertSame(1, DB::table('mail_quarantine')->count());
+        $this->assertSame(1, DB::table('channel_quarantine')->count());
     }
 
     public function test_an_administrator_can_see_what_was_quarantined(): void
@@ -135,7 +135,7 @@ final class InboundQuarantineTest extends TestCase
     public function test_a_single_message_can_be_read_in_full(): void
     {
         $this->deliver(self::UNPARSEABLE)->assertOk();
-        $id = DB::table('mail_quarantine')->value('id');
+        $id = DB::table('channel_quarantine')->value('id');
 
         $this->actingAs($this->makeUser(Roles::ADMINISTRATOR))
             ->getJson("/api/v1/admin/email/quarantine/{$id}")
@@ -160,10 +160,10 @@ final class InboundQuarantineTest extends TestCase
     {
         $this->deliver("To: support@example.test\r\nSubject: Broken\r\n\r\nNo sender")->assertOk();
 
-        $id = DB::table('mail_quarantine')->value('id');
+        $id = DB::table('channel_quarantine')->value('id');
 
         // Repaired by hand, as an administrator would after finding the fault.
-        DB::table('mail_quarantine')->where('id', $id)->update([
+        DB::table('channel_quarantine')->where('id', $id)->update([
             'raw' => "From: hana@example.test\r\nTo: support@example.test\r\nSubject: Fixed\r\n\r\nNow it parses",
         ]);
 
@@ -179,14 +179,14 @@ final class InboundQuarantineTest extends TestCase
     public function test_a_replay_marks_the_message_handled(): void
     {
         $this->deliver(self::UNPARSEABLE)->assertOk();
-        $id = DB::table('mail_quarantine')->value('id');
+        $id = DB::table('channel_quarantine')->value('id');
 
         $this->actingAs($this->makeUser(Roles::ADMINISTRATOR))
             ->withHeader('Idempotency-Key', (string) Str::ulid())
             ->postJson("/api/v1/admin/email/quarantine/{$id}/replay")
             ->assertOk();
 
-        $this->assertNotNull(DB::table('mail_quarantine')->where('id', $id)->value('resolved_at'));
+        $this->assertNotNull(DB::table('channel_quarantine')->where('id', $id)->value('resolved_at'));
     }
 
     public function test_a_message_cannot_be_replayed_twice(): void
@@ -194,7 +194,7 @@ final class InboundQuarantineTest extends TestCase
         $this->deliver("From: hana@example.test\r\nSubject: x\r\n\r\nBody")->assertOk();
 
         // Force something into quarantine that will parse on replay.
-        DB::table('mail_quarantine')->insert([
+        DB::table('channel_quarantine')->insert([
             'id' => (string) Str::ulid(),
             'provider' => 'generic',
             'reason' => 'test',
@@ -204,7 +204,7 @@ final class InboundQuarantineTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $id = DB::table('mail_quarantine')->where('reason', 'test')->value('id');
+        $id = DB::table('channel_quarantine')->where('reason', 'test')->value('id');
         $admin = $this->makeUser(Roles::ADMINISTRATOR);
 
         $this->actingAs($admin)

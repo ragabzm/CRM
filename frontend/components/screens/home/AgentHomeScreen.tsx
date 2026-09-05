@@ -1,12 +1,23 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { EmptyState } from "@/components/domain/EmptyState/EmptyState";
+import { MentionList } from "@/components/domain/MentionList/MentionList";
+import { TaskComposer } from "@/components/domain/TaskComposer/TaskComposer";
+import { TaskList } from "@/components/domain/TaskList/TaskList";
 import { FormAlert } from "@/components/domain/FormAlert/FormAlert";
 import { RowSkeleton } from "@/components/domain/RowSkeleton/RowSkeleton";
 import { TicketListTable } from "@/components/domain/TicketList/TicketListTable";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  createTask,
+  listMentions,
+  listTasks,
+  markMentionRead,
+  setTaskCompletion,
+} from "@/lib/api/personal";
 import { listTickets, ticketCounts, type Ticket, type TicketListParams } from "@/lib/api/tickets";
 import { useFreshQuery } from "@/lib/data/useFreshQuery";
 import { useFormat } from "@/lib/format/useFormat";
@@ -16,7 +27,21 @@ import { CountsStrip } from "./CountsStrip";
 export interface AgentHomeScreenProps {
   currentUserId: number | null;
   onOpen: (id: string) => void;
+  /** Which tab the address bar asked for, if any. */
+  initialTab?: HomeTab;
 }
+
+/**
+ * The three things an agent lands on.
+ *
+ * Tasks and reminders are a TAB, not a destination: no sidebar entry, no route
+ * of their own, no global task list. That is a settled decision rather than a
+ * layout preference — a Tasks section beside Tickets invites a second backlog
+ * with its own queue, its own owner and its own arguments about priority.
+ */
+export const HOME_TABS = ["queue", "tasks", "mentions"] as const;
+
+export type HomeTab = (typeof HOME_TABS)[number];
 
 const REFETCH_MS = 30_000;
 
@@ -83,7 +108,7 @@ function groupedQueue(
  * SLA module lands it becomes the first key — the sort is expressed as a
  * server-side sort so that change is one string, not a rewrite.
  */
-export function AgentHomeScreen({ currentUserId, onOpen }: AgentHomeScreenProps) {
+export function AgentHomeScreen({ currentUserId, onOpen, initialTab }: AgentHomeScreenProps) {
   const t = useTranslations("home");
   // The list's own copy for load states, so both surfaces say the same thing.
   const list = useTranslations("tickets");
@@ -114,6 +139,42 @@ export function AgentHomeScreen({ currentUserId, onOpen }: AgentHomeScreenProps)
     refetchInterval: REFETCH_MS,
     refetchOnWindowFocus: true,
   });
+
+  const [tab, setTab] = useState<HomeTab>(initialTab ?? "queue");
+
+  /*
+   * The other two tabs fetch their rows, but NOT their badge counts — those
+   * ride along with the strip above, in one response, on one interval. A badge
+   * that fetched itself would be a third request on the busiest screen in the
+   * product, and could disagree with the list it counts.
+   */
+  const tasksFetcher = useCallback(() => listTasks(), []);
+  const mentionsFetcher = useCallback(() => listMentions(), []);
+
+  const tasks = useFreshQuery("tasks", tasksFetcher, { refetchInterval: REFETCH_MS });
+  const mentions = useFreshQuery("mentions", mentionsFetcher, { refetchInterval: REFETCH_MS });
+
+  const personal = counts.data?.personal ?? { tasks: 0, tasks_overdue: 0, mentions: 0 };
+
+  /*
+   * One refresh after a write, not two optimistic copies.
+   *
+   * Ticking a task changes both the list and the badge above it, and the badge
+   * lives in a different response. Refetching both is the only way they cannot
+   * drift apart on screen — and a tick is rare enough that the round trip is
+   * invisible.
+   */
+  const refreshPersonal = useCallback(() => {
+    // `refetch` starts the request and returns; the rows and the badge land
+    // together on the next settled answer.
+    tasks.refetch();
+    counts.refetch();
+  }, [tasks.refetch, counts.refetch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const refreshMentions = useCallback(() => {
+    mentions.refetch();
+    counts.refetch();
+  }, [mentions.refetch, counts.refetch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /*
    * DERIVED from the data, not stored beside it.
@@ -162,45 +223,102 @@ export function AgentHomeScreen({ currentUserId, onOpen }: AgentHomeScreenProps)
 
       <CountsStrip counts={counts.data} currentUserId={currentUserId} />
 
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-baseline gap-2">
-          <h2 className="text-base font-semibold text-fg-default">{t("queue.title")}</h2>
+      <Tabs value={tab} onValueChange={(next) => setTab(next as HomeTab)}>
+        <TabsList aria-label={t("tabs.label")}>
+          <TabsTrigger value="queue">{t("tabs.queue")}</TabsTrigger>
+          <TabsTrigger value="tasks">
+            {/*
+              The count is part of the label, not a decoration beside it, so a
+              screen reader announces "Tasks and reminders, 4" rather than
+              reading a bare number after the tab name.
+            */}
+            {t("tabs.tasks", { count: personal.tasks })}
+          </TabsTrigger>
+          <TabsTrigger value="mentions">
+            {t("tabs.mentions", { count: personal.mentions })}
+          </TabsTrigger>
+        </TabsList>
 
-          {/*
+        <TabsContent value="tasks" className="flex flex-col gap-4">
+          <TaskComposer
+            onCreate={async (input) => {
+              await createTask(input);
+              refreshPersonal();
+            }}
+          />
+
+          {tasks.loading && tasks.data === null ? (
+            <RowSkeleton label={list("loading")} rows={4} />
+          ) : (
+            <TaskList
+              tasks={tasks.data ?? []}
+              onToggle={async (id, completed) => {
+                await setTaskCompletion(id, completed);
+                refreshPersonal();
+              }}
+              onOpenTicket={onOpen}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="mentions">
+          {mentions.loading && mentions.data === null ? (
+            <RowSkeleton label={list("loading")} rows={3} />
+          ) : (
+            <MentionList
+              mentions={mentions.data ?? []}
+              /*
+               * At the note, not the top of the thread. The whole content of a
+               * mention is "come and read this sentence".
+               */
+              onOpen={(ticketId, messageId) => onOpen(`${ticketId}#note-${messageId}`)}
+              onMarkRead={async (id) => {
+                await markMentionRead(id);
+                refreshMentions();
+              }}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="queue" className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <h2 className="text-base font-semibold text-fg-default">{t("queue.title")}</h2>
+
+            {/*
             The ordering, said out loud. The queue has always been sorted by
             urgency and then age, and nothing on screen mentioned it — so the
             order looked arbitrary, and an agent working top-down had no reason
             to trust that top meant "first".
           */}
-          <p className="text-xs text-fg-subtle">{t("queue.ordering")}</p>
-        </div>
+            <p className="text-xs text-fg-subtle">{t("queue.ordering")}</p>
+          </div>
 
-        {/*
+          {/*
           Quiet, and the rows stay put. A banner that shouted would interrupt
           work over a blip the next interval will fix by itself.
         */}
-        {queue.stale && queue.data !== null && (
-          <p role="status" className="text-xs text-fg-muted">
-            {list("stale")}
-          </p>
-        )}
+          {queue.stale && queue.data !== null && (
+            <p role="status" className="text-xs text-fg-muted">
+              {list("stale")}
+            </p>
+          )}
 
-        {queue.stale && queue.data === null && (
-          <FormAlert tone="error" action={{ label: list("retry"), onSelect: queue.refetch }}>
-            {list("loadError")}
-          </FormAlert>
-        )}
+          {queue.stale && queue.data === null && (
+            <FormAlert tone="error" action={{ label: list("retry"), onSelect: queue.refetch }}>
+              {list("loadError")}
+            </FormAlert>
+          )}
 
-        {queue.loading && queue.data === null ? (
-          /*
+          {queue.loading && queue.data === null ? (
+            /*
             The same rule as the list: an empty state on first paint is an
             answer to a question the request has not returned yet.
           */
-          <RowSkeleton label={list("loading")} rows={5} />
-        ) : rows.length === 0 ? (
-          <EmptyState headline={t("queue.empty")} description={t("queue.emptyBody")} />
-        ) : (
-          /*
+            <RowSkeleton label={list("loading")} rows={5} />
+          ) : rows.length === 0 ? (
+            <EmptyState headline={t("queue.empty")} description={t("queue.emptyBody")} />
+          ) : (
+            /*
             ONE table with spanning group headings.
             Rendering a DataTable per group gave each group its own search box
             and its own column picker, let the columns settle to different
@@ -208,16 +326,17 @@ export function AgentHomeScreen({ currentUserId, onOpen }: AgentHomeScreenProps)
             two unrelated tables instead of one list ordered by why each
             ticket needs attention.
           */
-          <TicketListTable
-            tickets={grouped.rows}
-            caption={t("queue.title")}
-            onOpen={onOpen}
-            assigneeNames={assigneeNames}
-            categoryNames={categoryNames}
-            groups={grouped.groups}
-          />
-        )}
-      </section>
+            <TicketListTable
+              tickets={grouped.rows}
+              caption={t("queue.title")}
+              onOpen={onOpen}
+              assigneeNames={assigneeNames}
+              categoryNames={categoryNames}
+              groups={grouped.groups}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

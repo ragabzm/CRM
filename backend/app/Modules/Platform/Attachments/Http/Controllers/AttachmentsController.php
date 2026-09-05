@@ -10,6 +10,7 @@ use App\Modules\Platform\Attachments\Application\SafeContentType;
 use App\Modules\Platform\Attachments\Application\SignedUrlIssuer;
 use App\Modules\Platform\Attachments\Domain\Attachment;
 use App\Modules\Platform\Attachments\Domain\AttachmentOwnerType;
+use App\Modules\Platform\Attachments\Http\AttachmentPresenter;
 use App\Modules\Platform\Attachments\Http\Requests\StoreAttachmentRequest;
 use App\Modules\Platform\Exceptions\ProblemException;
 use Illuminate\Http\JsonResponse;
@@ -52,7 +53,7 @@ final class AttachmentsController extends Controller
             ->get();
 
         return new JsonResponse([
-            'data' => $attachments->map(fn (Attachment $a) => $this->shape($a))->all(),
+            'data' => $attachments->map(static fn (Attachment $a): array => AttachmentPresenter::full($a))->all(),
         ]);
     }
 
@@ -76,7 +77,7 @@ final class AttachmentsController extends Controller
         // happen; whether the file is safe is a separate question with its own
         // state, and blocking the response on a scan would tie the request to
         // a daemon's availability.
-        return new JsonResponse($this->shape($attachment), 201);
+        return new JsonResponse(AttachmentPresenter::full($attachment), 201);
     }
 
     /**
@@ -84,7 +85,7 @@ final class AttachmentsController extends Controller
      */
     public function show(string $id): JsonResponse
     {
-        return new JsonResponse($this->shape($this->find($id)));
+        return new JsonResponse(AttachmentPresenter::full($this->find($id)));
     }
 
     /**
@@ -143,28 +144,4 @@ final class AttachmentsController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function shape(Attachment $attachment): array
-    {
-        return [
-            'id' => (string) $attachment->getKey(),
-            'owner_type' => $attachment->owner_type,
-            'owner_id' => $attachment->owner_id,
-            'filename' => $attachment->filename,
-            'byte_size' => $attachment->byte_size,
-            'mime_type' => $attachment->mime_type,
-            'uploader_id' => $attachment->uploader_id,
-            'uploaded_at' => $attachment->uploaded_at?->toIso8601String(),
-            'scan_status' => $attachment->scan_status,
-            // The reason only, never the raw scanner output — that can contain
-            // paths and signature databases nobody outside operations needs.
-            'scan_reason' => is_array($attachment->scan_result)
-                ? ($attachment->scan_result['reason'] ?? null)
-                : null,
-            'scanned_at' => $attachment->scanned_at?->toIso8601String(),
-            // Derived from the status, so the two can never disagree.
-            'downloadable' => $attachment->isDownloadable(),
-            // Deliberately absent: stored_path. Where the bytes live is not the
-            // client's business, and publishing it invites someone to try it.
-        ];
-    }
 }

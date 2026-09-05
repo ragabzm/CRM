@@ -4,7 +4,8 @@ import { getCsrf, request } from "./request";
 
 export type TicketStatus = "open" | "pending" | "resolved" | "closed" | "reopened";
 export type TicketPriority = "low" | "normal" | "high" | "urgent";
-export type TicketChannel = "agent" | "portal" | "email" | "system";
+export type TicketChannel =
+  "agent" | "portal" | "email" | "web_form" | "whatsapp" | "sms" | "system";
 
 /** Where a timer stands. `paused` and `met` are not "on track". */
 export type SlaStateValue = "on_track" | "at_risk" | "breached" | "met" | "paused";
@@ -48,6 +49,39 @@ export interface Ticket {
    * A deployment with SLA switched off knows nothing about its targets.
    */
   sla: SlaBlock | null;
+  /**
+   * Whether the channel this arrived on still accepts outbound.
+   *
+   * Carried on the ticket rather than fetched when the composer opens, because
+   * the composer has to know BEFORE the agent writes: telling somebody their
+   * reply cannot be sent after they have written it is precisely the failure
+   * this field exists to prevent.
+   */
+  channel_account_active: boolean;
+  /**
+   * When somebody said this ticket is going wrong. Null when nobody has.
+   *
+   * A property beside the status, never inside it — `status` stays exactly
+   * Open · Pending · Resolved · Closed.
+   *
+   * Staff only. The portal builds its own shape and none of these three fields
+   * appear there: escalation is a conversation between colleagues about a
+   * customer.
+   */
+  /**
+   * What the customer said about how it went. Read-only for staff.
+   *
+   * `null` means nobody answered — the third state, never neutral and never
+   * zero. There is no endpoint that lets any staff role write these: a
+   * satisfaction figure staff can edit is a figure nobody has reason to
+   * believe.
+   */
+  satisfaction: boolean | null;
+  satisfaction_comment: string | null;
+  satisfaction_at: string | null;
+  escalated_at: string | null;
+  escalated_by: string | null;
+  escalation_reason: string | null;
 }
 
 export interface CreateTicketInput {
@@ -159,7 +193,15 @@ export async function reopenTicket(
 export type MessageDirection = "inbound" | "outbound" | "internal";
 
 /** Only outbound messages have one; the others never made a journey. */
-export type DeliveryState = "queued" | "sent" | "failed";
+/**
+ * Where an outbound message got to.
+ *
+ * `delivered` and `read` arrive with WhatsApp and SMS, which report receipts.
+ * They are set only by a provider telling us so — never inferred from a
+ * successful send, because "we handed it over" and "it arrived" are different
+ * facts and a reader seeing "delivered" is entitled to believe the second.
+ */
+export type DeliveryState = "queued" | "sent" | "failed" | "delivered" | "read";
 
 export interface MessageAttachment {
   id: string;
@@ -178,6 +220,14 @@ export interface TicketMessage {
   body: string;
   sent_at: string | null;
   delivery_state: DeliveryState | null;
+  /**
+   * How this message reached us, and which rule put it on this ticket.
+   *
+   * Null for anything an agent wrote here: only a message that ARRIVED has a
+   * channel and a correlation rule. It is the answer to "why did this land on
+   * this ticket?", which is otherwise a database query.
+   */
+  arrived_by: { channel: string; correlation_reason: string | null } | null;
   attachments: MessageAttachment[];
 }
 
@@ -371,6 +421,14 @@ export interface TicketListParams {
    * over the live queue.
    */
   sla_state?: SlaStateFilter;
+  /**
+   * Narrows to escalated tickets, or to the ones that are not.
+   *
+   * Composes WITH `status` rather than replacing it: escalation is a property
+   * an open, pending, resolved or closed ticket can carry, so "escalated and
+   * still open" is a question this can ask and a fifth status never could.
+   */
+  escalated?: boolean;
   status?: string[];
   priority?: string[];
   category_id?: number[];
@@ -413,6 +471,22 @@ export interface TicketCounts {
   at_risk: number | null;
   breached: number | null;
   pending_customer_reply: number;
+  /**
+   * Home's tab badges, in the same response as the strip below them.
+   *
+   * They ride along rather than fetching themselves: Home refreshes every
+   * thirty seconds, a badge is not worth a round trip on the busiest screen in
+   * the product, and two requests taken moments apart can disagree on screen.
+   */
+  personal: PersonalCounts;
+}
+
+export interface PersonalCounts {
+  /** Open tasks. Completed ones are not "to do" and are not counted. */
+  tasks: number;
+  tasks_overdue: number;
+  /** Unread. A badge that only ever grows is a badge people stop reading. */
+  mentions: number;
 }
 
 /**
@@ -422,6 +496,25 @@ export interface TicketCounts {
  * something an agent can read and edit in the address bar — and so the URL a
  * count links to is literally the filter it stands for.
  */
+/**
+ * Says a ticket is going wrong, and why.
+ *
+ * No version and no `If-Match`. Two people escalating the same ticket agree —
+ * refusing the second because a colleague got there first would be refusing
+ * the very agreement that makes the ticket worth escalating.
+ */
+export function escalateTicket(
+  ticketId: string,
+  reason: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Ticket> {
+  return request<Ticket>(`/tickets/${encodeURIComponent(ticketId)}/escalate`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+    fetchImpl,
+  });
+}
+
 export function ticketListQuery(params: TicketListParams): string {
   const query = new URLSearchParams();
 
@@ -432,6 +525,16 @@ export function ticketListQuery(params: TicketListParams): string {
       if (value.length === 0) continue;
 
       query.set(key, value.join(","));
+    } else if (typeof value === "boolean") {
+      /*
+       * `1` and `0`, not `true` and `false`.
+       *
+       * `String(false)` is the string "false", and on the other side
+       * `(bool) "false"` is TRUE — a filter that would have meant the exact
+       * opposite of what was asked. The server normalises both spellings now,
+       * but sending the unambiguous one is free.
+       */
+      query.set(key, value ? "1" : "0");
     } else {
       query.set(key, String(value));
     }

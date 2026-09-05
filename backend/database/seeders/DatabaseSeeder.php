@@ -31,6 +31,10 @@ final class DatabaseSeeder extends Seeder
      */
     private const DEMO = [
         DemoDepartmentsSeeder::class,
+        // Before anything inbound: the web form refuses every submission until
+        // an active account exists, and the department fallback is a setting
+        // this writes.
+        DemoChannelsSeeder::class,
         DemoAgentsSeeder::class,
         DemoCategoriesSeeder::class,
         DemoCustomersSeeder::class,

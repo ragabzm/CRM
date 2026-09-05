@@ -27,6 +27,7 @@ use Illuminate\Notifications\Notification;
  */
 abstract class TicketNotification extends Notification implements ShouldQueue
 {
+    use InTheRecipientsLanguage;
     use Queueable;
 
     public function __construct(
@@ -102,30 +103,20 @@ abstract class TicketNotification extends Notification implements ShouldQueue
             ->subject(__("{$this->key()}.subject", $replacements, $locale))
             ->greeting(__('notifications.greeting', ['name' => $this->nameFor($notifiable)], $locale))
             ->line(__("{$this->key()}.line", $replacements, $locale))
-            ->action(
-                __("{$this->key()}.action", [], $locale),
-                rtrim((string) config('app.frontend_url'), '/').'/tickets/'.$this->ticketId,
-            )
+            ->action(__("{$this->key()}.action", [], $locale), $this->deepLink())
             ->salutation(__('notifications.signoff', [], $locale));
     }
 
     /**
-     * The recipient's language, defaulting to English.
+     * Where the notification's button goes.
      *
-     * A default, not a preference anybody expressed — which is why it is
-     * resolved here rather than written onto the account.
+     * Overridable, because "open the ticket" is not always precise enough: a
+     * mention has to land on the sentence that named you, not at the top of a
+     * thread you then have to search.
      */
-    protected function localeFor(object $notifiable): string
+    protected function deepLink(): string
     {
-        return method_exists($notifiable, 'preferredLocale')
-            ? $notifiable->preferredLocale()
-            : 'en';
+        return rtrim((string) config('app.frontend_url'), '/').'/tickets/'.$this->ticketId;
     }
 
-    protected function nameFor(object $notifiable): string
-    {
-        $name = $notifiable->getAttribute('name');
-
-        return is_string($name) && $name !== '' ? $name : '';
-    }
 }

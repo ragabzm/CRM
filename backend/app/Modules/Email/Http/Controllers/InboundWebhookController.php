@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Email\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Modules\Email\Domain\Inbound\InboundMailIntake;
+use App\Modules\Channels\Domain\Intake\InboundIntake;
+use App\Modules\Email\Domain\Inbound\MailChannelAdapter;
 use App\Modules\Platform\Exceptions\ProblemException;
 use App\Modules\Platform\Support\Settings\SettingsRegistry;
 use Illuminate\Http\JsonResponse;
@@ -31,7 +32,8 @@ use Illuminate\Http\Request;
 final class InboundWebhookController extends Controller
 {
     public function __construct(
-        private readonly InboundMailIntake $intake,
+        private readonly InboundIntake $intake,
+        private readonly MailChannelAdapter $adapter,
         private readonly SettingsRegistry $settings,
     ) {}
 
@@ -43,12 +45,35 @@ final class InboundWebhookController extends Controller
         $this->assertEnabled();
         $this->assertSignature($request);
 
-        $raw = $this->rawMessage($request);
+        /*
+         * The controller still owns the provider's request shape — which field
+         * carries the bytes, which header carries the id. Everything after
+         * that is the shared spine, identical to every other channel.
+         */
+        $externalId = $this->externalId($request);
 
         $result = $this->intake->accept(
-            $raw,
-            (string) $this->settings->get('email.inbound.provider'),
-            $this->externalId($request),
+            $this->adapter,
+            /*
+             * The provider's id travels INSIDE the payload, not beside it.
+             *
+             * The adapter is what decides a message's id — provider id, then
+             * Message-ID, then a hash — and it can only do that if it has all
+             * three. The third argument below is the fallback for a payload
+             * that could not be parsed at all, where there is no adapter
+             * answer to have.
+             */
+            array_filter([
+                'raw' => $this->rawMessage($request),
+                'provider_message_id' => $externalId,
+                /*
+                 * Which service delivered it. Not used to decide anything —
+                 * it is recorded, so that a quarantined message can be traced
+                 * back to the provider whose format broke the parser.
+                 */
+                'provider' => (string) $this->settings->get('email.inbound.provider'),
+            ], static fn (mixed $v): bool => $v !== null),
+            $externalId,
         );
 
         return new JsonResponse($result, 200);

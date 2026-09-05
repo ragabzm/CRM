@@ -160,6 +160,15 @@ final class CapabilitiesInSyncTest extends TestCase
             Capabilities::TICKET_REASSIGN,
 
             /*
+             * Disabling a channel stops customers reaching the desk through
+             * it. That is not a preference a supervisor tunes for their own
+             * team — it changes what the whole organisation can be contacted
+             * on, and the tickets already raised through it keep arriving in
+             * queues nobody expected to go quiet.
+             */
+            Capabilities::CHANNEL_MANAGE,
+
+            /*
              * Reading a quarantined message means reading the RAW source of a
              * customer's email — their words, their address, their
              * attachments — for mail that failed before any of the usual

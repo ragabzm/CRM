@@ -161,7 +161,7 @@ final class HeadersRoundTripTest extends TestCase
     {
         $messageId = $this->reply();
 
-        $stored = DB::table('ticket_messages')->where('id', $messageId)->value('email_message_id');
+        $stored = DB::table('ticket_messages')->where('id', $messageId)->value('provider_message_id');
 
         // Story 5.2 looks an inbound reply up by this. Deriving it again later
         // would risk deriving something different from what actually went out.

@@ -6,6 +6,7 @@ namespace App\Modules\Sla\Console\Commands;
 
 use App\Modules\Tickets\Notifications\SlaWarning;
 use App\Modules\Tickets\Notifications\TicketNotifier;
+use App\Modules\Sla\Domain\Escalation\EscalateOnBreach;
 use App\Modules\Sla\Domain\SlaClock;
 use App\Modules\Sla\Domain\SlaState;
 use App\Modules\Sla\Domain\TicketTimelineLoader;
@@ -38,8 +39,10 @@ final class SweepSlaBreachesCommand extends Command
     /** Enough to keep one pass short; the sweep runs again in a minute. */
     private const BATCH = 500;
 
-    public function __construct(private readonly TicketNotifier $notifier)
-    {
+    public function __construct(
+        private readonly TicketNotifier $notifier,
+        private readonly EscalateOnBreach $escalate,
+    ) {
         parent::__construct();
     }
 
@@ -47,6 +50,7 @@ final class SweepSlaBreachesCommand extends Command
     {
         $now = CarbonImmutable::now('UTC');
         $recorded = 0;
+        $escalated = 0;
         $seen = 0;
 
         /*
@@ -58,7 +62,7 @@ final class SweepSlaBreachesCommand extends Command
             ->whereIn('status', ['open', 'pending'])
             ->orderBy('id')
             ->select('id')
-            ->chunk(self::BATCH, function ($chunk) use ($loader, $clock, $now, &$recorded, &$seen): void {
+            ->chunk(self::BATCH, function ($chunk) use ($loader, $clock, $now, &$recorded, &$escalated, &$seen): void {
                 $ids = $chunk->pluck('id')->map(static fn ($id): string => (string) $id)->all();
                 $timelines = $loader->forTickets($ids);
 
@@ -96,12 +100,32 @@ final class SweepSlaBreachesCommand extends Command
                         if ($this->record($timeline->ticketId, $target, $timeline->priority, $reading, $now)) {
                             $recorded++;
                             $this->warn_($timeline, $target, $reading, SlaWarning::BREACHED);
+
+                            /*
+                             * The one automatic escalation condition.
+                             *
+                             * After the breach row, so a ticket is never
+                             * escalated for a breach that was not recorded —
+                             * and inside the same `if`, so the second and
+                             * hundredth sweep of a still-late ticket do
+                             * nothing. `EscalateOnBreach` refuses a second
+                             * escalation besides, which is what makes a ticket
+                             * that misses BOTH targets escalate once.
+                             */
+                            if ($this->escalate->handle($timeline->ticketId, $target)) {
+                                $escalated++;
+                            }
                         }
                     }
                 }
             });
 
-        $this->info(sprintf('Examined %d live tickets; recorded %d new breaches.', $seen, $recorded));
+        $this->info(sprintf(
+            'Examined %d live tickets; recorded %d new breaches; escalated %d.',
+            $seen,
+            $recorded,
+            $escalated,
+        ));
 
         return self::SUCCESS;
     }

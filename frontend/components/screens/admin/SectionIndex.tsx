@@ -119,7 +119,7 @@ function useSectionCounts(): Partial<Record<AdminSection, string>> {
         const platformSettings = settings.filter((s) => s.key.startsWith("platform.")).length;
 
         /*
-         * All six, or none. A counter on half the list reads as "these four
+         * All of them, or none. A counter on half the list reads as "these
          * sections are empty" — which is worse than no counters at all.
          */
         setCounts({

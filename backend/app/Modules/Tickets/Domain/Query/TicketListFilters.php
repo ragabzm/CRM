@@ -53,6 +53,14 @@ final readonly class TicketListFilters
         public array $assigneeIds = [],
         public array $departmentIds = [],
         public ?string $slaState = null,
+        /**
+         * True narrows to escalated tickets; null means "do not care".
+         *
+         * Nullable rather than a boolean defaulting to false, because
+         * "everything" and "not escalated" are different questions and a
+         * boolean can only ask one of them.
+         */
+        public ?bool $escalated = null,
         public ?string $createdFrom = null,
         public ?string $createdTo = null,
         public ?string $term = null,

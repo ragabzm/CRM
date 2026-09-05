@@ -26,10 +26,23 @@ final class UpdateAndDeactivateTest extends TestCase
 
         $this->withIdempotencyKey()->patchJson("/api/v1/customers/{$customer['id']}", [
             'full_name' => 'Hana Y. Yousef',
-            'notes' => 'Prefers a call in the morning.',
+            'preferred_channel' => 'phone',
         ])->assertOk()->assertJsonPath('full_name', 'Hana Y. Yousef');
 
-        $this->assertSame('Prefers a call in the morning.', $this->getJson("/api/v1/customers/{$customer['id']}")->json('notes'));
+        $read = $this->getJson("/api/v1/customers/{$customer['id']}");
+
+        $this->assertSame('Hana Y. Yousef', $read->json('full_name'));
+        $this->assertSame('phone', $read->json('preferred_channel'));
+
+        /*
+         * `notes` used to be edited here. It was a free-text column on the
+         * customer row that lived beside the `customer_notes` table, and the
+         * profile screen rendered both under one heading — so it printed
+         * "No notes yet." with a real note directly underneath. The column had
+         * no author, no timestamp and no history; it has been migrated into
+         * the notes table and dropped.
+         */
+        $this->assertArrayNotHasKey('notes', $read->json());
     }
 
     public function test_the_reference_never_changes(): void

@@ -32,7 +32,6 @@ final class UpdateCustomerRequest extends FormRequest
             'full_name' => ['sometimes', 'string', 'min:1', 'max:200'],
             'department_id' => ['sometimes', 'integer', Rule::exists('departments', 'id')],
             'preferred_channel' => ['sometimes', 'nullable', Rule::in(ContactKind::values())],
-            'notes' => ['sometimes', 'nullable', 'string', 'max:10000'],
 
             'identifiers' => ['sometimes', 'array', 'min:1'],
             'identifiers.*.kind' => ['required_with:identifiers', Rule::in(ContactKind::values())],

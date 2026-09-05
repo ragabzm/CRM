@@ -265,6 +265,11 @@ final class DemoTicketsSeeder extends Seeder
 
         return match ($blueprint['channel']) {
             TicketChannel::Email => Actor::system('inbound email'),
+            // A stranger filling in the form has no identity here either.
+            TicketChannel::WebForm => Actor::system('inbound_web_form'),
+            // A phone-channel ticket has no person on our side either.
+            TicketChannel::WhatsApp => Actor::system('inbound_whatsapp'),
+            TicketChannel::Sms => Actor::system('inbound_sms'),
             TicketChannel::System => Actor::system('demo data'),
             default => Actor::staff('1', 'Front desk'),
         };
@@ -346,6 +351,68 @@ final class DemoTicketsSeeder extends Seeder
         ];
 
         return [
+            [
+                /*
+                 * WhatsApp, which is where most of the world writes from.
+                 *
+                 * Here so the demo shows a phone-channel ticket beside an
+                 * emailed one — the two are built by the same commands and
+                 * the only visible difference is the channel, which is
+                 * exactly what an agent needs to be able to tell before they
+                 * reply.
+                 */
+                'subject' => 'رقم الشحنة مش شغال',
+                'description' => 'بعتولي رقم تتبع مش بيفتح.',
+                'customer' => 'omar.farouk@example.test',
+                'channel' => TicketChannel::WhatsApp,
+                'priority' => Priority::Normal,
+                'status' => TicketStatus::Open,
+                'category' => 'Account',
+                'assignee' => self::AGENT_SALES,
+                'resolution' => '',
+                'messages' => $reply(
+                    'بعتولي رقم تتبع مش بيفتح.',
+                    'اتأكدنا — الرقم اتسجّل غلط، وبعتنالك الصح دلوقتي.',
+                ),
+            ],
+            [
+                'subject' => 'Did my payment go through?',
+                'description' => 'I sent it this morning and heard nothing.',
+                'customer' => 'sarah.nasser@example.test',
+                'channel' => TicketChannel::Sms,
+                'priority' => Priority::Normal,
+                'status' => TicketStatus::Resolved,
+                'category' => 'Billing',
+                'assignee' => self::AGENT_BILLING,
+                'resolution' => 'Payment confirmed and receipted.',
+                'messages' => $reply(
+                    'I sent it this morning and heard nothing.',
+                    'It arrived — the receipt is on its way to you now.',
+                ),
+            ],
+            [
+                /*
+                 * The public form, from a stranger with no account.
+                 *
+                 * Here so that the demo shows what a web-form ticket looks
+                 * like beside an emailed one — the two are built by the same
+                 * commands and the only visible difference is the channel,
+                 * which is exactly what an agent needs to be able to tell.
+                 */
+                'subject' => 'Cannot sign in to download my invoice',
+                'description' => 'The reset link says my address is not recognised.',
+                'customer' => 'yusuf.salim@example.test',
+                'channel' => TicketChannel::WebForm,
+                'priority' => Priority::Normal,
+                'status' => TicketStatus::Open,
+                'category' => 'Account',
+                'assignee' => self::AGENT_SUPPORT,
+                'resolution' => '',
+                'messages' => $reply(
+                    'The reset link says my address is not recognised.',
+                    'Your account is under a different address — I have sent the reset there.',
+                ),
+            ],
             [
                 'subject' => 'الفاتورة فيها رسم مكرر',
                 'description' => 'اتخصم مني نفس المبلغ مرتين في نفس اليوم.',

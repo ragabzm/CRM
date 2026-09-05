@@ -6,15 +6,20 @@ namespace App\Modules\Tickets;
 
 use App\Modules\Platform\Support\Settings\RegistersSettings;
 use App\Modules\Platform\Support\Settings\SettingDefinition;
+use App\Modules\Tickets\Domain\Commands\RateTicket;
 use App\Modules\Platform\Support\Settings\SettingType;
 use App\Modules\Platform\Support\Settings\SettingsRegistry;
 use App\Modules\Security\Contracts\DepartmentUsageProbe;
 use App\Modules\Tickets\Application\Portal\CustomerRequests;
+use App\Modules\Tickets\Console\Commands\RemindersSweepCommand;
+use App\Modules\Tickets\Console\Commands\TicketsAutoCloseCommand;
 use App\Modules\Tickets\Contracts\CategoryUsageProbe;
+use App\Modules\Tickets\Contracts\ChannelAvailability;
 use App\Modules\Tickets\Contracts\CustomerRequestGateway;
+use App\Modules\Tickets\Contracts\InboundProvenance;
+use App\Modules\Tickets\Contracts\TicketEventRecording;
 use App\Modules\Tickets\Domain\CategoryUsage;
 use App\Modules\Tickets\Domain\Commands\AppendMessage;
-use App\Modules\Tickets\Console\Commands\TicketsAutoCloseCommand;
 use App\Modules\Tickets\Domain\Commands\AssignTicket;
 use App\Modules\Tickets\Domain\Commands\ChangeDepartment;
 use App\Modules\Tickets\Domain\Commands\ChangeStatus;
@@ -25,21 +30,23 @@ use App\Modules\Tickets\Domain\Commands\UpdateTicketAttributes;
 use App\Modules\Tickets\Domain\Concurrency\VersionGuard;
 use App\Modules\Tickets\Domain\Events\CustomerReplyPosted;
 use App\Modules\Tickets\Domain\Events\TicketAssigned;
-use App\Modules\Tickets\Listeners\NotifyOnCustomerReply;
-use App\Modules\Tickets\Listeners\NotifyOnTicketAssigned;
-use App\Modules\Tickets\Notifications\TicketNotifier;
-use App\Modules\Tickets\Domain\Lifecycle\TicketLifecycle;
-use App\Modules\Tickets\Contracts\TicketEventRecording;
+use App\Modules\Tickets\Domain\EverythingIsOpen;
 use App\Modules\Tickets\Domain\History\TicketEventRecorder;
+use App\Modules\Tickets\Domain\Lifecycle\TicketLifecycle;
+use App\Modules\Tickets\Domain\NoInboundProvenance;
+use App\Modules\Tickets\Domain\Query\DepartmentTicketUsage;
 use App\Modules\Tickets\Domain\Query\TicketCounts;
 use App\Modules\Tickets\Domain\Query\TicketListQuery;
-use App\Modules\Tickets\Http\AssigneeDirectory;
-use App\Modules\Tickets\Listeners\ReopenOnCustomerReply;
-use App\Modules\Tickets\Domain\Query\DepartmentTicketUsage;
 use App\Modules\Tickets\Domain\Reference\PostgresTicketReferenceAllocator;
 use App\Modules\Tickets\Domain\Reference\SqliteTicketReferenceAllocator;
 use App\Modules\Tickets\Domain\Reference\TicketReferenceAllocator;
+use App\Modules\Tickets\Http\AssigneeDirectory;
+use App\Modules\Tickets\Listeners\NotifyOnCustomerReply;
+use App\Modules\Tickets\Listeners\NotifyOnTicketAssigned;
+use App\Modules\Tickets\Listeners\ReopenOnCustomerReply;
+use App\Modules\Tickets\Notifications\TicketNotifier;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -50,6 +57,14 @@ final class TicketsServiceProvider extends ServiceProvider implements RegistersS
 {
     public function register(): void
     {
+        /*
+         * The safe default, overridden by Channels when that module is
+         * present. Bound here so Tickets works on its own — in a unit test, or
+         * in a deployment that has not enabled Channels.
+         */
+        $this->app->bind(ChannelAvailability::class, EverythingIsOpen::class);
+        $this->app->bind(InboundProvenance::class, NoInboundProvenance::class);
+
         /*
          * Answers Security's DepartmentUsageProbe with a real query, replacing
          * the null implementation Security binds for itself. The dependency
@@ -126,7 +141,27 @@ final class TicketsServiceProvider extends ServiceProvider implements RegistersS
     {
         $this->loadMigrationsFrom(__DIR__.'/Database/Migrations');
 
-        $this->commands([TicketsAutoCloseCommand::class]);
+        $this->commands([TicketsAutoCloseCommand::class, RemindersSweepCommand::class]);
+
+        /*
+         * Minutely, and on one server.
+         *
+         * A reminder set for 09:00 that arrives at 09:15 is a reminder somebody
+         * stops trusting, so the sweep's interval IS the resolution of the
+         * whole feature. `onOneServer` because two schedulers running the same
+         * minute would each pick up the same due rows — the sweep survives
+         * that by construction, and not relying on it is cheaper than proving
+         * it every deployment.
+         */
+        if ($this->app->runningInConsole()) {
+            $this->app->booted(function (): void {
+                $this->app->make(Schedule::class)
+                    ->command(RemindersSweepCommand::class)
+                    ->everyMinute()
+                    ->withoutOverlapping()
+                    ->onOneServer();
+            });
+        }
 
         /*
          * A resolved ticket reopens when the customer replies. Wired here so
@@ -167,6 +202,23 @@ final class TicketsServiceProvider extends ServiceProvider implements RegistersS
             validator: static fn (mixed $v): bool|string => is_int($v) && $v >= 1 && $v <= 365
                 ? true
                 : 'The reopen window must be between 1 and 365 days.',
+        ));
+
+        $registry->register(new SettingDefinition(
+            key: RateTicket::WINDOW_SETTING,
+            type: SettingType::Int,
+            /*
+             * Twenty-four hours. Long enough that somebody who tapped the
+             * wrong one and noticed the next morning can fix it; short enough
+             * that a figure a manager is looking at stops moving under them.
+             *
+             * Zero is allowed and locks a rating the moment it is given.
+             */
+            default: 24,
+            summary: 'How long a customer can change their answer about how a request went.',
+            validator: static fn (mixed $v): bool|string => is_int($v) && $v >= 0 && $v <= 24 * 30
+                ? true
+                : 'The rating change window must be between 0 hours and 30 days.',
         ));
 
         /*
