@@ -5,6 +5,7 @@ use App\Modules\Channels\ChannelsServiceProvider;
 use App\Modules\Customers\CustomersServiceProvider;
 use App\Modules\Knowledge\KnowledgeServiceProvider;
 use App\Modules\Email\EmailServiceProvider;
+use App\Modules\Integrations\IntegrationsServiceProvider;
 use App\Modules\Platform\PlatformServiceProvider;
 use App\Modules\Portal\PortalServiceProvider;
 use App\Modules\Security\SecurityServiceProvider;
@@ -27,4 +28,6 @@ return [
     ChannelsServiceProvider::class,
     // Last: Email consumes the channel spine.
     EmailServiceProvider::class,
+    // Nothing depends on it, and the product is complete with it off.
+    IntegrationsServiceProvider::class,
 ];

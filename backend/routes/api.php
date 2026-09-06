@@ -19,6 +19,7 @@ use App\Modules\Email\Http\Controllers\EmailTestSendController;
 use App\Modules\Email\Http\Controllers\InboundWebhookController;
 use App\Modules\Email\Http\Controllers\MailLogController;
 use App\Modules\Email\Http\Controllers\MailQuarantineController;
+use App\Modules\Integrations\Http\Controllers\IntegrationsController;
 use App\Modules\Platform\Branches\Http\Controllers\BranchesController;
 use App\Modules\Platform\Branding\Http\Controllers\BrandingController;
 use App\Modules\Platform\Http\Controllers\Admin\QuickRepliesController;
@@ -37,6 +38,8 @@ use App\Modules\Security\Http\Controllers\AuthController;
 use App\Modules\Security\Http\Controllers\DepartmentsController;
 use App\Modules\Security\Http\Controllers\PasswordResetController;
 use App\Modules\Security\Http\Controllers\ProfileController;
+use App\Modules\Security\Http\Controllers\Admin\ApiClientsController;
+use App\Modules\Security\Http\Middleware\RefuseCredentialsInTheUrl;
 use App\Modules\Security\Http\Controllers\UsersController;
 use App\Modules\Tickets\Domain\Category;
 use App\Modules\Tickets\Http\Controllers\Admin\AssignmentMappingsController;
@@ -103,7 +106,20 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/auth/session', [AuthController::class, 'session'])->name('auth.session');
 
-        Route::middleware('auth:web')->group(function (): void {
+        /*
+     * The session cookie OR a bearer token. ONE group, not two.
+     *
+     * This is the whole claim of the story made structural: there is no second
+     * API and no internal-only endpoint, because an API client and the
+     * interface enter through the same door and reach the same controller,
+     * the same validation, the same capability gate and the same command.
+     *
+     * `auth:web,sanctum` tries the cookie first — the interface is the common
+     * case — and falls back to the bearer header. `RequireCapability` then
+     * ANDs the person's capability with the token's ability, so a token
+     * narrows and never widens.
+     */
+    Route::middleware(['auth:web,sanctum', RefuseCredentialsInTheUrl::class, 'throttle:api-client'])->group(function (): void {
             Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
             Route::get('/auth/me', [AuthController::class, 'me'])->name('auth.me');
 
@@ -127,7 +143,20 @@ Route::prefix('v1')->group(function (): void {
      * user twice because a request was retried is exactly the failure that
      * middleware prevents.
      */
-    Route::middleware('auth:web')->group(function (): void {
+    /*
+     * The session cookie OR a bearer token. ONE group, not two.
+     *
+     * This is the whole claim of the story made structural: there is no second
+     * API and no internal-only endpoint, because an API client and the
+     * interface enter through the same door and reach the same controller,
+     * the same validation, the same capability gate and the same command.
+     *
+     * `auth:web,sanctum` tries the cookie first — the interface is the common
+     * case — and falls back to the bearer header. `RequireCapability` then
+     * ANDs the person's capability with the token's ability, so a token
+     * narrows and never widens.
+     */
+    Route::middleware(['auth:web,sanctum', RefuseCredentialsInTheUrl::class, 'throttle:api-client'])->group(function (): void {
         /*
          * Branches: read them to pick and filter, manage them to change the
          * org chart. Two capabilities, because an agent who cannot administer
@@ -137,6 +166,35 @@ Route::prefix('v1')->group(function (): void {
          * There is no delete route. A branch that closed still describes where
          * years of tickets happened; deactivation is the only way out.
          */
+        /*
+         * The other systems that talk to this one.
+         *
+         * Administrator-only, beside users and branches: issuing a credential
+         * that can read every customer is not a supervisor's decision about
+         * their own team.
+         */
+        /*
+         * The integrations surface: the exchange log, and the button that
+         * tests a configuration by making a real exchange.
+         *
+         * Gated on `setting.manage`, because that is what configuring an
+         * integration IS — and there is no delete route on the log, because
+         * retention is the only way a row ever leaves it.
+         */
+        Route::middleware('can.capability:'.Capabilities::SETTING_MANAGE)->group(function (): void {
+            Route::get('/integrations/log', [IntegrationsController::class, 'log'])->name('integrations.log');
+            Route::post('/integrations/erp/test', [IntegrationsController::class, 'test'])->name('integrations.test');
+        });
+
+        Route::middleware('can.capability:'.Capabilities::USER_MANAGE)->group(function (): void {
+            Route::get('/api-clients', [ApiClientsController::class, 'index'])->name('api-clients.index');
+            Route::post('/api-clients', [ApiClientsController::class, 'store'])->name('api-clients.store');
+
+            Route::delete('/api-clients/{client}', [ApiClientsController::class, 'destroy'])
+                ->whereNumber('client')
+                ->name('api-clients.destroy');
+        });
+
         Route::get('/branches', [BranchesController::class, 'index'])
             ->middleware('can.capability:'.Capabilities::BRANCH_READ)
             ->name('branches.index');

@@ -19,6 +19,7 @@ import { ApiError } from "@/lib/api/errors";
 import {
   getCustomerContext,
   getTicket,
+  updateTicketProperties,
   type CustomerContext,
   type Ticket,
 } from "@/lib/api/tickets";
@@ -177,7 +178,9 @@ export function TicketDetailScreen({
     }
 
     try {
-      setTicket(await updateTicketProperties(ticket.id, ticket.version, { category_id: categoryId }));
+      setTicket(
+        await updateTicketProperties(ticket.id, ticket.version, { category_id: categoryId }),
+      );
     } catch {
       // The ticket moved on. Reloading is the offer, and the rail makes it.
       reload();

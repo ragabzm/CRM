@@ -15,6 +15,8 @@ declare(strict_types=1);
 
 return [
     'chat' => [
+        'handing_off' => 'Let me get a person for you — someone will be with you shortly.',
+        'answered_from' => 'Answered from our help centre:',
         'abandoned_note' => 'The visitor left the chat without closing it. The conversation above is the whole transcript.',
     ],
 ];

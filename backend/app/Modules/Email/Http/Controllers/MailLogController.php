@@ -27,7 +27,7 @@ final class MailLogController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = MailLogEntry::query()->orderByDesc('occurred_at')->orderByDesc('id');
+        $query = MailLogEntry::mail()->orderByDesc('occurred_at')->orderByDesc('id');
 
         if (is_string($direction = $request->query('direction')) && $direction !== '') {
             $query->where('direction', $direction);
@@ -35,7 +35,8 @@ final class MailLogController extends Controller
 
         if (is_string($status = $request->query('status')) && $status !== '') {
             // The filter that matters: "show me what did not go out".
-            $query->where('status', $status);
+            // Email's word in, the log's word out — see MailLogEntry::SENT.
+            $query->where('status', MailLogEntry::storedStatus($status));
         }
 
         $page = $query->paginate(min(

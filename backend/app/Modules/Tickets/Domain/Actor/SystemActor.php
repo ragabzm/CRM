@@ -15,8 +15,22 @@ use InvalidArgumentException;
  */
 final class SystemActor extends Actor
 {
-    public function __construct(public readonly string $why)
-    {
+    public function __construct(
+        public readonly string $why,
+        /**
+         * What the transcript calls it.
+         *
+         * Defaults to "System", which is right for a sweep or a job nobody
+         * needs to picture. The chatbot passes its own, because a customer
+         * reading a conversation has to be able to tell that the thing which
+         * answered them was not a person — and that has to survive into the
+         * ticket a colleague reads afterwards.
+         *
+         * A machine token, not a translated word: the transcript is read in
+         * both languages and stored once.
+         */
+        private readonly string $as = 'System',
+    ) {
         if (trim($why) === '') {
             /*
              * Refused at construction, not at write time. An event reading
@@ -42,7 +56,7 @@ final class SystemActor extends Actor
 
     public function label(): string
     {
-        return 'System';
+        return $this->as;
     }
 
     public function reason(): ?string

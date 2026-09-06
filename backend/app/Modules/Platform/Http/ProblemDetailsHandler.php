@@ -66,10 +66,10 @@ final class ProblemDetailsHandler
             return null;
         }
 
-        return $this->toResponse($this->problemFor($e, $request), $request);
+        return $this->toResponse($this->problemFor($e, $request), $request, $e);
     }
 
-    public function toResponse(ProblemDetails $problem, Request $request): JsonResponse
+    public function toResponse(ProblemDetails $problem, Request $request, ?Throwable $e = null): JsonResponse
     {
         $baseUri = (string) config('problem-details.type_base_uri');
         $traceId = $this->context->requestId() ?? (string) Str::ulid();
@@ -89,7 +89,51 @@ final class ProblemDetailsHandler
         // the same id that went into trace_id.
         $response->headers->set(Middleware\AssignRequestId::HEADER, $traceId);
 
+        $this->carryProtocolHeaders($response, $e);
+
         return $response;
+    }
+
+    /**
+     * Keeps the headers the exception itself carried.
+     *
+     * A problem document explains WHY in prose a person reads. The headers
+     * beside it are the part a machine acts on, and rebuilding the response
+     * from scratch threw them away:
+     *
+     *   429 loses `Retry-After` and the `X-RateLimit-*` triple, so a client
+     *   told to slow down is not told for how long — and retries immediately,
+     *   which is the behaviour the limit exists to stop.
+     *
+     *   401 loses `WWW-Authenticate` and 405 loses `Allow`, both of which are
+     *   the protocol's own answer to "what should I have done instead".
+     *
+     * Never overwrites what is already set: `Content-Type` is the whole point
+     * of a problem document, and an exception carrying its own would undo it.
+     */
+    private function carryProtocolHeaders(JsonResponse $response, ?Throwable $e): void
+    {
+        if (! $e instanceof HttpExceptionInterface) {
+            return;
+        }
+
+        foreach ($e->getHeaders() as $name => $value) {
+            if ($response->headers->has($name)) {
+                continue;
+            }
+
+            /*
+             * Cast, because Laravel's throttle exception carries INTEGERS —
+             * `X-RateLimit-Limit` is an int, and Symfony's header bag takes
+             * strings, arrays or null. Passing it straight through turned a
+             * 429 into a 500, which is the one failure mode worse than the
+             * missing header this method exists to restore.
+             */
+            $response->headers->set(
+                $name,
+                is_array($value) ? array_map(strval(...), $value) : (string) $value,
+            );
+        }
     }
 
     private function shouldHandle(Request $request): bool

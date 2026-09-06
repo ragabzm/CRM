@@ -7,8 +7,7 @@ namespace App\Modules\Assist\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Assist\Domain\TicketAssists;
 use App\Modules\Platform\Exceptions\ProblemException;
-use App\Modules\Tickets\Domain\Query\TicketVisibility;
-use App\Modules\Tickets\Domain\Ticket;
+use App\Modules\Tickets\Domain\Query\TicketReadability;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -109,9 +108,14 @@ final class TicketAssistController extends Controller
             && method_exists($actor, 'hasAnyRole')
             && $actor->hasAnyRole(['administrator', 'supervisor', 'agent']);
 
-        $visible = $actor === null
-            ? false
-            : TicketVisibility::scopeForActor(Ticket::query()->whereKey($ticketId), $actor)->exists();
+        /*
+         * Asked of Tickets rather than answered here. A module above Tickets
+         * holding its aggregate is a module that can write with it — and the
+         * row rule has one owner, so "assigned to me, or in my department, or
+         * unassigned" is not reimplemented in a second place where the copy
+         * that is wrong is the one nobody tested.
+         */
+        $visible = $actor !== null && TicketReadability::canRead($actor, $ticketId);
 
         if (! $isStaff || ! $visible) {
             /*

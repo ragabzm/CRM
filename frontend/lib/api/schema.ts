@@ -33,6 +33,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api-clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["api-clients.index"];
+        put?: never;
+        post: operations["api-clients.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api-clients/{client}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["api-clients.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/knowledge/categories": {
         parameters: {
             query?: never;
@@ -965,6 +997,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/integrations/log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The log, newest first */
+        get: operations["integrations.log"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/integrations/erp/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tries the configuration, and says exactly what happened
+         * @description The endpoint reached, the status, the timing, and the error where there
+         *     is one. "Failed" on its own is a result an administrator can do nothing
+         *     with — and the whole point of this button is that they can.
+         */
+        post: operations["integrations.test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/email/log": {
         parameters: {
             query?: never;
@@ -1602,6 +1673,70 @@ export interface paths {
             cookie?: never;
         };
         get: operations["admin.sla.preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{ticket}/assist/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assist.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{ticket}/assist/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assist.reply"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{ticket}/assist/category": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assist.category"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{ticket}/assist/articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assist.articles"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2443,6 +2578,171 @@ export interface operations {
                         key: string;
                     };
                 };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "api-clients.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            id: number;
+                            name: string;
+                            abilities: null | Record<string, never> | string[];
+                            owner: string | null;
+                            /**
+                             * @description When it was last used, which is the only question anybody
+                             *     asks of this list: a client nothing has called for six months
+                             *     is a credential somebody should revoke.
+                             */
+                            last_used_at: string | null;
+                            created_at: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "api-clients.store": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    owner_id: number;
+                    abilities: string[];
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            id: number;
+                            name: string;
+                            abilities: unknown[];
+                            /**
+                             * @description The ONLY time this value exists outside the client's own
+                             *     configuration. Copy it now; it cannot be recovered.
+                             */
+                            token: string;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "api-clients.destroy": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                client: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["AuthenticationException"];
             /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
@@ -3777,7 +4077,7 @@ export interface operations {
             query?: {
                 actor_id?: string;
                 actor_search?: string;
-                action?: "auth.sign_in.succeeded" | "auth.sign_in.failed" | "user.created" | "user.updated" | "user.deactivated" | "user.reactivated" | "department.created" | "department.updated" | "department.deleted" | "branch.created" | "branch.updated" | "config.changed" | "article.published" | "article.archived" | "article.deleted" | "ticket.field_changed" | "customer.field_changed";
+                action?: "auth.sign_in.succeeded" | "auth.sign_in.failed" | "user.created" | "user.updated" | "user.deactivated" | "user.reactivated" | "department.created" | "department.updated" | "department.deleted" | "branch.created" | "branch.updated" | "api_client.issued" | "api_client.revoked" | "config.changed" | "article.published" | "article.archived" | "article.deleted" | "ticket.field_changed" | "customer.field_changed";
                 from?: string;
                 to?: string;
                 per_page?: number;
@@ -4844,13 +5144,13 @@ export interface operations {
                             messages: {
                                 [key: string]: {
                                     id: string;
-                                    /**
-                                     * @description "them" and "us", not the internal direction names — the
-                                     *     visitor is not reading a ticket.
-                                     * @enum {string}
-                                     */
-                                    from: "visitor" | "agent";
+                                    /** @enum {string} */
+                                    from: "visitor" | "assistant" | "agent";
                                     body: string;
+                                    /**
+                                     * @description No name for the machine: it never presents itself as a
+                                     *     person, and a name is the first thing that would.
+                                     */
                                     author_name: string | null;
                                     sent_at: string;
                                 };
@@ -4902,13 +5202,13 @@ export interface operations {
                             messages: {
                                 [key: string]: {
                                     id: string;
-                                    /**
-                                     * @description "them" and "us", not the internal direction names — the
-                                     *     visitor is not reading a ticket.
-                                     * @enum {string}
-                                     */
-                                    from: "visitor" | "agent";
+                                    /** @enum {string} */
+                                    from: "visitor" | "assistant" | "agent";
                                     body: string;
+                                    /**
+                                     * @description No name for the machine: it never presents itself as a
+                                     *     person, and a name is the first thing that would.
+                                     */
                                     author_name: string | null;
                                     sent_at: string;
                                 };
@@ -6113,6 +6413,110 @@ export interface operations {
                     };
                 };
             };
+            /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight). */
+            425: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "integrations.log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            id: string;
+                            direction: string;
+                            integration: string;
+                            target: string;
+                            status: string;
+                            attempt: number;
+                            response_status: number | null;
+                            duration_ms: number | null;
+                            error: string | null;
+                            occurred_at: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "integrations.test": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            succeeded: boolean;
+                            /**
+                             * @description Where it went, so a typo in the endpoint is visible in the
+                             *     answer rather than inferred from a timeout.
+                             */
+                            endpoint: string;
+                            status: number | null;
+                            duration_ms: number;
+                            error: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
             /** @description The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict). */
             409: {
                 headers: {
@@ -8309,6 +8713,151 @@ export interface operations {
                         from: string;
                         due_at: string;
                         timezone: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "assist.summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            summary: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "assist.reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            suggestions: string[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "assist.category": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            proposal: {
+                                category_id: number;
+                                name: string;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An RFC 9457 problem document. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "assist.articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            articles: {
+                                [key: string]: unknown;
+                            }[];
+                        };
                     };
                 };
             };

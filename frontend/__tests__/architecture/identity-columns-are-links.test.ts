@@ -78,6 +78,8 @@ const NO_PAGE_OF_ITS_OWN: Record<string, string> = {
     "a category is edited in a dialog; there is no category page",
   "components/domain/MailLogTable/MailLogTable.tsx":
     "a delivery attempt is a log line, not a record with a page",
+  "components/domain/ExchangeLogTable/ExchangeLogTable.tsx":
+    "an exchange is a log line, not a record with a page — the same claim as the mail log, whose rows these now are",
   "components/domain/MailQuarantine/MailQuarantineTable.tsx":
     "a quarantined message opens a dialog holding the raw source",
   "components/screens/admin/AuditLogScreen.tsx":

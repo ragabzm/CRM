@@ -82,4 +82,23 @@ return [
      * the figures this story ships are about tickets.
      */
     'Reporting' => 5,
+    /*
+     * The ERP adapter and the exchange log.
+     *
+     * T4, BELOW Email, and the reason is the exchange log rather than the
+     * adapter. There is one exchange log for the whole product, not one per
+     * integration, and Email writes its sends into it — so Email must be able
+     * to see this module, which means this module cannot sit beside it.
+     *
+     * The dependency only ever points this way. Integrations knows nothing
+     * about mail, tickets or channels; it owns a table that records "we called
+     * somebody else's system" and lends it to whoever does. An integration
+     * that READ the mail log would be coupled to a channel, and that is still
+     * refused — the arrow runs from the channel to the log, never back.
+     *
+     * It reads Platform for settings and audit and writes customers through
+     * the Customers CONTRACT, never directly. The whole product runs with it
+     * switched off and no provider reachable.
+     */
+    'Integrations' => 4,
 ];

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Email\Domain;
 
+use App\Modules\Integrations\Domain\ExchangeLog;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -15,9 +16,20 @@ use Throwable;
  * throws**. A failure to write the record of a send must not become a failure
  * to send — that would turn a diagnostic into an outage, and it would happen
  * exactly when the system is already under strain.
+ *
+ * The ROWS live in the one exchange log, not in a table of Email's own. Story
+ * 12.3 made that log general, and a second table with the same five columns
+ * would mean an administrator asking "did anything reach the outside world
+ * last night?" has to know which integration to ask. What stays Email's is the
+ * vocabulary: at this boundary a successful exchange is still a `sent` email.
  */
 final class MailLog
 {
+    public function __construct(private readonly ExchangeLog $exchanges) {}
+
+    /** Email's name in the shared log. */
+    public const INTEGRATION = 'email';
+
     /**
      * Records that a send is about to be attempted.
      *
@@ -33,79 +45,77 @@ final class MailLog
         ?string $subject = null,
         int $attempt = 1,
     ): ?string {
-        return $this->write([
-            'direction' => MailLogEntry::OUTBOUND,
-            'message_id' => $messageId,
-            'ticket_id' => $ticketId,
-            'provider' => $provider,
-            'address' => $address,
-            'subject' => $subject,
-            'status' => MailLogEntry::QUEUED,
-            'attempt' => $attempt,
-        ]);
-    }
-
-    public function sent(?string $entryId, int $durationMs): void
-    {
-        $this->update($entryId, [
-            'status' => MailLogEntry::SENT,
-            'duration_ms' => $durationMs,
-        ]);
-    }
-
-    public function failed(?string $entryId, string $error, ?string $providerCode, int $durationMs): void
-    {
-        $this->update($entryId, [
-            'status' => MailLogEntry::FAILED,
-            // The provider's own words. A generic "send failed" tells an
-            // administrator nothing they can act on.
-            'error' => mb_substr($error, 0, 2000),
-            'provider_code' => $providerCode,
-            'duration_ms' => $durationMs,
-        ]);
-    }
-
-    /**
-     * @param  array<string, mixed>  $attributes
-     */
-    private function write(array $attributes): ?string
-    {
         try {
-            $entry = new MailLogEntry;
-
-            $entry->forceFill([...$attributes, 'occurred_at' => now()])->save();
-
-            return (string) $entry->getKey();
+            return $this->exchanges->queued(
+                integration: self::INTEGRATION,
+                target: $address,
+                // No headers and NO BODY. The log records that a message was
+                // sent and to whom, never what it said: a mail log holding
+                // message bodies is a copy of every conversation, with its own
+                // retention and its own export.
+                headers: [],
+                body: [],
+                attempt: $attempt,
+                context: array_filter([
+                    'provider' => $provider,
+                    'subject' => $subject,
+                    'message_id' => $messageId,
+                    'ticket_id' => $ticketId,
+                ], static fn (?string $v): bool => $v !== null),
+            );
         } catch (Throwable $e) {
-            /*
-             * Swallowed, and said so in the application log.
-             *
-             * A failure to record a send must never become a failure to send.
-             * Returning null lets the caller carry on; the later `update` calls
-             * are no-ops, and the email still goes out.
-             */
-            Log::warning('Could not write to the mail log.', [
-                'reason' => $e->getMessage(),
-                'consequence' => 'The send itself is unaffected; this attempt has no log entry.',
-            ]);
-
-            return null;
+            return $this->swallow($e, 'write');
         }
     }
 
-    /**
-     * @param  array<string, mixed>  $attributes
-     */
-    private function update(?string $entryId, array $attributes): void
+    public function sent(?string $entryId, int $durationMs): void
     {
         if ($entryId === null) {
             return;
         }
 
         try {
-            MailLogEntry::query()->whereKey($entryId)->update($attributes);
+            $this->exchanges->succeeded($entryId, null, [], $durationMs);
         } catch (Throwable $e) {
-            Log::warning('Could not update the mail log.', ['reason' => $e->getMessage()]);
+            $this->swallow($e, 'update');
         }
+    }
+
+    public function failed(?string $entryId, string $error, ?string $providerCode, int $durationMs): void
+    {
+        if ($entryId === null) {
+            return;
+        }
+
+        try {
+            $this->exchanges->failed(
+                $entryId,
+                null,
+                // The provider's own words. A generic "send failed" tells an
+                // administrator nothing they can act on.
+                $error,
+                $durationMs,
+                $providerCode === null ? [] : ['provider_code' => $providerCode],
+            );
+        } catch (Throwable $e) {
+            $this->swallow($e, 'update');
+        }
+    }
+
+    /**
+     * Swallowed, and said so in the application log.
+     *
+     * A failure to RECORD a send must never become a failure to send.
+     * Returning null lets the caller carry on; the later `sent`/`failed` calls
+     * become no-ops, and the email still goes out.
+     */
+    private function swallow(Throwable $e, string $what): ?string
+    {
+        Log::warning('Could not '.$what.' the mail log.', [
+            'reason' => $e->getMessage(),
+            'consequence' => 'The send itself is unaffected; this attempt has no log entry.',
+        ]);
+
+        return null;
     }
 }

@@ -59,6 +59,10 @@ deptrac:
       collectors:
         - type: directory
           value: app/Modules/Reporting/.*
+    - name: T4_Integrations
+      collectors:
+        - type: directory
+          value: app/Modules/Integrations/.*
 
     # Everything the modules are allowed to reach that is not itself a module.
     # Declaring these explicitly is what makes --fail-on-uncovered meaningful:
@@ -86,9 +90,16 @@ deptrac:
     # nothing. Knowledge is in this list and in no other module's — Tickets
     # still does not know it exists.
     T4_Assist: [T3_Tickets, T2_Knowledge, T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
+    # Customers is here for the contract it writes imported records through —
+    # never a direct write. Tickets is deliberately absent: an ERP adapter has
+    # no business knowing this product has tickets.
+    T4_Integrations: [T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
     T5_Reporting: [T4_Sla, T3_Tickets, T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
-    T5_Email: [T4_Channels, T3_Tickets, T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
-    T4_Channels: [T3_Tickets, T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
+    T5_Email: [T4_Integrations, T4_Channels, T3_Tickets, T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
+    # Knowledge is here for the chatbot and for nothing else: the widget
+    # answers from published articles, so the channel that owns the widget has
+    # to be able to read them. Tickets still does not know Knowledge exists.
+    T4_Channels: [T3_Tickets, T2_Knowledge, T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
     T4_Portal: [T3_Tickets, T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
     T3_Tickets: [T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
     T2_Customers: [T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]

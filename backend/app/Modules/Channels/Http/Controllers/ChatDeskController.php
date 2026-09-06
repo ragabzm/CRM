@@ -55,6 +55,17 @@ final class ChatDeskController extends Controller
             // Only conversations somebody has actually spoken in. A widget
             // opened and left alone is not a person waiting for an answer.
             ->whereNotNull('ticket_id')
+            /*
+             * And only the ones the chatbot has given up on. A conversation it
+             * is still answering has nobody waiting — putting it on the list
+             * would have agents opening chats that were already dealt with,
+             * which is the fastest way to make a waiting list nobody trusts.
+             *
+             * Every conversation reaches this state: with the capability off,
+             * the first message hands off immediately, so the list never has
+             * to ask what the setting says.
+             */
+            ->whereNotNull('handed_off_at')
             ->orderBy('created_at')
             ->limit(50)
             ->get();

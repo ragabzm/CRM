@@ -1,9 +1,16 @@
 # Tier ordering, checked at tier granularity.
 #
 # Coarser than deptrac.yaml on purpose: this config answers "does anything reach
-# up the stack" independently of how the modules are grouped, so a future module
-# added to a tier is covered the moment it is listed here. Same-tier edges are
-# deliberately NOT policed here — deptrac.yaml owns that rule.
+# up the stack" independently of how the modules are grouped. Same-tier edges
+# are deliberately NOT policed here — deptrac.yaml owns that rule.
+#
+# EVERY MODULE MUST BE LISTED. A module missing from here is not refused, it is
+# UNCOVERED — and uncovered only fails the build once something actually
+# depends on it across a boundary. Ai, Assist and Reporting were each added by
+# a story and each missed this file; the gap surfaced three stories later, when
+# the chatbot became the first thing to reach Ai from another tier.
+# `TierConfigsAgreeTest` now fails the moment a module is added without a home
+# here.
 deptrac:
   paths:
     - ./app/Modules
@@ -16,7 +23,7 @@ deptrac:
     - name: T1
       collectors:
         - type: directory
-          value: app/Modules/Security/.*
+          value: app/Modules/(Security|Ai)/.*
     - name: T2
       collectors:
         - type: directory
@@ -28,11 +35,11 @@ deptrac:
     - name: T4
       collectors:
         - type: directory
-          value: app/Modules/(Sla|Portal|Channels)/.*
+          value: app/Modules/(Sla|Portal|Channels|Assist|Integrations)/.*
     - name: T5
       collectors:
         - type: directory
-          value: app/Modules/Email/.*
+          value: app/Modules/(Email|Reporting)/.*
 
     # Everything the modules are allowed to reach that is not itself a module.
     # Declaring these explicitly is what makes --fail-on-uncovered meaningful:

@@ -151,7 +151,7 @@ final class SettingsRegistry
 
         $before = $this->get($key);
 
-        $this->repository->upsert($key, $definition->type, $value, $actorUserId);
+        $this->repository->upsert($key, $definition->type, $value, $actorUserId, $definition->secret);
 
         /*
          * Busted synchronously, and the per-request memo cleared with it, so a

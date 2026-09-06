@@ -119,6 +119,16 @@
         background: var(--surface-sunken);
       }
 
+      /*
+       * The assistant, told apart from a colleague by a WORD and a rule, not
+       * by a colour. A customer has to be able to tell whether a person wrote
+       * this, and a tint says nothing in greyscale, nothing to a screen reader
+       * and nothing on a printed transcript.
+       */
+      .msg[data-from="assistant"] {
+        border-inline-start: 2px solid var(--border-strong);
+      }
+
       .who {
         display: block;
         margin-block-end: 2px;
@@ -225,6 +235,7 @@
             ended: "This conversation has ended.",
             failed: "That did not send. Try again.",
             you: "You",
+            assistant: "Assistant — not a person",
             note: "Messages can take a few seconds to appear. There is no typing indicator — you will see a message when it arrives.",
           },
           ar: {
@@ -239,6 +250,7 @@
             ended: "انتهت هذه المحادثة.",
             failed: "الرسالة ما اتبعتتش. حاول تاني.",
             you: "أنت",
+            assistant: "المساعد — ليس شخصًا",
             note: "قد تستغرق الرسائل ثوانٍ قليلة للظهور. لا يوجد مؤشر كتابة — سترى الرسالة عند وصولها.",
           },
         }[lang];
@@ -376,7 +388,12 @@
 
             var who = document.createElement("span");
             who.className = "who";
-            who.textContent = message.from === "visitor" ? T.you : message.author_name || T.title;
+            who.textContent =
+              message.from === "visitor"
+                ? T.you
+                : message.from === "assistant"
+                  ? T.assistant
+                  : message.author_name || T.title;
 
             var text = document.createElement("span");
             text.setAttribute("dir", "auto");

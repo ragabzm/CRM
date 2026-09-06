@@ -74,9 +74,52 @@ final class RequireCapability
     private function holds(object $user, string $capability): bool
     {
         try {
-            return method_exists($user, 'can') && $user->can($capability);
+            if (! method_exists($user, 'can') || ! $user->can($capability)) {
+                return false;
+            }
         } catch (PermissionDoesNotExist) {
             return false;
         }
+
+        return $this->tokenAllows($user, $capability);
+    }
+
+    /**
+     * A token narrows what its owner can do. It never widens it.
+     *
+     * The check above answers "does this PERSON hold the capability". For a
+     * request authenticated by an API token that is only half the question:
+     * the token was issued with a named set of abilities, and a token that
+     * inherited everything its owner holds would be a credential an
+     * administrator believed they had scoped and had not.
+     *
+     * So the two are ANDed, in that order, and the order is the guarantee —
+     * an API client can reach nothing a role cannot, whatever abilities
+     * somebody types into the issue form.
+     *
+     * A cookie-authenticated request has no token at all and is unaffected:
+     * `currentAccessToken()` returns null for the interface, and the person's
+     * own capabilities decide as they always did.
+     */
+    private function tokenAllows(object $user, string $capability): bool
+    {
+        if (! method_exists($user, 'currentAccessToken')) {
+            return true;
+        }
+
+        $token = $user->currentAccessToken();
+
+        if ($token === null) {
+            // The interface, signed in with a session cookie.
+            return true;
+        }
+
+        /*
+         * `tokenCan` understands Sanctum's `*` wildcard. It is deliberately
+         * NOT offered by the issue form — a client scoped to everything is a
+         * client nobody can reason about — but a token that already has one
+         * must not be silently refused either.
+         */
+        return method_exists($user, 'tokenCan') && $user->tokenCan($capability);
     }
 }

@@ -86,6 +86,198 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /api-clients:
+    get:
+      operationId: api-clients.index
+      tags:
+        - ApiClients
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        abilities:
+                          anyOf:
+                            -
+                              type: 'null'
+                            -
+                              type: object
+                            -
+                              type: array
+                              items:
+                                type: string
+                              minItems: 0
+                              maxItems: 0
+                              additionalItems: false
+                        owner:
+                          type:
+                            - string
+                            - 'null'
+                        last_used_at:
+                          type:
+                            - string
+                            - 'null'
+                          description: "When it was last used, which is the only question anybody\nasks of this list: a client nothing has called for six months\nis a credential somebody should revoke."
+                        created_at:
+                          type: string
+                      required:
+                        - id
+                        - name
+                        - abilities
+                        - owner
+                        - last_used_at
+                        - created_at
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      operationId: api-clients.store
+      tags:
+        - ApiClients
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 120.0
+                owner_id:
+                  type: integer
+                abilities:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1.0
+              required:
+                - name
+                - owner_id
+                - abilities
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      abilities:
+                        type: array
+                        items: {}
+                      token:
+                        type: string
+                        description: "The ONLY time this value exists outside the client's own\nconfiguration. Copy it now; it cannot be recovered."
+                    required:
+                      - id
+                      - name
+                      - abilities
+                      - token
+                required:
+                  - data
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '404':
+          $ref: '#/components/responses/ModelNotFoundException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  '/api-clients/{client}':
+    delete:
+      operationId: api-clients.destroy
+      tags:
+        - ApiClients
+      parameters:
+        -
+          name: client
+          in: path
+          required: true
+          schema:
+            type: integer
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '204':
+          description: 'No content'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /admin/knowledge/categories:
     get:
       operationId: admin.knowledge.categories.index
@@ -1705,6 +1897,8 @@ paths:
               - department.deleted
               - branch.created
               - branch.updated
+              - api_client.issued
+              - api_client.revoked
               - config.changed
               - article.published
               - article.archived
@@ -2964,9 +3158,9 @@ paths:
                               type: string
                             from:
                               type: string
-                              description: "\"them\" and \"us\", not the internal direction names — the\nvisitor is not reading a ticket."
                               enum:
                                 - visitor
+                                - assistant
                                 - agent
                             body:
                               type: string
@@ -2974,6 +3168,7 @@ paths:
                               type:
                                 - string
                                 - 'null'
+                              description: "No name for the machine: it never presents itself as a\nperson, and a name is the first thing that would."
                             sent_at:
                               type: string
                           required:
@@ -3042,9 +3237,9 @@ paths:
                               type: string
                             from:
                               type: string
-                              description: "\"them\" and \"us\", not the internal direction names — the\nvisitor is not reading a ticket."
                               enum:
                                 - visitor
+                                - assistant
                                 - agent
                             body:
                               type: string
@@ -3052,6 +3247,7 @@ paths:
                               type:
                                 - string
                                 - 'null'
+                              description: "No name for the machine: it never presents itself as a\nperson, and a name is the first thing that would."
                             sent_at:
                               type: string
                           required:
@@ -4309,6 +4505,142 @@ paths:
                     type: string
                 required:
                   - status
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  /integrations/log:
+    get:
+      operationId: integrations.log
+      summary: 'The log, newest first'
+      tags:
+        - Integrations
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        direction:
+                          type: string
+                        integration:
+                          type: string
+                        target:
+                          type: string
+                        status:
+                          type: string
+                        attempt:
+                          type: integer
+                        response_status:
+                          type:
+                            - integer
+                            - 'null'
+                        duration_ms:
+                          type:
+                            - integer
+                            - 'null'
+                        error:
+                          type:
+                            - string
+                            - 'null'
+                        occurred_at:
+                          type: string
+                      required:
+                        - id
+                        - direction
+                        - integration
+                        - target
+                        - status
+                        - attempt
+                        - response_status
+                        - duration_ms
+                        - error
+                        - occurred_at
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /integrations/erp/test:
+    post:
+      operationId: integrations.test
+      description: "The endpoint reached, the status, the timing, and the error where there\nis one. \"Failed\" on its own is a result an administrator can do nothing\nwith — and the whole point of this button is that they can."
+      summary: 'Tries the configuration, and says exactly what happened'
+      tags:
+        - Integrations
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      succeeded:
+                        type: boolean
+                      endpoint:
+                        type: string
+                        description: "Where it went, so a typo in the endpoint is visible in the\nanswer rather than inferred from a timeout."
+                      status:
+                        type:
+                          - integer
+                          - 'null'
+                      duration_ms:
+                        type: integer
+                      error:
+                        type:
+                          - string
+                          - 'null'
+                    required:
+                      - succeeded
+                      - endpoint
+                      - status
+                      - duration_ms
+                      - error
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
         default:
           description: 'An RFC 9457 problem document.'
           content:
@@ -6670,6 +7002,171 @@ paths:
                   - from
                   - due_at
                   - timezone
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/tickets/{ticket}/assist/summary':
+    get:
+      operationId: assist.summary
+      tags:
+        - TicketAssist
+      parameters:
+        -
+          name: ticket
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      summary:
+                        type:
+                          - string
+                          - 'null'
+                    required:
+                      - summary
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/tickets/{ticket}/assist/reply':
+    get:
+      operationId: assist.reply
+      tags:
+        - TicketAssist
+      parameters:
+        -
+          name: ticket
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      suggestions:
+                        type: array
+                        items:
+                          type: string
+                    required:
+                      - suggestions
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/tickets/{ticket}/assist/category':
+    get:
+      operationId: assist.category
+      tags:
+        - TicketAssist
+      parameters:
+        -
+          name: ticket
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      proposal:
+                        type:
+                          - object
+                          - 'null'
+                        properties:
+                          category_id:
+                            type: integer
+                          name:
+                            type: string
+                        required:
+                          - category_id
+                          - name
+                    required:
+                      - proposal
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/tickets/{ticket}/assist/articles':
+    get:
+      operationId: assist.articles
+      tags:
+        - TicketAssist
+      parameters:
+        -
+          name: ticket
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      articles:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: {}
+                    required:
+                      - articles
+                required:
+                  - data
         '401':
           $ref: '#/components/responses/AuthenticationException'
         default:

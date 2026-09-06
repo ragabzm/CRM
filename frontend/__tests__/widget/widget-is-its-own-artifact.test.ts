@@ -135,6 +135,24 @@ describe("the chat widget", () => {
     expect(loader).toMatch(/min\(380px, calc\(100vw - 32px\)\)/);
   });
 
+  it("tells a customer when they are talking to the machine", () => {
+    /*
+     * The chatbot is the one thing in this product that reaches a customer
+     * without a colleague having read it, so the one thing they must be able
+     * to tell is whether a person wrote this.
+     *
+     * A WORD, in both languages, and a rule down the edge — never a colour.
+     * A tint says nothing in greyscale, nothing to a screen reader and nothing
+     * on a printed transcript.
+     */
+    for (const lang of ["Assistant — not a person", "المساعد — ليس شخصًا"]) {
+      expect(frameProse).toContain(lang);
+    }
+
+    expect(frame).toMatch(/\.msg\[data-from="assistant"\]/);
+    expect(frame).toMatch(/border-inline-start/);
+  });
+
   it("says why there is no typing indicator rather than leaving a gap", () => {
     for (const lang of ["typing indicator", "مؤشر كتابة"]) {
       // The visitor-facing strings, so this reads the file as written.

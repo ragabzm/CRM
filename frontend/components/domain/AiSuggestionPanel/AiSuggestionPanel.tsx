@@ -4,7 +4,12 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { AiLabel } from "@/components/domain/AiLabel/AiLabel";
-import { assistArticles, assistReply, assistSummary, type SuggestedArticle } from "@/lib/api/assist";
+import {
+  assistArticles,
+  assistReply,
+  assistSummary,
+  type SuggestedArticle,
+} from "@/lib/api/assist";
 import { cn, TOUCH_TARGET } from "@/lib/utils";
 
 export interface AiSuggestionPanelProps {

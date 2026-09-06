@@ -4,16 +4,23 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * There is no AI-draft treatment, and there is not going to be one by accident.
+ * There is no AI-draft TREATMENT, and there is not going to be one by accident.
  *
- * The workspace mockup showed one; this story deliberately did not build it. A
- * machine-written suggestion styled like an agent's own reply is a fourth thing
- * the reader has to learn to distinguish from the three that already exist —
- * and the failure mode is an agent sending a draft they only skimmed, in their
- * own name.
+ * The distinction this file now holds is narrower than the one it started
+ * with, and the narrowing was a decision rather than a concession.
  *
- * If that panel is ever wanted, it should arrive as a decision somebody made,
- * not as a file that appeared.
+ * Story 4.4 built the conversation and asserted that no AI panel existed at
+ * all — true then, and the right guard while it was. Story 9.2 commissions the
+ * panel in as many words. So the panel is allowed; what is still refused is
+ * the panel's output appearing IN THE THREAD.
+ *
+ * The conversation has three semantic treatments — customer message, agent
+ * message, internal note — and a machine-written suggestion styled like an
+ * agent's own reply would be a fourth thing the reader has to learn to
+ * distinguish from three they already know. The failure mode is an agent
+ * sending a draft they only skimmed, in their own name.
+ *
+ * So a draft lives in the panel and in the composer, and nowhere else.
  */
 
 const ROOTS = ["app", "components", "lib"];
@@ -44,10 +51,25 @@ function withoutComments(source: string): string {
 describe("the conversation", () => {
   const files = ROOTS.flatMap(sourceFiles);
 
-  it("has no AI suggestion panel", () => {
-    const offenders = files.filter((path) => /AiSuggestion|AIDraft|AiDraft/i.test(path));
+  it("keeps the assistant out of the thread", () => {
+    /*
+     * The panel exists (Story 9.2). What must not happen is the conversation
+     * component learning about it — a draft rendered beside real messages is
+     * the fourth treatment this file refuses.
+     */
+    const conversation = withoutComments(
+      readFileSync("components/domain/TicketConversation/ConversationPanel.tsx", "utf8"),
+    );
 
-    expect(offenders).toEqual([]);
+    expect(conversation).not.toMatch(/AiSuggestion|AiLabel|assist/i);
+  });
+
+  it("still has the panel it was told to have", () => {
+    // The other half. A test that only checked the absence would pass on a
+    // product where the assists were never built.
+    const panels = files.filter((path) => /AiSuggestionPanel/.test(path));
+
+    expect(panels.length).toBeGreaterThan(0);
   });
 
   it("has no ai-draft treatment in any component", () => {

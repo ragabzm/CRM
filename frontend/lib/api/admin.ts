@@ -320,6 +320,62 @@ export async function listMailLog(
   return request(`/admin/email/log${query}`, { method: "GET", fetchImpl });
 }
 
+/**
+ * One row of the exchange log — every outside system, not just mail.
+ *
+ * The mail log is a view of the same table filtered to one integration; this
+ * is the whole of it. An administrator asking "did anything reach the outside
+ * world last night?" should be able to ask once.
+ */
+export interface ExchangeLogRow {
+  id: string;
+  direction: string;
+  integration: string;
+  /** The endpoint or address reached. Never carries a credential. */
+  target: string;
+  /** `queued` | `succeeded` | `failed` | `abandoned`. */
+  status: string;
+  attempt: number;
+  response_status: number | null;
+  duration_ms: number | null;
+  error: string | null;
+  occurred_at: string;
+}
+
+export async function listExchangeLog(
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ data: ExchangeLogRow[] }> {
+  return request("/integrations/log", { method: "GET", fetchImpl });
+}
+
+export interface ErpTestResult {
+  succeeded: boolean;
+  /** Where it actually went, so a typo is visible rather than inferred. */
+  endpoint: string;
+  status: number | null;
+  duration_ms: number | null;
+  error: string | null;
+}
+
+/**
+ * Runs a REAL exchange against the configured ERP.
+ *
+ * Not a ping. A reachable host with a rejected credential passes a ping and
+ * fails at 3am on the first sync, which is exactly what the administrator
+ * pressed this button to find out.
+ */
+export async function testErpExchange(fetchImpl: typeof fetch = fetch): Promise<ErpTestResult> {
+  await getCsrf(fetchImpl);
+
+  const response = await request<{ data: ErpTestResult }>("/integrations/erp/test", {
+    method: "POST",
+    body: JSON.stringify({}),
+    fetchImpl,
+  });
+
+  return response.data;
+}
+
 export { ApiError } from "./request";
 
 export interface QuarantinedMail {

@@ -38,6 +38,14 @@ enum AuditAction: string
     case BranchCreated = 'branch.created';
     case BranchUpdated = 'branch.updated';
 
+    /*
+     * Issued and revoked. There is no `api_client.viewed`, because there is
+     * nothing to view: the token exists in the issue response and nowhere
+     * else.
+     */
+    case ApiClientIssued = 'api_client.issued';
+    case ApiClientRevoked = 'api_client.revoked';
+
     case ConfigChanged = 'config.changed';
 
     /*

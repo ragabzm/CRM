@@ -37,7 +37,7 @@ final class PruneMailLogCommand extends Command
 
         $cutoff = now()->subDays($days);
 
-        $query = MailLogEntry::query()->where('occurred_at', '<', $cutoff);
+        $query = MailLogEntry::mail()->where('occurred_at', '<', $cutoff);
 
         if ($this->option('dry-run')) {
             $this->info(sprintf('%d entries older than %s would be removed.', $query->count(), $cutoff->toDateString()));
@@ -54,7 +54,7 @@ final class PruneMailLogCommand extends Command
         $removed = 0;
 
         do {
-            $deleted = MailLogEntry::query()
+            $deleted = MailLogEntry::mail()
                 ->where('occurred_at', '<', $cutoff)
                 ->limit(1000)
                 ->delete();

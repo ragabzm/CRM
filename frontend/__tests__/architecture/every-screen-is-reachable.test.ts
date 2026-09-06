@@ -56,13 +56,17 @@ const EXCLUDED = ["components/ui/"];
  */
 const AHEAD_OF_ITS_CONSUMER: Record<string, string> = {
   /*
-   * Story 9.1 ships the AI connector and NO capability: the port, the
-   * sanitiser, the five switches, the null adapter and this label. The label
-   * is built once here precisely so that the five capabilities in 9.2 and 9.3
-   * cannot each invent their own — which only works if it exists before they
-   * do. Its consumers are those two stories.
+   * Empty, and that is the intended resting state.
+   *
+   * It held one entry: `AiLabel`, shipped by Story 9.1 which built the AI
+   * connector and no capability. Story 9.2 wired the three assists and the
+   * label became reachable — and the honesty check below FAILED, which is
+   * exactly what it was written to do. The entry was removed because its
+   * reason had expired, not because it was inconvenient.
+   *
+   * Adding an entry here is only honest when the story that ships the file
+   * says, in as many words, that it ships no user-visible feature.
    */
-  "components/domain/AiLabel/AiLabel.tsx": "Story 9.1 ships the AI label before 9.2/9.3 use it",
 };
 
 function filesUnder(dir: string, out: string[] = []): string[] {

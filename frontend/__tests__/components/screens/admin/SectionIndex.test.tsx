@@ -33,11 +33,12 @@ describe("SectionIndex lists the configuration sections", () => {
 
     /*
      * `knowledge` LEFT this list in Story 8.1, when the knowledge base was
-     * built. Everything still here is a destination that does not exist, and
-     * an index listing those teaches the reader that half the navigation is
-     * decorative.
+     * built; `integration` left it in Story 12.3, when the ERP adapter and the
+     * exchange log gave it a screen. Everything still here is a destination
+     * that does not exist, and an index listing those teaches the reader that
+     * half the navigation is decorative.
      */
-    for (const absent of [/integration/i, /portal/i, /\bAI\b/]) {
+    for (const absent of [/portal/i, /\bAI\b/]) {
       expect(screen.queryByRole("link", { name: absent })).toBeNull();
     }
   });

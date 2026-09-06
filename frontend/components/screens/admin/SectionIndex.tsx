@@ -117,6 +117,9 @@ function useSectionCounts(): Partial<Record<AdminSection, string>> {
         const slaTargets = settings.filter((s) => s.key.startsWith("sla.")).length;
         const emailSettings = settings.filter((s) => s.key.startsWith("email.")).length;
         const platformSettings = settings.filter((s) => s.key.startsWith("platform.")).length;
+        const integrationSettings = settings.filter((s) =>
+          s.key.startsWith("integrations."),
+        ).length;
 
         /*
          * All of them, or none. A counter on half the list reads as "these
@@ -130,6 +133,7 @@ function useSectionCounts(): Partial<Record<AdminSection, string>> {
           ticketing: t("ticketing", { categories: categories.length }),
           serviceLevels: t("serviceLevels", { targets: slaTargets }),
           email: t("email", { settings: emailSettings }),
+          integrations: t("integrations", { settings: integrationSettings }),
           platform: t("platform", { settings: platformSettings }),
           auditLog: t("auditLog", { entries: entries.meta.total }),
         });

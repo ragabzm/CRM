@@ -165,7 +165,7 @@ final class CredentialsNeverLeakTest extends TestCase
             ->withHeader('Idempotency-Key', (string) Str::ulid())
             ->postJson('/api/v1/admin/email/test', ['to' => 'admin@example.test']);
 
-        foreach (DB::table('mail_log')->get() as $row) {
+        foreach (DB::table('integration_exchanges')->get() as $row) {
             $this->assertStringNotContainsString(self::SECRET, json_encode($row, JSON_THROW_ON_ERROR));
         }
     }
@@ -184,8 +184,21 @@ final class CredentialsNeverLeakTest extends TestCase
          * retention would outlive the thing it copied — and would put a
          * customer's words somewhere nobody thinks to look when handling a
          * deletion request.
+         *
+         * Asserted against the STORED ROWS rather than the schema, because the
+         * shared exchange log does have somewhere a body could go: `request`
+         * and `response` exist for the integrations that need them. Email
+         * passes neither, and this is what proves it still doesn't.
          */
-        $this->assertFalse(\Schema::hasColumn('mail_log', 'body'));
+        $rows = DB::table('integration_exchanges')->where('integration', 'email')->get();
+
+        $this->assertGreaterThan(0, $rows->count(), 'The send left no log row to check.');
+
+        foreach ($rows as $row) {
+            $this->assertNull($row->request);
+            $this->assertNull($row->response);
+            $this->assertStringNotContainsString('body', (string) ($row->context ?? ''));
+        }
     }
 
     public static function secret(): string

@@ -57,4 +57,27 @@ abstract class Actor
     {
         return new SystemActor($reason);
     }
+
+    /**
+     * The chatbot, which is the single thing in this product that reaches a
+     * customer without a person having read it.
+     *
+     * Still a SYSTEM actor — there is no AI actor kind and there is not going
+     * to be one — but labelled so that a customer, and the colleague who picks
+     * the ticket up afterwards, can tell it apart from a colleague's own
+     * reply. It never presents itself as a person.
+     */
+    public static function chatbot(string $reason): SystemActor
+    {
+        return new SystemActor($reason, self::CHATBOT);
+    }
+
+    /**
+     * What the chatbot is called in a transcript.
+     *
+     * A stable token rather than a translated word: the transcript is written
+     * once and read in both languages, and a stored "Assistant" would be
+     * English for ever on an Arabic desk.
+     */
+    public const CHATBOT = 'chatbot';
 }

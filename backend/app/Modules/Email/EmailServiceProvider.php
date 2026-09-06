@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Email;
 
 use App\Modules\Email\Console\Commands\PruneMailLogCommand;
+use App\Modules\Integrations\Domain\ExchangeRetention;
 use App\Modules\Email\Contracts\MailTransport;
 use App\Modules\Email\Domain\MailLog;
 use App\Modules\Email\Domain\OutboundMailer;
@@ -73,6 +74,16 @@ final class EmailServiceProvider extends ServiceProvider implements RegistersSet
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/Database/Migrations');
+
+        /*
+         * Mail's rows in the shared exchange log are MAIL'S to sweep.
+         *
+         * The claim is made here rather than listed as an exception inside
+         * Integrations, because Integrations must not know that mail exists —
+         * and because whoever keeps their own retention period should be the
+         * one who says so.
+         */
+        $this->app->make(ExchangeRetention::class)->claim(MailLog::INTEGRATION);
 
         if ($this->app->runningInConsole()) {
             $this->commands([PruneMailLogCommand::class]);

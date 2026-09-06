@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Channels\Domain\Chat;
 
 use App\Modules\Channels\Adapters\ChatChannelAdapter;
+use App\Modules\Ai\Contracts\AiCapability;
 use App\Modules\Channels\Domain\Intake\InboundIntake;
+use App\Modules\Platform\Support\Settings\SettingsRegistry;
 use App\Modules\Platform\Exceptions\ProblemException;
 use Illuminate\Support\Facades\DB;
 
@@ -26,6 +28,8 @@ final class PostVisitorMessage
     public function __construct(
         private readonly InboundIntake $intake,
         private readonly ChatChannelAdapter $adapter,
+        private readonly Chatbot $chatbot,
+        private readonly SettingsRegistry $settings,
     ) {}
 
     /**
@@ -87,6 +91,50 @@ final class PostVisitorMessage
 
         DB::table('chat_conversations')->where('id', $conversation->getKey())->update($changes);
 
+        /*
+         * The chatbot takes its turn AFTER the visitor's message is on the
+         * ticket, never instead of it.
+         *
+         * The order matters more than it looks. If the bot ran first and the
+         * intake then failed, the customer would hold an answer to a question
+         * nothing recorded. This way the worst case is a question sitting on a
+         * ticket that nobody has answered — which is a support desk, and the
+         * waiting list is exactly the mechanism for it.
+         */
+        $this->answerOrHandOff($conversation->refresh(), $body);
+
         return $result;
+    }
+
+    /**
+     * Either the chatbot answers, or a person is fetched.
+     *
+     * There is no third outcome and no state where neither happens. With the
+     * capability switched OFF, the first message hands off immediately — so
+     * the waiting list never has to ask what the setting says, and an
+     * administrator turning it off mid-conversation cannot strand somebody
+     * halfway between a machine and a person.
+     */
+    private function answerOrHandOff(ChatConversation $conversation, string $body): void
+    {
+        if ($conversation->ticket_id === null || $conversation->handed_off_at !== null) {
+            return;
+        }
+
+        $locale = app()->getLocale() === 'ar' ? 'ar' : 'en';
+
+        if (! (bool) $this->settings->get(AiCapability::Chatbot->setting())) {
+            /*
+             * Offered a person straight away, with NO mention of a
+             * switched-off feature. A customer told that "the assistant is
+             * unavailable" has been given a fact about our configuration and
+             * nothing they can use.
+             */
+            $this->chatbot->handOff($conversation, (string) $conversation->ticket_id, $locale);
+
+            return;
+        }
+
+        $this->chatbot->respondTo($conversation, $body, $locale);
     }
 }

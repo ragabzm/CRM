@@ -185,7 +185,8 @@
       "serviceLevels": "Service levels",
       "email": "Email",
       "platform": "Platform",
-      "auditLog": "Audit log"
+      "auditLog": "Audit log",
+      "integrations": "Integrations"
     },
     "sectionSummaries": {
       "organisation": "Departments and the people who work in them.",
@@ -424,7 +425,8 @@
       "serviceLevels": "{targets} targets",
       "email": "{settings} settings",
       "platform": "{settings} settings",
-      "auditLog": "{entries} entries"
+      "auditLog": "{entries} entries",
+      "integrations": "{settings} settings"
     },
     "knowledge": {
       "title": "Knowledge base",
@@ -508,6 +510,48 @@
       "target": {
         "agent": "Agent",
         "department": "Department"
+      }
+    },
+    "integrations": {
+      "connection": "Connection",
+      "connectionHint": "Where the ERP is, and how we authenticate to it. The credential is write-only: once saved it cannot be read back.",
+      "sync": "Sync",
+      "syncHint": "What moves and when. Changing these takes effect immediately and is recorded in the audit log.",
+      "fieldMap": "Field map",
+      "fieldMapHint": "Which field in the ERP becomes which field on a customer. A target that is not a customer field is refused when you save, not discovered in a failed job.",
+      "retention": "Retention",
+      "retentionHint": "How long exchange log rows are kept. This is the only way one is ever deleted.",
+      "test": "Test exchange",
+      "testHint": "Runs a real exchange against the configured ERP — the same path a sync uses, credential included — and records it in the log below.",
+      "testRunning": "Testing",
+      "testSucceeded": "The exchange worked.",
+      "testFailedTitle": "The exchange did not work.",
+      "testRefused": "There is nothing to test yet. Set the endpoint first.",
+      "testEndpoint": "Endpoint: {endpoint}",
+      "testStatus": "Status: {status}",
+      "testDuration": "Took: {ms}ms",
+      "log": "Exchange log",
+      "logHint": "Every call this product makes to an outside system — mail included. One log, not one per integration.",
+      "logFilter": "Show",
+      "logAll": "Everything",
+      "logProblems": "Problems only",
+      "logEmpty": "Nothing has been exchanged yet.",
+      "logEmptyBody": "Calls to outside systems appear here as they happen, with the endpoint, the timing and the error where there is one.",
+      "logColumns": {
+        "occurredAt": "When",
+        "integration": "Integration",
+        "direction": "Direction",
+        "target": "Endpoint",
+        "status": "Status",
+        "attempt": "Attempt",
+        "duration": "Took",
+        "error": "Error"
+      },
+      "status": {
+        "queued": "Queued",
+        "succeeded": "Succeeded",
+        "failed": "Failed",
+        "abandoned": "Gave up"
       }
     }
   },

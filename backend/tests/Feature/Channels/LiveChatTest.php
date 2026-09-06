@@ -203,9 +203,18 @@ final class LiveChatTest extends TestCase
         // so the heuristics are never consulted.
         $this->say('About '.$someoneElse->reference.' please');
 
+        /*
+         * INBOUND only. The chatbot hands off and says so, so the ticket also
+         * carries its outbound turns — counting everything would make this
+         * test about the bot rather than about where the visitor's words
+         * landed, which is what it is for.
+         */
         $this->assertSame(
             2,
-            DB::table('ticket_messages')->where('ticket_id', $mine)->count(),
+            DB::table('ticket_messages')
+                ->where('ticket_id', $mine)
+                ->where('direction', 'inbound')
+                ->count(),
         );
         $this->assertSame(
             'known_conversation',
@@ -280,9 +289,17 @@ final class LiveChatTest extends TestCase
 
         $messages = $this->asVisitor()->getJson('/api/v1/chat/conversations/current/messages')->json('data.messages');
 
-        $this->assertCount(2, $messages);
-        $this->assertSame('agent', $messages[1]['from']);
-        $this->assertSame('Looking now.', $messages[1]['body']);
+        /*
+         * Three turns now: the visitor, the chatbot handing off (the
+         * capability is disabled in this suite, so it fetches a person on the
+         * first message), and the agent. The agent's reply is the last, which
+         * is what this test is about.
+         */
+        $last = $messages[count($messages) - 1];
+
+        $this->assertSame('agent', $last['from']);
+        $this->assertSame('Looking now.', $last['body']);
+        $this->assertSame('visitor', $messages[0]['from']);
     }
 
     public function test_an_internal_note_never_reaches_the_widget(): void

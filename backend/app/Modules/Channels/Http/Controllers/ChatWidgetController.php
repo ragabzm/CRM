@@ -13,6 +13,7 @@ use App\Modules\Channels\Domain\Chat\EndConversation;
 use App\Modules\Channels\Domain\Chat\PostVisitorMessage;
 use App\Modules\Channels\Domain\Chat\StartConversation;
 use App\Modules\Platform\Exceptions\ProblemException;
+use App\Modules\Tickets\Domain\Actor\Actor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -180,21 +181,39 @@ final class ChatWidgetController extends Controller
             ->whereIn('direction', ['inbound', 'outbound'])
             ->orderBy('sent_at')
             ->orderBy('id')
-            ->get(['id', 'direction', 'body', 'author_name', 'sent_at']);
+            ->get(['id', 'direction', 'body', 'author_type', 'author_name', 'sent_at']);
 
         return [
             'state' => $conversation->state(),
             'poll_seconds' => $this->settings->pollSeconds(),
             'taken' => $conversation->taken_by !== null,
-            'messages' => $messages->map(static fn (object $m): array => [
-                'id' => (string) $m->id,
-                // "them" and "us", not the internal direction names — the
-                // visitor is not reading a ticket.
-                'from' => $m->direction === 'inbound' ? 'visitor' : 'agent',
-                'body' => (string) $m->body,
-                'author_name' => $m->direction === 'inbound' ? null : (string) $m->author_name,
-                'sent_at' => (string) $m->sent_at,
-            ])->all(),
+            'messages' => $messages->map(static function (object $m): array {
+                /*
+                 * THREE speakers, not two.
+                 *
+                 * "them", "us" and the assistant — the visitor is not reading
+                 * a ticket, and the one thing they must be able to tell is
+                 * whether a person wrote this. The chatbot's turns are system
+                 * messages labelled `chatbot`, and that label is what
+                 * distinguishes them here and in the ticket a colleague reads
+                 * afterwards.
+                 */
+                $from = match (true) {
+                    $m->direction === 'inbound' => 'visitor',
+                    $m->author_type === 'system' && (string) $m->author_name === Actor::CHATBOT => 'assistant',
+                    default => 'agent',
+                };
+
+                return [
+                    'id' => (string) $m->id,
+                    'from' => $from,
+                    'body' => (string) $m->body,
+                    // No name for the machine: it never presents itself as a
+                    // person, and a name is the first thing that would.
+                    'author_name' => $from === 'agent' ? (string) $m->author_name : null,
+                    'sent_at' => (string) $m->sent_at,
+                ];
+            })->all(),
         ];
     }
 

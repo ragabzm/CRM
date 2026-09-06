@@ -234,6 +234,6 @@ final class HeadersRoundTripTest extends TestCase
         // Nothing to send to is not a failure to send. Queueing a job that can
         // only fail would fill the log with noise.
         $this->assertNull($this->transport->lastSent());
-        $this->assertSame(0, DB::table('mail_log')->count());
+        $this->assertSame(0, DB::table('integration_exchanges')->where('integration', 'email')->count());
     }
 }

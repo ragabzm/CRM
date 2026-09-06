@@ -15,6 +15,11 @@ use App\Modules\Security\Domain\Roles;
 use App\Modules\Security\Events\StaffAuthAttempted;
 use App\Modules\Security\Listeners\LogStaffAuthAttempt;
 use App\Modules\Security\Listeners\RecordStaffAuthAttempt;
+use App\Modules\Security\Domain\Api\ApiRateLimit;
+use App\Modules\Platform\Support\Settings\RegistersSettings;
+use App\Modules\Platform\Support\Settings\SettingDefinition;
+use App\Modules\Platform\Support\Settings\SettingsRegistry;
+use App\Modules\Platform\Support\Settings\SettingType;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -28,7 +33,7 @@ use Throwable;
 /**
  * T1. Owns staff authentication: guards, rate limits, and the audit hook.
  */
-final class SecurityServiceProvider extends ServiceProvider
+final class SecurityServiceProvider extends ServiceProvider implements RegistersSettings
 {
     public function register(): void
     {
@@ -68,8 +73,46 @@ final class SecurityServiceProvider extends ServiceProvider
      * The pair throttles the actual attack shape — many guesses at one account —
      * while leaving everyone else unaffected.
      */
+    public function registerSettings(SettingsRegistry $registry): void
+    {
+        $registry->register(new SettingDefinition(
+            key: ApiRateLimit::SETTING,
+            type: SettingType::Int,
+            default: 120,
+            validator: static fn (mixed $v): true|string => is_int($v) && $v >= 1 && $v <= 10_000
+                ? true
+                : 'The API rate limit must be between 1 and 10,000 requests a minute.',
+            summary: 'How many requests a minute one API client may make. Keyed on the token, not the address.',
+        ));
+    }
+
     private function registerRateLimiters(): void
     {
+        /*
+         * The public API, keyed on the TOKEN rather than the caller's address.
+         *
+         * An address is the wrong key for a machine: two integrations behind
+         * one NAT gateway would share a budget and throttle each other, and
+         * one integration moving between hosts would look like a new client
+         * every deploy. The token is the client.
+         *
+         * Per-minute and configurable, because "how much may this system ask
+         * of us" is an operational decision an administrator makes per
+         * integration — not a constant somebody has to deploy to change.
+         *
+         * A cookie request has no token and falls back to the address, which
+         * is right: the interface is a person, and a person is where they are.
+         */
+        RateLimiter::for('api-client', function (Request $request): Limit {
+            $token = $request->user()?->currentAccessToken();
+
+            $key = $token === null
+                ? 'ip:'.$request->ip()
+                : 'token:'.$token->getKey();
+
+            return Limit::perMinute(app(ApiRateLimit::class)->perMinute())->by($key);
+        });
+
         RateLimiter::for('login', function (Request $request): Limit {
             return Limit::perMinute(5)->by($this->throttleKey($request));
         });

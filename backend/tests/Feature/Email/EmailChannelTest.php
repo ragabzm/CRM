@@ -217,13 +217,16 @@ final class EmailChannelTest extends TestCase
 
     private function seedLogEntry(\Illuminate\Support\Carbon $occurredAt): void
     {
-        DB::table('mail_log')->insert([
+        DB::table('integration_exchanges')->insert([
             'id' => (string) Str::ulid(),
             'direction' => 'outbound',
-            'provider' => 'null',
-            'address' => 'someone@example.test',
-            'status' => 'sent',
+            // Email's rows in the one exchange log. The prune below must take
+            // these and leave every other integration's history alone.
+            'integration' => 'email',
+            'target' => 'someone@example.test',
+            'status' => 'succeeded',
             'attempt' => 1,
+            'context' => json_encode(['provider' => 'null']),
             'occurred_at' => $occurredAt,
             'created_at' => $occurredAt,
             'updated_at' => $occurredAt,
