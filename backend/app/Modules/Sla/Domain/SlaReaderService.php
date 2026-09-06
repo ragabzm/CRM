@@ -93,6 +93,45 @@ final class SlaReaderService implements SlaReader
     }
 
     /** Severity order, worst first. */
+    /**
+     * How long these tickets actually took, in working minutes.
+     *
+     * For Reporting, which averages them. Returned as two lists rather than a
+     * pair per ticket, because the denominators genuinely differ: a ticket can
+     * have a response time and no resolution time, and averaging the two over
+     * one count would report a number that is not either of them.
+     *
+     * NO TARGET IS CONSULTED anywhere below. That is what makes a past period
+     * re-runnable: editing a target changes what "breached" meant, and it must
+     * not change how long anything took.
+     *
+     * @param  list<string>  $ticketIds
+     * @return array{response: list<int>, resolution: list<int>}
+     */
+    public function elapsedMinutesAmong(array $ticketIds): array
+    {
+        if ($ticketIds === []) {
+            return ['response' => [], 'resolution' => []];
+        }
+
+        $response = [];
+        $resolution = [];
+
+        foreach ($this->loader->forTickets($ticketIds) as $timeline) {
+            $elapsed = $this->clock->elapsed($timeline);
+
+            if ($elapsed['response'] !== null) {
+                $response[] = $elapsed['response'];
+            }
+
+            if ($elapsed['resolution'] !== null) {
+                $resolution[] = $elapsed['resolution'];
+            }
+        }
+
+        return ['response' => $response, 'resolution' => $resolution];
+    }
+
     private function worst(SlaState $a, SlaState $b): SlaState
     {
         $order = [

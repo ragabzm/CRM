@@ -31,6 +31,31 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
 
         /*
+         * The chat widget, exempt from CSRF — deliberately, and narrowly.
+         *
+         * Sanctum's stateful mode CSRF-checks any request carrying a cookie.
+         * The widget carries one, so every message it sent came back 419.
+         *
+         * The dance it would have to do is not available to it: it runs in an
+         * iframe on a THIRD-PARTY site, so it is cross-site by construction,
+         * and the story forbids it from holding the token anywhere JavaScript
+         * can reach — which is what a CSRF header would require.
+         *
+         * What the exemption actually costs is small and worth naming. The
+         * cookie is scoped to ONE conversation: it resolves to no user, holds
+         * no capability, and the only endpoints that accept it append a
+         * message to that conversation or close it. The worst a forged
+         * cross-site request achieves is posting into the visitor's own
+         * support chat — which is the endpoint's purpose. It cannot read a
+         * ticket, reach another conversation, or touch anything a session
+         * would.
+         *
+         * The real limits on where the widget runs are `frame-ancestors` on
+         * the frame document and the embed allow-list, not this.
+         */
+        $middleware->validateCsrfTokens(except: ['api/v1/chat/*']);
+
+        /*
          * Never redirect a guest — answer them.
          *
          * Laravel's Authenticate middleware, when a request does not ask for

@@ -396,6 +396,56 @@ export interface StaffUser {
   is_active: boolean;
 }
 
+/**
+ * An office, as a label.
+ *
+ * Read by every staff role and administered by none but an administrator —
+ * an agent filters their queue by branch, and a label nobody can read is not
+ * a label.
+ *
+ * There is no `deleteBranch`. A branch that closed still describes where
+ * years of tickets happened; deactivation is the only way out.
+ */
+export interface Branch {
+  id: number;
+  name: string;
+  code: string;
+  is_active: boolean;
+}
+
+export async function listBranches(fetchImpl: typeof fetch = fetch): Promise<Branch[]> {
+  const body = await request<{ data: Branch[] }>("/branches", { method: "GET", fetchImpl });
+
+  return body.data;
+}
+
+export async function createBranch(
+  input: { name: string; code: string },
+  fetchImpl: typeof fetch = fetch,
+): Promise<Branch> {
+  const body = await request<{ data: Branch }>("/branches", {
+    method: "POST",
+    body: JSON.stringify(input),
+    fetchImpl,
+  });
+
+  return body.data;
+}
+
+export async function setBranchActive(
+  id: number,
+  isActive: boolean,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Branch> {
+  const body = await request<{ data: Branch }>(`/branches/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ is_active: isActive }),
+    fetchImpl,
+  });
+
+  return body.data;
+}
+
 export interface Department {
   id: number;
   name: string;

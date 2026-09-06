@@ -38,6 +38,17 @@ enum TicketChannel: string
 
     case Sms = 'sms';
 
+    /**
+     * A conversation in the chat widget.
+     *
+     * Its own value rather than folding into `web_form`, and for the reason
+     * that decides every value on this enum: a reply has to go back the way it
+     * came. A chat visitor is reading a widget that polls, not an inbox — an
+     * emailed reply to a chat conversation reaches somebody who may have given
+     * no address at all, and would arrive hours after they closed the tab.
+     */
+    case Chat = 'chat';
+
     case System = 'system';
 
     /** @return list<string> */

@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import { BrandedSurface } from "@/components/domain/BrandedSurface/BrandedSurface";
+import { BrandHeader } from "@/components/domain/BrandedSurface/BrandHeader";
 import { LanguageToggle } from "@/components/shell/LanguageToggle";
 import { cn } from "@/lib/utils";
 
@@ -38,53 +40,61 @@ export function PortalShell({ children, signedIn = true }: PortalShellProps) {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface-app" data-slot="portal-shell">
-      <header className="border-b border-border-default bg-surface-base">
-        {/*
+    <BrandedSurface>
+      <div className="flex min-h-screen flex-col bg-surface-app" data-slot="portal-shell">
+        <header className="border-b border-border-default bg-surface-base">
+          {/*
           Mobile-first: the bar is a single row at every width. A layout that
           only works once it has a sidebar's worth of space is a layout most
           customers never see working.
         */}
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">
-          <Link href="/portal/requests" className="font-semibold text-fg-default">
-            {t("brand")}
-          </Link>
+          <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">
+            <Link href="/portal/requests" className="font-semibold text-fg-default">
+              {/*
+              One of the four branded surfaces. The logo and header replace the
+              product's own name when an administrator has configured them —
+              and nothing else about this bar changes, because branding is
+              presentation and never a control.
+            */}
+              <BrandHeader fallback={t("brand")} />
+            </Link>
 
-          <div className="ms-auto">
-            <LanguageToggle />
+            <div className="ms-auto">
+              <LanguageToggle />
+            </div>
           </div>
-        </div>
 
-        {signedIn && (
-          <nav
-            aria-label={t("brand")}
-            data-slot="portal-nav"
-            className="mx-auto flex w-full max-w-3xl gap-1 overflow-x-auto px-4 pb-2"
-          >
-            {destinations.map((destination) => {
-              const current = pathname?.startsWith(destination.href) ?? false;
+          {signedIn && (
+            <nav
+              aria-label={t("brand")}
+              data-slot="portal-nav"
+              className="mx-auto flex w-full max-w-3xl gap-1 overflow-x-auto px-4 pb-2"
+            >
+              {destinations.map((destination) => {
+                const current = pathname?.startsWith(destination.href) ?? false;
 
-              return (
-                <Link
-                  key={destination.href}
-                  href={destination.href}
-                  aria-current={current ? "page" : undefined}
-                  className={cn(
-                    "whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors",
-                    current
-                      ? "bg-accent-subtle font-semibold text-accent-text"
-                      : "font-medium text-fg-muted hover:bg-surface-hover hover:text-fg-default",
-                  )}
-                >
-                  {destination.label}
-                </Link>
-              );
-            })}
-          </nav>
-        )}
-      </header>
+                return (
+                  <Link
+                    key={destination.href}
+                    href={destination.href}
+                    aria-current={current ? "page" : undefined}
+                    className={cn(
+                      "whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors",
+                      current
+                        ? "bg-accent-subtle font-semibold text-accent-text"
+                        : "font-medium text-fg-muted hover:bg-surface-hover hover:text-fg-default",
+                    )}
+                  >
+                    {destination.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
+        </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 p-4">{children}</main>
-    </div>
+        <main className="mx-auto w-full max-w-3xl flex-1 p-4">{children}</main>
+      </div>
+    </BrandedSurface>
   );
 }

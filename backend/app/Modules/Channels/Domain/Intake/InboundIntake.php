@@ -63,8 +63,16 @@ final class InboundIntake
      * @param  array<string, mixed>  $raw
      * @return array{status: string, ticket_id?: string, reason?: string}
      */
-    public function accept(ChannelAdapter $adapter, array $raw, ?string $providerMessageId = null): array
-    {
+    public function accept(
+        ChannelAdapter $adapter,
+        array $raw,
+        ?string $providerMessageId = null,
+        /**
+         * The ticket this message belongs to, when the transport already
+         * knows. Chat does; nothing else does yet.
+         */
+        ?string $knownTicketId = null,
+    ): array {
         $channel = $adapter->channel();
 
         try {
@@ -93,7 +101,7 @@ final class InboundIntake
             return ['status' => 'quarantined', 'reason' => $e->getMessage()];
         }
 
-        return $this->handle($payload, $raw);
+        return $this->handle($payload, $raw, $knownTicketId);
     }
 
     /**
@@ -106,7 +114,7 @@ final class InboundIntake
      * @param  array<string, mixed>  $raw
      * @return array{status: string, ticket_id?: string, reason?: string}
      */
-    public function handle(ChannelPayload $payload, array $raw = []): array
+    public function handle(ChannelPayload $payload, array $raw = [], ?string $knownTicketId = null): array
     {
         if (! $this->claim(
             $payload->channel,
@@ -131,7 +139,11 @@ final class InboundIntake
             ];
         }
 
-        $correlation = $this->correlator->correlate($payload, $this->windowFor($payload->channel));
+        $correlation = $this->correlator->correlate(
+            $payload,
+            $this->windowFor($payload->channel),
+            $knownTicketId,
+        );
         $sender = $this->customers->resolve($payload->channel, $payload->sender);
 
         /*

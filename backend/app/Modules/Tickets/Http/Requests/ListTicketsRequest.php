@@ -40,6 +40,9 @@ final class ListTicketsRequest extends FormRequest
             'category_id' => $this->split('category_id'),
             'assignee_id' => $this->split('assignee_id'),
             'department_id' => $this->split('department_id'),
+            // Comma-separated like every other multi-value filter, so a
+            // branch link in the address bar reads the way the others do.
+            'branch_id' => $this->split('branch_id'),
         ], static fn (?array $value): bool => $value !== null));
 
         /*
@@ -98,6 +101,11 @@ final class ListTicketsRequest extends FormRequest
              */
             'escalated' => ['sometimes', 'boolean'],
 
+            'branch_id' => ['sometimes', 'array'],
+            'branch_id.*' => ['integer'],
+
+            'satisfaction' => ['sometimes', Rule::in(TicketListFilters::SATISFACTION)],
+
             'created_from' => ['sometimes', 'date'],
             'created_to' => ['sometimes', 'date'],
 
@@ -148,6 +156,8 @@ final class ListTicketsRequest extends FormRequest
             departmentIds: array_values(array_map('intval', $data['department_id'] ?? [])),
             slaState: isset($data['sla_state']) ? (string) $data['sla_state'] : null,
             escalated: array_key_exists('escalated', $data) ? (bool) $data['escalated'] : null,
+            branchIds: array_map(intval(...), (array) ($data['branch_id'] ?? [])),
+            satisfaction: isset($data['satisfaction']) ? (string) $data['satisfaction'] : null,
             createdFrom: isset($data['created_from']) ? (string) $data['created_from'] : null,
             // The whole of the closing day, not up to its first second.
             createdTo: isset($data['created_to'])

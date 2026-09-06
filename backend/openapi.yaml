@@ -1703,6 +1703,8 @@ paths:
               - department.created
               - department.updated
               - department.deleted
+              - branch.created
+              - branch.updated
               - config.changed
               - article.published
               - article.archived
@@ -2050,6 +2052,229 @@ paths:
                   - roles
         '401':
           $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /branches:
+    get:
+      operationId: branches.index
+      tags:
+        - Branches
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: string
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      operationId: branches.store
+      tags:
+        - Branches
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 120.0
+                code:
+                  type: string
+                  maxLength: 16.0
+              required:
+                - name
+                - code
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      code:
+                        type: string
+                      is_active:
+                        type: boolean
+                    required:
+                      - id
+                      - name
+                      - code
+                      - is_active
+                required:
+                  - data
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  '/branches/{branch}':
+    patch:
+      operationId: branches.update
+      tags:
+        - Branches
+      parameters:
+        -
+          name: branch
+          in: path
+          required: true
+          schema:
+            type: integer
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 120.0
+                is_active:
+                  type: boolean
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      code:
+                        type: string
+                      is_active:
+                        type: boolean
+                    required:
+                      - id
+                      - name
+                      - code
+                      - is_active
+                required:
+                  - data
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /branding:
+    get:
+      operationId: branding.show
+      tags:
+        - Branding
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      logo_url:
+                        type:
+                          - string
+                          - 'null'
+                      primary_colour:
+                        type:
+                          - string
+                          - 'null'
+                      header:
+                        type:
+                          - string
+                          - 'null'
+                    required:
+                      - logo_url
+                      - primary_colour
+                      - header
+                required:
+                  - data
         default:
           description: 'An RFC 9457 problem document.'
           content:
@@ -2427,6 +2652,504 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /chat-desk/conversations:
+    get:
+      operationId: chat.desk.index
+      description: "Both in one response: an agent's chat pane needs \"is anybody waiting?\"\nand \"what am I in the middle of?\" on the same interval, and asking twice\nwould let the two disagree."
+      summary: 'Who is waiting, oldest first, plus what this agent already holds'
+      tags:
+        - ChatDesk
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      poll_seconds:
+                        type: integer
+                      waiting:
+                        type: array
+                        items: {}
+                      mine:
+                        type: array
+                        items: {}
+                    required:
+                      - poll_seconds
+                      - waiting
+                      - mine
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/chat-desk/conversations/{conversation}/take':
+    post:
+      operationId: chat.desk.take
+      tags:
+        - ChatDesk
+      parameters:
+        -
+          name: conversation
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  '/chat-desk/conversations/{conversation}/close':
+    post:
+      operationId: chat.desk.close
+      tags:
+        - ChatDesk
+      parameters:
+        -
+          name: conversation
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /chat/embed-origins:
+    get:
+      operationId: chat.origins
+      description: "Public, and it gives nothing away: it is the list of sites that may\nframe a page they can already load. The frontend reads it to build the\n`frame-ancestors` policy on the frame document, which is the half of\nthis rule a browser actually enforces."
+      summary: 'The origins allowed to embed the widget'
+      tags:
+        - ChatWidget
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      origins:
+                        type: array
+                        items: {}
+                    required:
+                      - origins
+                required:
+                  - data
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /chat/conversations:
+    post:
+      operationId: chat.open
+      tags:
+        - ChatWidget
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                visitor_name:
+                  type:
+                    - string
+                    - 'null'
+                  maxLength: 120.0
+                visitor_identifier:
+                  type:
+                    - string
+                    - 'null'
+                  maxLength: 320.0
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  /chat/conversations/current:
+    get:
+      operationId: chat.current
+      description: "This is what makes a reload continue rather than restart. It answers\n404 rather than an error when there is nothing to rejoin, because \"you\n     * have no conversation\" is the ordinary case for anybody opening the\nwidget for the first time."
+      summary: 'Rejoins the conversation the cookie names, if it is still open'
+      tags:
+        - ChatWidget
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      poll_seconds:
+                        type: integer
+                      expires_at:
+                        type: string
+                      state:
+                        type: string
+                        enum:
+                          - abandoned
+                          - ended
+                          - taken
+                          - waiting
+                    required:
+                      - id
+                      - poll_seconds
+                      - expires_at
+                      - state
+                required:
+                  - data
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /chat/conversations/current/messages:
+    get:
+      operationId: chat.messages
+      description: "The whole transcript every time rather than a cursor. A chat is a\nhandful of short messages, the widget is redrawing a list it already\nholds, and a `since=` parameter is a synchronisation layer with an\noff-by-one that shows up as a message nobody ever sees."
+      summary: 'Everything said so far, newest last'
+      tags:
+        - ChatWidget
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      state:
+                        type: string
+                        enum:
+                          - abandoned
+                          - ended
+                          - taken
+                          - waiting
+                      poll_seconds:
+                        type: integer
+                      taken:
+                        type: boolean
+                      messages:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            from:
+                              type: string
+                              description: "\"them\" and \"us\", not the internal direction names — the\nvisitor is not reading a ticket."
+                              enum:
+                                - visitor
+                                - agent
+                            body:
+                              type: string
+                            author_name:
+                              type:
+                                - string
+                                - 'null'
+                            sent_at:
+                              type: string
+                          required:
+                            - id
+                            - from
+                            - body
+                            - author_name
+                            - sent_at
+                    required:
+                      - state
+                      - poll_seconds
+                      - taken
+                      - messages
+                required:
+                  - data
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      operationId: chat.send
+      tags:
+        - ChatWidget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: string
+                  maxLength: 4000.0
+              required:
+                - body
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      state:
+                        type: string
+                        enum:
+                          - abandoned
+                          - ended
+                          - taken
+                          - waiting
+                      poll_seconds:
+                        type: integer
+                      taken:
+                        type: boolean
+                      messages:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            from:
+                              type: string
+                              description: "\"them\" and \"us\", not the internal direction names — the\nvisitor is not reading a ticket."
+                              enum:
+                                - visitor
+                                - agent
+                            body:
+                              type: string
+                            author_name:
+                              type:
+                                - string
+                                - 'null'
+                            sent_at:
+                              type: string
+                          required:
+                            - id
+                            - from
+                            - body
+                            - author_name
+                            - sent_at
+                    required:
+                      - state
+                      - poll_seconds
+                      - taken
+                      - messages
+                required:
+                  - data
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
+  /chat/conversations/current/close:
+    post:
+      operationId: chat.close
+      tags:
+        - ChatWidget
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      state:
+                        type: string
+                        enum:
+                          - abandoned
+                          - ended
+                          - taken
+                          - waiting
+                    required:
+                      - state
+                required:
+                  - data
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'The Idempotency-Key was already used for a different request (code: platform.idempotency_conflict).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '425':
+          description: 'A concurrent request with the same Idempotency-Key is still in flight (code: platform.idempotency_in_flight).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          required: true
+          description: 'A ULID or UUID that identifies this write attempt. Repeating a request with the same key replays the stored response instead of acting twice; reusing a key with a different body returns 409. Keys are retained for 24 hours.'
+          schema:
+            type: string
+            maxLength: 40
   '/tickets/{ticket}/customer-context':
     get:
       operationId: tickets.customer-context
@@ -5759,6 +6482,49 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /reports:
+    get:
+      operationId: reports.show
+      tags:
+        - Reports
+      parameters:
+        -
+          name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        -
+          name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: {}
+                required:
+                  - data
+        '422':
+          $ref: '#/components/responses/ValidationException'
+        '401':
+          $ref: '#/components/responses/AuthenticationException'
+        default:
+          description: 'An RFC 9457 problem document.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /admin/settings:
     get:
       operationId: admin.settings.index
@@ -6322,6 +7088,22 @@ paths:
           description: "A filter, never a status. Escalation is a property an open,\npending, resolved or closed ticket can carry — `?escalated=1`\nnarrows within the lifecycle rather than replacing it."
           schema:
             type: boolean
+        -
+          name: 'branch_id[]'
+          in: query
+          schema:
+            type: array
+            items:
+              type: integer
+        -
+          name: satisfaction
+          in: query
+          schema:
+            type: string
+            enum:
+              - positive
+              - negative
+              - rated
         -
           name: created_from
           in: query
@@ -7536,6 +8318,7 @@ components:
             - email
             - phone
             - whatsapp
+            - chat
             - null
         identifiers:
           type: array
@@ -7549,6 +8332,7 @@ components:
                   - email
                   - phone
                   - whatsapp
+                  - chat
               value:
                 type: string
                 minLength: 1.0
@@ -7602,6 +8386,7 @@ components:
             - web_form
             - whatsapp
             - sms
+            - chat
             - system
         category_id:
           type:
@@ -7753,6 +8538,7 @@ components:
             - email
             - phone
             - whatsapp
+            - chat
             - null
         identifiers:
           type: array
@@ -7765,6 +8551,7 @@ components:
                   - email
                   - phone
                   - whatsapp
+                  - chat
               value:
                 type: string
                 minLength: 1.0

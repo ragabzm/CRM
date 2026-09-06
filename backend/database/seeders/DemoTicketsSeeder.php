@@ -270,6 +270,8 @@ final class DemoTicketsSeeder extends Seeder
             // A phone-channel ticket has no person on our side either.
             TicketChannel::WhatsApp => Actor::system('inbound_whatsapp'),
             TicketChannel::Sms => Actor::system('inbound_sms'),
+            // A chat visitor may never have told us who they are at all.
+            TicketChannel::Chat => Actor::system('inbound_chat'),
             TicketChannel::System => Actor::system('demo data'),
             default => Actor::staff('1', 'Front desk'),
         };
@@ -373,6 +375,28 @@ final class DemoTicketsSeeder extends Seeder
                 'messages' => $reply(
                     'بعتولي رقم تتبع مش بيفتح.',
                     'اتأكدنا — الرقم اتسجّل غلط، وبعتنالك الصح دلوقتي.',
+                ),
+            ],
+            [
+                /*
+                 * A live chat, so the demo shows one beside an emailed ticket.
+                 *
+                 * Short messages and a short subject, because that is what a
+                 * chat actually looks like — the subject is the first thing
+                 * the visitor said, which is the rule the adapter follows.
+                 */
+                'subject' => 'Is the shop open on Friday?',
+                'description' => 'Is the shop open on Friday?',
+                'customer' => 'omar.farouk@example.test',
+                'channel' => TicketChannel::Chat,
+                'priority' => Priority::Normal,
+                'status' => TicketStatus::Resolved,
+                'category' => 'Account',
+                'assignee' => self::AGENT_SALES,
+                'resolution' => 'Answered in the chat.',
+                'messages' => $reply(
+                    'Is the shop open on Friday?',
+                    'Yes — nine until six, and we are closed on Saturday.',
                 ),
             ],
             [

@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Live chat</title>
+
+    <!--
+      The design tokens, and nothing else from the application.
+
+      No React, no router, no i18n runtime, no API client. This document is
+      embedded on other people's websites, and every kilobyte of ours that runs
+      there is a kilobyte of ours that can break their page.
+    -->
+    <link rel="stylesheet" href="./tokens.css" />
+
+    <style>
+      /*
+       * Written against the semantic tokens only — never the primitives.
+       * The same rule the application follows, for the same reason: a widget
+       * that hard-codes a colour is a widget that stops matching the product
+       * the first time the product is rethemed.
+       */
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        block-size: 100%;
+        background: var(--surface-raised);
+        color: var(--fg-default);
+        font:
+          14px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--border-default);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 12px 14px;
+        border-block-end: 1px solid var(--border-subtle);
+        background: var(--surface-subtle);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      button {
+        min-block-size: 44px;
+        min-inline-size: 44px;
+        padding: 8px 14px;
+        border: 1px solid var(--border-default);
+        border-radius: 8px;
+        background: var(--surface-raised);
+        color: var(--fg-default);
+        font: inherit;
+        cursor: pointer;
+      }
+
+      button[data-primary] {
+        /*
+         * The brand, with the design system as the fallback. An unbranded
+         * deployment is a finished product, not a widget with a missing
+         * colour — which is what a bare `var(--brand-primary)` would give.
+         */
+        border-color: var(--brand-primary, var(--accent-default));
+        background: var(--brand-primary, var(--accent-default));
+        color: var(--accent-fg);
+      }
+
+      button[disabled] {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      #log {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .msg {
+        max-inline-size: 85%;
+        padding: 8px 10px;
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+        background: var(--surface-subtle);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      /*
+       * `margin-inline-start:auto` rather than `margin-left`, so the visitor's
+       * own messages sit on the correct side in Arabic without a second rule.
+       */
+      .msg[data-from="visitor"] {
+        margin-inline-start: auto;
+        border-color: var(--border-default);
+        background: var(--surface-sunken);
+      }
+
+      .who {
+        display: block;
+        margin-block-end: 2px;
+        color: var(--fg-muted);
+        font-size: 12px;
+      }
+
+      form {
+        display: flex;
+        gap: 8px;
+        padding: 12px 14px;
+        border-block-start: 1px solid var(--border-subtle);
+      }
+
+      textarea {
+        flex: 1;
+        min-block-size: 44px;
+        max-block-size: 96px;
+        padding: 10px;
+        border: 1px solid var(--border-default);
+        border-radius: 8px;
+        background: var(--surface-raised);
+        color: var(--fg-default);
+        font: inherit;
+        resize: none;
+      }
+
+      .note {
+        padding: 10px 14px;
+        color: var(--fg-muted);
+        font-size: 12px;
+        border-block-start: 1px solid var(--border-subtle);
+      }
+
+      .state {
+        padding: 12px 14px;
+        color: var(--fg-muted);
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <h1 id="title">Live chat</h1>
+      <button type="button" id="close" aria-label="Close">×</button>
+    </header>
+
+    <p class="state" id="state"></p>
+
+    <div id="log" role="log" aria-live="polite" aria-relevant="additions" hidden></div>
+
+    <form id="composer" hidden>
+      <label class="sr-only" for="body" id="bodyLabel"></label>
+      <textarea id="body" rows="2" dir="auto"></textarea>
+      <button type="submit" data-primary id="send"></button>
+    </form>
+
+    <!--
+      Said out loud rather than hidden.
+
+      This widget polls, so a message can take up to one interval to appear.
+      That is the accepted trade for having no WebSocket, no broker and no
+      second runtime — and a product that quietly felt slow would be read as
+      broken rather than as a decision.
+
+      It is also where the absence of a typing indicator is explained. Leaving
+      a gap where one should be reads as a missing feature; saying there is
+      none reads as a choice.
+    -->
+    <p class="note" id="note"></p>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var params = new URLSearchParams(location.search);
+        var lang = params.get("lang") === "ar" ? "ar" : "en";
+        var dir = params.get("dir") === "rtl" || lang === "ar" ? "rtl" : "ltr";
+
+        document.documentElement.lang = lang;
+        document.documentElement.dir = dir;
+
+        /*
+         * Two languages, inline.
+         *
+         * The application's i18n runtime is not imported on purpose: it is
+         * part of the bundle this artifact exists to stay out of, and the
+         * widget has eleven strings.
+         */
+        var T = {
+          en: {
+            title: "Live chat",
+            placeholder: "Type your message",
+            send: "Send",
+            start: "Start a conversation",
+            waiting: "Nobody has joined yet — you can keep typing.",
+            connecting: "Just a moment…",
+            closed: "Chat is not available right now. Please email us instead.",
+            refused: "This site is not set up for chat.",
+            ended: "This conversation has ended.",
+            failed: "That did not send. Try again.",
+            you: "You",
+            note: "Messages can take a few seconds to appear. There is no typing indicator — you will see a message when it arrives.",
+          },
+          ar: {
+            title: "المحادثة المباشرة",
+            placeholder: "اكتب رسالتك",
+            send: "إرسال",
+            start: "ابدأ محادثة",
+            waiting: "لسه محدش دخل — تقدر تكمل كتابة.",
+            connecting: "لحظة واحدة…",
+            closed: "المحادثة المباشرة غير متاحة حاليًا. من فضلك راسلنا بالبريد.",
+            refused: "هذا الموقع غير مهيأ للمحادثة.",
+            ended: "انتهت هذه المحادثة.",
+            failed: "الرسالة ما اتبعتتش. حاول تاني.",
+            you: "أنت",
+            note: "قد تستغرق الرسائل ثوانٍ قليلة للظهور. لا يوجد مؤشر كتابة — سترى الرسالة عند وصولها.",
+          },
+        }[lang];
+
+        /*
+         * Where the API lives, injected by the route that served this file.
+         *
+         * It cannot be derived from `location.href`: the frame is served by the
+         * frontend, and the API is a different origin in every deployment that
+         * separates the two — which is all of them. Deriving it sent every call
+         * to the frontend, which answered 404 and looked exactly like the chat
+         * being switched off.
+         *
+         * The fallback keeps the file usable on its own, where the two are the
+         * same origin.
+         */
+        var apiBase = window.__CHAT_API__ || new URL("/api/v1", location.href).href;
+        var api = apiBase.replace(/\/$/, "") + "/chat";
+        var host = params.get("host") || location.origin;
+
+        var els = {
+          title: document.getElementById("title"),
+          state: document.getElementById("state"),
+          log: document.getElementById("log"),
+          composer: document.getElementById("composer"),
+          body: document.getElementById("body"),
+          send: document.getElementById("send"),
+          note: document.getElementById("note"),
+          close: document.getElementById("close"),
+          label: document.getElementById("bodyLabel"),
+        };
+
+        els.title.textContent = T.title;
+        els.send.textContent = T.send;
+        els.note.textContent = T.note;
+        els.body.setAttribute("aria-label", T.placeholder);
+        els.body.placeholder = T.placeholder;
+        els.state.textContent = T.connecting;
+
+        /*
+         * The brand, as TOKENS only — consistent with Story 7.3.
+         *
+         * The widget gains the colour and the logo and never the component
+         * tree: it sets one custom property and swaps one image source, and
+         * every rule in the stylesheet above already reads through
+         * `var(--brand-primary, …)` with a design-system fallback. There is no
+         * path here by which branding could add a control, remove one, or
+         * render a different field set.
+         */
+        function applyBranding(branding) {
+          if (branding.primary_colour) {
+            document.documentElement.style.setProperty("--brand-primary", branding.primary_colour);
+          }
+
+          if (branding.header) {
+            els.title.textContent = branding.header;
+            document.title = branding.header;
+          }
+
+          if (branding.logo_url) {
+            var logo = document.createElement("img");
+            logo.src = branding.logo_url;
+            logo.alt = branding.header || T.title;
+            logo.style.cssText = "block-size:20px;inline-size:auto";
+            els.title.textContent = "";
+            els.title.appendChild(logo);
+          }
+        }
+
+        fetch(api.replace(/\/chat$/, "") + "/branding", { credentials: "include" })
+          .then(function (response) {
+            return response.ok ? response.json() : null;
+          })
+          .then(function (body) {
+            if (body && body.data) {
+              applyBranding(body.data);
+            }
+          })
+          .catch(function () {
+            /*
+             * Silent and complete. The widget renders in the design system,
+             * which is a finished product — a customer waiting on a spinner
+             * because a logo could not be fetched would be worse than a chat
+             * box with no logo.
+             */
+          });
+
+        var pollMs = 3000;
+        var timer = null;
+        var open = false;
+
+        /*
+         * `credentials: "include"`, on every call, without exception.
+         *
+         * The token lives in an http-only cookie — the story forbids
+         * localStorage and sessionStorage, and memory alone would not survive
+         * the reload it also requires. This widget is always a cross-origin
+         * context, and a cross-origin fetch sends no cookie unless it is asked
+         * to. Omit this on one call and that call is anonymous.
+         */
+        function call(path, options) {
+          return fetch(
+            api + path,
+            Object.assign({ credentials: "include" }, options || {}, {
+              headers: Object.assign(
+                {
+                  Accept: "application/json",
+                  "Content-Type": "application/json",
+                  /*
+                   * The site this widget is embedded on.
+                   *
+                   * The `Origin` header on this request is OURS — the iframe's
+                   * — so without this the server cannot tell whether the
+                   * loader was pasted onto an allowed site or a stranger's.
+                   * It is a claim, not proof, and the server treats it as one.
+                   */
+                  "X-Chat-Embed-Origin": host,
+                },
+                (options || {}).headers || {},
+              ),
+            }),
+          );
+        }
+
+        function render(data) {
+          pollMs = (data.poll_seconds || 3) * 1000;
+
+          els.log.hidden = false;
+          els.log.textContent = "";
+
+          data.messages.forEach(function (message) {
+            var row = document.createElement("div");
+            row.className = "msg";
+            row.setAttribute("data-from", message.from);
+
+            var who = document.createElement("span");
+            who.className = "who";
+            who.textContent = message.from === "visitor" ? T.you : message.author_name || T.title;
+
+            var text = document.createElement("span");
+            text.setAttribute("dir", "auto");
+            // `textContent`, never innerHTML: this string came from the
+            // server, and one day some of it will have come from a stranger.
+            text.textContent = message.body;
+
+            row.appendChild(who);
+            row.appendChild(text);
+            els.log.appendChild(row);
+          });
+
+          els.log.scrollTop = els.log.scrollHeight;
+
+          if (data.state === "ended" || data.state === "abandoned") {
+            stop();
+            els.state.textContent = T.ended;
+            els.composer.hidden = true;
+
+            return;
+          }
+
+          els.state.textContent = data.messages.length === 0 || data.taken ? "" : T.waiting;
+          els.state.hidden = els.state.textContent === "";
+        }
+
+        function poll() {
+          call("/conversations/current/messages")
+            .then(function (response) {
+              if (!response.ok) {
+                throw new Error("gone");
+              }
+
+              return response.json();
+            })
+            .then(function (body) {
+              render(body.data);
+            })
+            .catch(function () {
+              /*
+               * Quiet. A blip between polls fixes itself on the next one, and
+               * an error banner that appears and disappears every few seconds
+               * is worse than the blip.
+               */
+            });
+        }
+
+        function start() {
+          if (timer !== null) {
+            return;
+          }
+
+          timer = setInterval(poll, pollMs);
+        }
+
+        function stop() {
+          if (timer !== null) {
+            clearInterval(timer);
+            timer = null;
+          }
+        }
+
+        function begin() {
+          call("/conversations", { method: "POST", body: JSON.stringify({}) })
+            .then(function (response) {
+              if (response.status === 503) {
+                // Switched off. Said plainly, with somewhere else to go —
+                // never an empty box that swallows what somebody types.
+                throw { widget: T.closed };
+              }
+
+              if (response.status === 403) {
+                throw { widget: T.refused };
+              }
+
+              if (!response.ok) {
+                throw { widget: T.failed };
+              }
+
+              return response.json();
+            })
+            .then(function (body) {
+              open = true;
+              pollMs = (body.data.poll_seconds || 3) * 1000;
+              els.state.textContent = T.waiting;
+              els.composer.hidden = false;
+              els.log.hidden = false;
+              els.body.focus();
+              start();
+            })
+            .catch(function (error) {
+              els.state.textContent = (error && error.widget) || T.failed;
+              els.composer.hidden = true;
+            });
+        }
+
+        /* A reload inside the token's life rejoins; otherwise a new one. */
+        call("/conversations/current")
+          .then(function (response) {
+            if (!response.ok) {
+              throw new Error("none");
+            }
+
+            return response.json();
+          })
+          .then(function (body) {
+            open = true;
+            pollMs = (body.data.poll_seconds || 3) * 1000;
+            els.composer.hidden = false;
+            poll();
+            start();
+          })
+          .catch(begin);
+
+        els.composer.addEventListener("submit", function (event) {
+          event.preventDefault();
+
+          var text = els.body.value.trim();
+
+          if (text === "" || !open) {
+            return;
+          }
+
+          els.send.disabled = true;
+
+          call("/conversations/current/messages", {
+            method: "POST",
+            body: JSON.stringify({ body: text }),
+          })
+            .then(function (response) {
+              if (!response.ok) {
+                throw new Error("failed");
+              }
+
+              return response.json();
+            })
+            .then(function (body) {
+              els.body.value = "";
+              render(body.data);
+            })
+            .catch(function () {
+              // The words stay in the box. Losing what somebody typed because
+              // a request failed is the one failure they cannot recover from.
+              els.state.textContent = T.failed;
+            })
+            .finally(function () {
+              els.send.disabled = false;
+              els.body.focus();
+            });
+        });
+
+        els.close.addEventListener("click", function () {
+          stop();
+          // The conversation is NOT ended here. Closing the panel is not
+          // leaving — they may open it again, and the token is still theirs.
+          parent.postMessage({ type: "ragab-chat:close" }, "*");
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -62,8 +62,33 @@ final class TicketCorrelator
     /**
      * @param  int  $windowHours  How far back rule 4 looks. Zero disables it.
      */
-    public function correlate(ChannelPayload $payload, int $windowHours): CorrelationResult
-    {
+    public function correlate(
+        ChannelPayload $payload,
+        int $windowHours,
+        ?string $knownTicketId = null,
+    ): CorrelationResult {
+        if ($knownTicketId !== null) {
+            /*
+             * The transport KNOWS which conversation this is.
+             *
+             * Chat is the first such channel: a widget holds a token scoped to
+             * exactly one conversation, and that conversation has exactly one
+             * ticket. There is nothing to infer, and running the heuristics
+             * anyway would mean a chat message could be matched onto a
+             * DIFFERENT ticket by a subject token the visitor happened to type.
+             *
+             * Here rather than in the chat controller, so it stays visible in
+             * the same trace as every other rule and there is still exactly
+             * one correlator. A second one is how two channels start answering
+             * "is this a reply?" differently for the same customer.
+             */
+            return new CorrelationResult(
+                $knownTicketId,
+                'known_conversation',
+                [['rule' => 'known_conversation', 'matched' => true]],
+            );
+        }
+
         $trace = [];
         $quotedReference = $this->quotedReference($payload);
 

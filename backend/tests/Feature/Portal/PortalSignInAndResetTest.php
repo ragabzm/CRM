@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Cache;
 use Tests\Feature\Security\InteractsWithSpaSession;
 use Tests\Support\MakesTickets;
 use Tests\TestCase;
@@ -38,8 +38,26 @@ final class PortalSignInAndResetTest extends TestCase
         $this->app->make(SettingsRegistry::class)->set('email.enabled', false, null);
         $this->setUpSpaOrigin();
 
-        RateLimiter::clear('portal-login');
-        RateLimiter::clear('portal-password');
+        /*
+         * The whole cache store, not the limiter NAMES.
+         *
+         * `RateLimiter::clear('portal-login')` clears the name, not the key
+         * the limiter actually counts against — which is `portal-login` plus
+         * the address and the IP, hashed. Every test in this process shares
+         * that key, so a test elsewhere that posts six sign-in attempts
+         * silently spends this one's allowance, and the rate-limit test fails
+         * or passes depending on which order the suite ran in.
+         *
+         * It did exactly that: green alone, red in the suite, and only after
+         * an unrelated story added tests ahead of it. The same defect was
+         * found and fixed once already on the web-form limiter; this is the
+         * other one.
+         *
+         * Clearing the store is blunt and correct: these limiters live in the
+         * cache, nothing else in a test depends on its contents, and a limiter
+         * that leaks between tests is a limiter that proves nothing.
+         */
+        Cache::clear();
 
         $this->account = new PortalAccount;
         $this->account->forceFill([
@@ -82,7 +100,7 @@ final class PortalSignInAndResetTest extends TestCase
     public function test_an_unknown_address_gets_the_same_answer_as_a_wrong_password(): void
     {
         $unknown = $this->login(['email' => 'nobody@example.test'])->assertStatus(401);
-        RateLimiter::clear('portal-login');
+        Cache::clear();
         $wrong = $this->login(['password' => 'not-the-password'])->assertStatus(401);
 
         /*
@@ -179,7 +197,7 @@ final class PortalSignInAndResetTest extends TestCase
             'password_confirmation' => 'a-brand-new-passphrase',
         ])->assertOk();
 
-        RateLimiter::clear('portal-login');
+        Cache::clear();
         $this->login(['password' => 'a-brand-new-passphrase'])->assertOk();
     }
 
@@ -196,7 +214,7 @@ final class PortalSignInAndResetTest extends TestCase
 
         $this->withIdempotencyKey()->postJson('/api/v1/portal/auth/password/reset', $body)->assertOk();
 
-        RateLimiter::clear('portal-password');
+        Cache::clear();
 
         /*
          * Single use. A reset link sits in an inbox forever; one that still

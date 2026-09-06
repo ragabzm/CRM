@@ -177,6 +177,19 @@ final class CapabilitiesInSyncTest extends TestCase
              */
             Capabilities::QUARANTINE_VIEW,
             Capabilities::QUARANTINE_REPLAY,
+
+            /*
+             * The org chart, beside `department.manage` and for the same
+             * reason. A branch describes the ORGANISATION rather than the
+             * work: it is changed about once a year by whoever is answerable
+             * for what the offices are called, and every record already
+             * carrying one keeps carrying it.
+             *
+             * Reading the list is a different thing entirely and every staff
+             * role holds it — an agent filters their queue by branch, and a
+             * label nobody can read is not a label.
+             */
+            Capabilities::BRANCH_MANAGE,
         ];
 
         foreach (Capabilities::all() as $capability) {

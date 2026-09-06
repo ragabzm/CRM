@@ -40,6 +40,19 @@ final readonly class TicketListFilters
     public const SLA_STATES = ['on_track', 'at_risk', 'breached', 'met', 'paused'];
 
     /**
+     * What the customer said, as a filter.
+     *
+     * Three values and not four: `rated` is everyone who answered, which is
+     * the denominator every satisfaction figure is a proportion of. There is
+     * deliberately no `unrated` — an unrated ticket is the absence of an
+     * answer, not a verdict, and offering it as a filter beside the other two
+     * would invite it into a figure as a third outcome.
+     *
+     * @var list<string>
+     */
+    public const SATISFACTION = ['positive', 'negative', 'rated'];
+
+    /**
      * @param  list<string>  $status
      * @param  list<string>  $priority
      * @param  list<int>  $categoryIds
@@ -52,6 +65,18 @@ final readonly class TicketListFilters
         public array $categoryIds = [],
         public array $assigneeIds = [],
         public array $departmentIds = [],
+        /**
+         * Branches the reader chose to look at.
+         *
+         * A FILTER, never a scope. It narrows a query the caller already had
+         * the right to run, exactly like priority or category — and a request
+         * that returns a ticket outside the reader's own branch is correct
+         * behaviour rather than a leak, because branch is a label and there is
+         * no branch-scoped access in this product.
+         *
+         * @var list<int>
+         */
+        public array $branchIds = [],
         public ?string $slaState = null,
         /**
          * True narrows to escalated tickets; null means "do not care".
@@ -61,6 +86,14 @@ final readonly class TicketListFilters
          * boolean can only ask one of them.
          */
         public ?bool $escalated = null,
+        /**
+         * `positive` · `negative` · `rated`, or null for "do not care".
+         *
+         * Exists so that every figure on the reports surface opens the tickets
+         * behind it. A satisfaction number with no click-through is a number
+         * nobody can audit, and this story does not ship those.
+         */
+        public ?string $satisfaction = null,
         public ?string $createdFrom = null,
         public ?string $createdTo = null,
         public ?string $term = null,

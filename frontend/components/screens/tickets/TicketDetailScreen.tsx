@@ -12,6 +12,8 @@ import { StatusBadge, type TicketStatusName } from "@/components/domain/StatusBa
 import { TicketHeaderActions } from "@/components/domain/TicketHeaderActions/TicketHeaderActions";
 import { ConversationPanel } from "@/components/domain/TicketConversation/ConversationPanel";
 import { TicketComposer } from "@/components/domain/TicketComposer/TicketComposer";
+import { AiSuggestionPanel } from "@/components/domain/AiSuggestionPanel/AiSuggestionPanel";
+import { CategoryProposal } from "@/components/domain/CategoryProposal/CategoryProposal";
 import { TicketPropertyRail } from "@/components/domain/TicketPropertyRail/TicketPropertyRail";
 import { ApiError } from "@/lib/api/errors";
 import {
@@ -157,16 +159,70 @@ export function TicketDetailScreen({
     </div>
   );
 
+  /**
+   * Confirming a proposed category.
+   *
+   * The ORDINARY command path — the same call the rail's own select makes,
+   * carrying the version and attributed to the person who pressed the button.
+   * Never to System and never to the AI: the history has to say who decided,
+   * and the answer is always a person.
+   *
+   * A stale version is refused rather than merged, exactly as it is anywhere
+   * else on this screen: the reload offer is the rail's, and there is no diff
+   * and no keep-mine picker here either.
+   */
+  async function confirmCategory(categoryId: number): Promise<void> {
+    if (ticket === null) {
+      return;
+    }
+
+    try {
+      setTicket(await updateTicketProperties(ticket.id, ticket.version, { category_id: categoryId }));
+    } catch {
+      // The ticket moved on. Reloading is the offer, and the rail makes it.
+      reload();
+    }
+  }
+
   const rail = (
-    <TicketPropertyRail
-      ticket={ticket}
-      categories={categories}
-      assignees={assignees}
-      departments={departments}
-      editable={editable}
-      onChanged={setTicket}
-      onReload={reload}
-    />
+    <div className="flex flex-col gap-6">
+      <TicketPropertyRail
+        ticket={ticket}
+        categories={categories}
+        assignees={assignees}
+        departments={departments}
+        editable={editable}
+        onChanged={setTicket}
+        onReload={reload}
+      />
+
+      {/*
+        BESIDE the category field, never inside it. A pre-filled field is an
+        application: the agent sees a value, assumes somebody chose it, and
+        saves. Confirming here runs the ordinary category change with their own
+        name on it.
+      */}
+      {ticket !== null && editable && (
+        <CategoryProposal
+          ticketId={ticketId}
+          current={ticket.category_id}
+          onConfirm={(categoryId) => void confirmCategory(categoryId)}
+        />
+      )}
+
+      {/*
+        The assistant, in the rail and never in the thread. The conversation
+        has three treatments — customer, agent, internal note — and an AI draft
+        is not a fourth: it lives here and in the composer.
+      */}
+      {ticket !== null && (
+        <AiSuggestionPanel
+          ticketId={ticketId}
+          onUseDraft={setSeedBody}
+          onInsertArticle={(article) => setSeedBody(article.title ?? "")}
+        />
+      )}
+    </div>
   );
 
   const customer = (

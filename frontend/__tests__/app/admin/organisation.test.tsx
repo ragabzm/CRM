@@ -40,6 +40,19 @@ vi.mock("@/lib/api/admin", async () => {
       },
     ]),
     listDepartments: vi.fn().mockResolvedValue([{ id: 1, name: "Support", is_active: true }]),
+    /*
+     * Branches load alongside departments and staff. Without this the whole
+     * panel throws and every assertion below fails on a screen that never
+     * rendered — which reads as five broken features rather than one missing
+     * mock.
+     */
+    listBranches: vi
+      .fn()
+      .mockResolvedValue([{ id: 1, name: "Cairo", code: "CAI", is_active: true }]),
+    createBranch: vi
+      .fn()
+      .mockResolvedValue({ id: 2, name: "Alexandria", code: "ALX", is_active: true }),
+    setBranchActive: vi.fn().mockResolvedValue({}),
     createStaff: vi.fn().mockImplementation((input: unknown) => {
       staff.created.push(input);
 

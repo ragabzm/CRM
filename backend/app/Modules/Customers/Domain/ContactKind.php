@@ -22,6 +22,22 @@ enum ContactKind: string
      */
     case WhatsApp = 'whatsapp';
 
+    /**
+     * A chat session, for a visitor who gave us nothing else.
+     *
+     * Somebody can open the widget and type a question without an address or a
+     * number, and they still have to become a customer record — otherwise the
+     * conversation has no owner and cannot become a ticket. The session id is
+     * the only handle we have on them, so it is the identifier.
+     *
+     * It is deliberately NOT durable in the way an address is. A visitor who
+     * comes back tomorrow with a new session is a new record, and that is the
+     * honest answer: we have no way to know they are the same person. If they
+     * type an email into the widget, that identifier is used instead and they
+     * join the record they already had.
+     */
+    case Chat = 'chat';
+
     /** @return list<string> */
     public static function values(): array
     {

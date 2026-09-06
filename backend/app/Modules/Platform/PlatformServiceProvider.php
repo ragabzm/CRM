@@ -21,6 +21,8 @@ use App\Modules\Platform\Audit\Application\AuditWriter;
 use App\Modules\Platform\Audit\Domain\AuditRedactor;
 use App\Modules\Platform\Support\Audit\AuditLogger;
 use App\Modules\Platform\Support\Settings\RegistersSettings;
+use App\Modules\Platform\Branding\Domain\Branding;
+use App\Modules\Platform\Branding\Domain\ContrastRatio;
 use App\Modules\Platform\Support\Settings\SettingDefinition;
 use App\Modules\Platform\Support\Settings\SettingType;
 use App\Modules\Platform\Support\Settings\SettingsCache;
@@ -167,6 +169,91 @@ final class PlatformServiceProvider extends ServiceProvider implements Registers
      */
     public function registerSettings(SettingsRegistry $registry): void
     {
+        /*
+         * Branding: exactly three values, and there is no fourth.
+         *
+         * No application name, no separate sign-in logo, no palette, no
+         * typography or spacing control, no preview workflow, no theme builder
+         * and no custom CSS. Not disabled — absent. There is no field, no
+         * setting and no upload for any of them, which is the only version of
+         * "not in this release" that cannot quietly come back.
+         */
+        $registry->register(new SettingDefinition(
+            key: Branding::PRIMARY_COLOUR,
+            type: SettingType::String,
+            default: '',
+            validator: static function (mixed $value): true|string {
+                if (! is_string($value)) {
+                    return 'Give a colour as a hex value, such as #1c2333.';
+                }
+
+                if (trim($value) === '') {
+                    // Cleared. The product falls back to its own design system,
+                    // which is a complete answer rather than a missing one.
+                    return true;
+                }
+
+                if (! ContrastRatio::isHex($value)) {
+                    return 'Give a colour as a hex value, such as #1c2333.';
+                }
+
+                /*
+                 * REFUSED AT SAVE, with the measured ratio.
+                 *
+                 * Not accepted with a warning and not applied pending review:
+                 * a colour that fails contrast is one a customer cannot read,
+                 * and every softer option ends with it live on the portal
+                 * while somebody means to look at it later.
+                 *
+                 * Checked against every surface it will actually sit on, and
+                 * the FIRST failure is named — an administrator fixing one
+                 * surface at a time would otherwise be told about the next one
+                 * only after their second attempt.
+                 */
+                foreach (Branding::SURFACES as $name => $background) {
+                    $ratio = ContrastRatio::between($value, $background);
+
+                    if ($ratio < ContrastRatio::AA) {
+                        return sprintf(
+                            'That colour is too light against %s — it measures %.2f:1 and WCAG AA needs %.1f:1. Choose a darker shade.',
+                            $name,
+                            $ratio,
+                            ContrastRatio::AA,
+                        );
+                    }
+                }
+
+                return true;
+            },
+            summary: 'The brand colour on the four customer-facing surfaces. Refused if it fails WCAG AA contrast.',
+        ));
+
+        $registry->register(new SettingDefinition(
+            key: Branding::HEADER,
+            type: SettingType::String,
+            default: '',
+            validator: static fn (mixed $value): true|string => is_string($value) && mb_strlen($value) <= 120
+                ? true
+                : 'The header must be 120 characters or fewer.',
+            summary: 'The line shown above the portal and at the top of outbound email.',
+        ));
+
+        $registry->register(new SettingDefinition(
+            key: Branding::LOGO_ATTACHMENT,
+            type: SettingType::String,
+            default: '',
+            validator: static fn (mixed $value): true|string => is_string($value) && (trim($value) === '' || preg_match('/^[0-9A-HJKMNP-TV-Z]{26}$/i', trim($value)) === 1)
+                ? true
+                /*
+                 * An attachment id, never a URL. The logo goes through the
+                 * Story 3.2 path — validated, scanned, served from the object
+                 * store — and a settable URL would be a way to point a
+                 * customer-facing page at somebody else's server.
+                 */
+                : 'The logo is an uploaded attachment, not a link.',
+            summary: 'The organisation logo, uploaded like any other attachment.',
+        ));
+
         $registry->register(new SettingDefinition(
             key: 'platform.attachments.allowed_mime_types',
             type: SettingType::Json,

@@ -128,6 +128,25 @@ final class TicketListQuery
             $query->whereIn('department_id', $filters->departmentIds);
         }
 
+        if ($filters->branchIds !== []) {
+            // A plain WHERE on a query the caller already had the right to
+            // run. Nothing here consults who is asking.
+            $query->whereIn('branch_id', $filters->branchIds);
+        }
+
+        if ($filters->satisfaction !== null) {
+            /*
+             * `rated` is the denominator, not a fourth verdict: it is everyone
+             * who answered, which is what a satisfaction rate is a proportion
+             * of and therefore what its click-through has to land on.
+             */
+            match ($filters->satisfaction) {
+                'positive' => $query->where('satisfaction', true),
+                'negative' => $query->where('satisfaction', false),
+                default => $query->whereNotNull('satisfaction'),
+            };
+        }
+
         if ($filters->escalated !== null) {
             /*
              * Narrows WITHIN the lifecycle, never instead of it. An escalated

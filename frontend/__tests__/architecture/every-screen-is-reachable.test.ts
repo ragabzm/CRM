@@ -40,6 +40,31 @@ const ROOT = resolve(__dirname, "../..");
  */
 const EXCLUDED = ["components/ui/"];
 
+/**
+ * Components that exist ahead of the screen that will use them, each for a
+ * stated reason.
+ *
+ * Deliberately uncomfortable to add to, and not a suppression list. Every
+ * entry is work somebody cannot reach today, which is the exact bug this file
+ * exists to catch — so an entry is only honest when the story that shipped it
+ * said, in as many words, that it ships no user-visible feature.
+ *
+ * If an entry is still here when its story's successors have landed, the
+ * component was never wired up and the entry is now hiding that.
+ *
+ * @see .squad/gaps — anything that outlives its reason belongs there instead.
+ */
+const AHEAD_OF_ITS_CONSUMER: Record<string, string> = {
+  /*
+   * Story 9.1 ships the AI connector and NO capability: the port, the
+   * sanitiser, the five switches, the null adapter and this label. The label
+   * is built once here precisely so that the five capabilities in 9.2 and 9.3
+   * cannot each invent their own — which only works if it exists before they
+   * do. Its consumers are those two stories.
+   */
+  "components/domain/AiLabel/AiLabel.tsx": "Story 9.1 ships the AI label before 9.2/9.3 use it",
+};
+
 function filesUnder(dir: string, out: string[] = []): string[] {
   if (!existsSync(dir)) return out;
 
@@ -126,6 +151,7 @@ function unreachable(): string[] {
     .filter((file) => !reached.has(file))
     .map((file) => relative(ROOT, file))
     .filter((path) => !EXCLUDED.some((prefix) => path.startsWith(prefix)))
+    .filter((path) => !(path in AHEAD_OF_ITS_CONSUMER))
     .sort();
 }
 
@@ -144,6 +170,27 @@ describe("the component graph", () => {
      * test rather than a note in a file.
      */
     expect(unreachable()).toEqual([]);
+  });
+
+  it("keeps the ahead-of-its-consumer list honest", () => {
+    /*
+     * Every exemption names a file that still exists AND is still unreachable.
+     * A stale entry is worse than no list: it is a component somebody wired up
+     * months ago with a note still claiming nobody can reach it, and the next
+     * genuinely unreachable file added beside it inherits that excuse.
+     */
+    const reached = reachableFromRoutes();
+
+    for (const [path, reason] of Object.entries(AHEAD_OF_ITS_CONSUMER)) {
+      const full = join(ROOT, path);
+
+      expect(existsSync(full), `${path} is exempted but no longer exists: ${reason}`).toBe(true);
+
+      expect(
+        reached.has(full),
+        `${path} is reachable now — remove its exemption (${reason}).`,
+      ).toBe(false);
+    }
   });
 
   it("actually walks the graph rather than finding nothing", () => {

@@ -59,7 +59,7 @@ final class SlaClock
              * on the evidence of when the reply actually went — not on where
              * the clock would be now.
              */
-            $elapsed = $this->hours->workingMinutesBetween($ticket->createdAt, $ticket->firstAgentReplyAt);
+            $elapsed = $this->responseMinutes($ticket, $ticket->firstAgentReplyAt);
 
             return new TimerReading(
                 state: $elapsed > $target ? SlaState::Breached : SlaState::Met,
@@ -86,13 +86,7 @@ final class SlaClock
         $target = $this->targetMinutes(self::RESOLUTION, $ticket->priority);
         $stopAt = $ticket->resolvedAt ?? $now;
 
-        $elapsed = $this->hours->workingMinutesBetween($ticket->createdAt, $stopAt)
-            - $this->pausedMinutes($ticket, $stopAt);
-
-        // Clamped: a pause recorded slightly outside the measured interval —
-        // clock skew, a status change at the same second — must not produce a
-        // negative elapsed time and a ticket that looks better than new.
-        $elapsed = max(0, $elapsed);
+        $elapsed = $this->resolutionMinutes($ticket, $stopAt);
 
         if ($ticket->isResolved()) {
             return new TimerReading(
@@ -156,6 +150,59 @@ final class SlaClock
     private function dueAt(TicketTimeline $ticket, int $target, int $elapsed, CarbonImmutable $now): CarbonImmutable
     {
         return $this->hours->addWorkingMinutes($now, max(0, $target - $elapsed));
+    }
+
+    /**
+     * How long a finished ticket actually took, in working minutes.
+     *
+     * NO TARGET IS CONSULTED. This is a measurement of what happened, and it
+     * is public because Reporting needs exactly this and must not reimplement
+     * it: a naive wall-clock difference would disagree with the ticket's own
+     * SLA badge, and the customer would find the disagreement first.
+     *
+     * Only COMPLETED measurements are returned. A ticket nobody has replied to
+     * has no response time — it has a clock that is still running, and folding
+     * that into an average would report the desk as faster than it is by
+     * counting its slowest work as zero.
+     *
+     * @return array{response: int|null, resolution: int|null}
+     */
+    public function elapsed(TicketTimeline $ticket): array
+    {
+        return [
+            'response' => $ticket->firstAgentReplyAt === null
+                ? null
+                : $this->responseMinutes($ticket, $ticket->firstAgentReplyAt),
+
+            'resolution' => $ticket->resolvedAt === null
+                ? null
+                : $this->resolutionMinutes($ticket, $ticket->resolvedAt),
+        ];
+    }
+
+    /**
+     * Creation to first reply, in working minutes.
+     *
+     * Response does NOT pause: a ticket in `pending` with no agent reply is a
+     * ticket the desk has not touched, whatever its status says.
+     */
+    private function responseMinutes(TicketTimeline $ticket, CarbonImmutable $stopAt): int
+    {
+        return $this->hours->workingMinutesBetween($ticket->createdAt, $stopAt);
+    }
+
+    /** Creation to resolution, in working minutes, less time spent waiting. */
+    private function resolutionMinutes(TicketTimeline $ticket, CarbonImmutable $stopAt): int
+    {
+        $elapsed = $this->hours->workingMinutesBetween($ticket->createdAt, $stopAt)
+            - $this->pausedMinutes($ticket, $stopAt);
+
+        /*
+         * Clamped: a pause recorded slightly outside the measured interval —
+         * clock skew, a status change at the same second — must not produce a
+         * negative elapsed time and a ticket that looks better than new.
+         */
+        return max(0, $elapsed);
     }
 
     /** Working minutes the ticket spent waiting on the customer. */

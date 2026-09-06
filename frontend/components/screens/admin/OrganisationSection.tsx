@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
 import { ActionBar } from "@/components/domain/ActionBar/ActionBar";
+import { BranchList } from "@/components/domain/BranchList/BranchList";
 import { DataTable } from "@/components/domain/DataTable/DataTable";
 import { RowSkeleton } from "@/components/domain/RowSkeleton/RowSkeleton";
 import type { ColumnDef } from "@/components/domain/DataTable/DataTable.types";
@@ -13,6 +14,8 @@ import { RowActions } from "@/components/domain/RowActions/RowActions";
 import { SubmitButton } from "@/components/domain/SubmitButton/SubmitButton";
 import {
   createDepartment,
+  listBranches,
+  type Branch,
   createStaff,
   deactivateDepartment,
   deactivateStaff,
@@ -45,6 +48,7 @@ export function OrganisationSection() {
   const t = useTranslations("admin.organisation");
 
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,10 +57,15 @@ export function OrganisationSection() {
     setLoading(true);
 
     try {
-      const [people, teams] = await Promise.all([listStaff(), listDepartments()]);
+      const [people, teams, offices] = await Promise.all([
+        listStaff(),
+        listDepartments(),
+        listBranches(),
+      ]);
 
       setStaff(people);
       setDepartments(teams);
+      setBranches(offices);
       setError(null);
     } catch (caught) {
       /*
@@ -106,6 +115,20 @@ export function OrganisationSection() {
           <RowSkeleton label={t("loading")} rows={3} />
         ) : (
           <DepartmentList departments={departments} onChanged={load} />
+        )}
+      </Panel>
+
+      {/*
+        Branches, beside departments and deliberately not merged with them. A
+        department is who does the work; a branch is where it happened. Folding
+        them into one list would ask an administrator to pick a single value
+        for two different questions.
+      */}
+      <Panel title={t("branches.title")} hint={t("branches.body")}>
+        {loading && branches.length === 0 ? (
+          <RowSkeleton label={t("loading")} rows={2} />
+        ) : (
+          <BranchList branches={branches} onChanged={load} />
         )}
       </Panel>
 

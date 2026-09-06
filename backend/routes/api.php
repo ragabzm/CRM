@@ -9,6 +9,9 @@ use App\Modules\Knowledge\Http\Controllers\HelpCentreController;
 use App\Modules\Knowledge\Http\Controllers\Admin\ArticleLifecycleController;
 use App\Modules\Knowledge\Http\Controllers\Admin\ArticlesController;
 use App\Modules\Knowledge\Http\Controllers\Admin\ArticleTranslationsController;
+use App\Modules\Assist\Http\Controllers\TicketAssistController;
+use App\Modules\Channels\Http\Controllers\ChatDeskController;
+use App\Modules\Channels\Http\Controllers\ChatWidgetController;
 use App\Modules\Channels\Http\Controllers\PhoneWebhookController;
 use App\Modules\Channels\Http\Controllers\WebFormAttachmentController;
 use App\Modules\Channels\Http\Controllers\WebFormIntakeController;
@@ -16,7 +19,10 @@ use App\Modules\Email\Http\Controllers\EmailTestSendController;
 use App\Modules\Email\Http\Controllers\InboundWebhookController;
 use App\Modules\Email\Http\Controllers\MailLogController;
 use App\Modules\Email\Http\Controllers\MailQuarantineController;
+use App\Modules\Platform\Branches\Http\Controllers\BranchesController;
+use App\Modules\Platform\Branding\Http\Controllers\BrandingController;
 use App\Modules\Platform\Http\Controllers\Admin\QuickRepliesController;
+use App\Modules\Reporting\Http\Controllers\ReportsController;
 use App\Modules\Sla\Http\Controllers\SlaPreviewController;
 use App\Modules\Customers\Http\Controllers\CustomerDuplicatesController;
 use App\Modules\Customers\Http\Controllers\CustomerNotesController;
@@ -122,6 +128,27 @@ Route::prefix('v1')->group(function (): void {
      * middleware prevents.
      */
     Route::middleware('auth:web')->group(function (): void {
+        /*
+         * Branches: read them to pick and filter, manage them to change the
+         * org chart. Two capabilities, because an agent who cannot administer
+         * the list still has to be able to see it — a label nobody can read is
+         * not a label.
+         *
+         * There is no delete route. A branch that closed still describes where
+         * years of tickets happened; deactivation is the only way out.
+         */
+        Route::get('/branches', [BranchesController::class, 'index'])
+            ->middleware('can.capability:'.Capabilities::BRANCH_READ)
+            ->name('branches.index');
+
+        Route::middleware('can.capability:'.Capabilities::BRANCH_MANAGE)->group(function (): void {
+            Route::post('/branches', [BranchesController::class, 'store'])->name('branches.store');
+
+            Route::patch('/branches/{branch}', [BranchesController::class, 'update'])
+                ->whereNumber('branch')
+                ->name('branches.update');
+        });
+
         Route::middleware('can.capability:'.Capabilities::USER_MANAGE)->group(function (): void {
             Route::get('/users', [UsersController::class, 'index'])->name('users.index');
             Route::post('/users', [UsersController::class, 'store'])->name('users.store');
@@ -202,6 +229,72 @@ Route::prefix('v1')->group(function (): void {
          * decision. The URL says whose these are, and there is no shape of
          * request that asks for anybody else's.
          */
+        /*
+         * The three in-ticket assists, plus the articles beside them.
+         *
+         * Gated on reading the ticket and nothing narrower: an agent who can
+         * read a conversation can ask the machine about it, and the AI
+         * capability switches decide whether there is anything to ask. Four
+         * READS — there is no accept, apply or send route here, because
+         * confirming a proposal is the ordinary command path with the
+         * confirming person's name on it.
+         */
+        Route::middleware('can.capability:'.Capabilities::TICKET_READ)
+            ->prefix('tickets/{ticket}/assist')
+            ->whereUlid('ticket')
+            ->name('assist.')
+            ->group(function (): void {
+                Route::get('/summary', [TicketAssistController::class, 'summary'])->name('summary');
+                Route::get('/reply', [TicketAssistController::class, 'reply'])->name('reply');
+                Route::get('/category', [TicketAssistController::class, 'category'])->name('category');
+                Route::get('/articles', [TicketAssistController::class, 'articles'])->name('articles');
+            });
+
+        /*
+         * The chat desk: who is waiting, and taking one of them.
+         *
+         * Gated on `chat.handle` rather than on reading a ticket, because
+         * taking a chat commits you to being there NOW — which is a rota
+         * decision a desk makes, not a consequence of being able to read the
+         * queue. Replies are deliberately absent: an agent answers a chat
+         * through the ticket's own message endpoint, like everything else.
+         */
+        Route::middleware('can.capability:'.Capabilities::CHAT_HANDLE)
+            /*
+             * `chat-desk`, deliberately not `chat`.
+             *
+             * The widget's own endpoints live under `/chat` and are reachable
+             * with no session at all. Sharing a prefix between the two would
+             * mean one path answering to two completely different
+             * authorisations depending on the verb — which is exactly the
+             * shape somebody reads too quickly and adds a public route to.
+             */
+            ->prefix('chat-desk')
+            ->name('chat.desk.')
+            ->group(function (): void {
+                Route::get('/conversations', [ChatDeskController::class, 'index'])->name('index');
+
+                Route::post('/conversations/{conversation}/take', [ChatDeskController::class, 'take'])
+                    ->whereUlid('conversation')
+                    ->name('take');
+
+                Route::post('/conversations/{conversation}/close', [ChatDeskController::class, 'close'])
+                    ->whereUlid('conversation')
+                    ->name('close');
+            });
+
+        /*
+         * The fixed report set. One endpoint, read-only, supervisor and above.
+         *
+         * The capability is the single gate — there is no report-specific
+         * permission model, because the figures are about how a DESK is
+         * performing rather than about a person. `RequireCapability` refuses
+         * with a stated reason and a named person to ask, never an empty page.
+         */
+        Route::get('/reports', [ReportsController::class, 'show'])
+            ->middleware('can.capability:'.Capabilities::REPORT_VIEW)
+            ->name('reports.show');
+
         Route::prefix('me')->name('me.')->group(function (): void {
             Route::get('/tasks', [PersonalWorkController::class, 'tasks'])->name('tasks.index');
             Route::post('/tasks', [PersonalWorkController::class, 'storeTask'])->name('tasks.store');
@@ -736,6 +829,37 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/articles/{article}', [HelpCentreController::class, 'show'])
             ->whereUlid('article')
             ->name('articles.show');
+    });
+
+    /*
+     * The chat widget's four endpoints, and nothing else it can reach.
+     *
+     * Unauthenticated in the sense that there is no session and no user. The
+     * authorisation is an http-only cookie holding a token scoped to exactly
+     * one conversation: it resolves to nobody, grants no capability, and there
+     * is no endpoint in this group that offers a ticket, a customer or a list.
+     * A stolen token reads and continues one conversation until it expires.
+     *
+     * Exempt from Idempotency-Key: the widget is a browser, browsers do not
+     * send one, and a repeated `send` is a visitor pressing enter twice — which
+     * is two messages, honestly recorded, not a duplicate to swallow.
+     */
+    /*
+     * The brand, for the surfaces a customer reaches before signing in.
+     *
+     * Public because the portal, the public form and the widget all draw
+     * themselves before anybody has authenticated — and three presentation
+     * values on pages anybody can already load give nothing away.
+     */
+    Route::get('/branding', [BrandingController::class, 'show'])->name('branding.show');
+
+    Route::prefix('chat')->name('chat.')->withoutMiddleware([IdempotencyKey::class])->group(function (): void {
+        Route::get('/embed-origins', [ChatWidgetController::class, 'embedOrigins'])->name('origins');
+        Route::post('/conversations', [ChatWidgetController::class, 'open'])->name('open');
+        Route::get('/conversations/current', [ChatWidgetController::class, 'current'])->name('current');
+        Route::get('/conversations/current/messages', [ChatWidgetController::class, 'messages'])->name('messages');
+        Route::post('/conversations/current/messages', [ChatWidgetController::class, 'send'])->name('send');
+        Route::post('/conversations/current/close', [ChatWidgetController::class, 'close'])->name('close');
     });
 
     /*

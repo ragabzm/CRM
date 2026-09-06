@@ -4,13 +4,14 @@ import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 
 import { EmptyState } from "@/components/domain/EmptyState/EmptyState";
+import { ChatDesk } from "@/components/domain/ChatDesk/ChatDesk";
 import { MentionList } from "@/components/domain/MentionList/MentionList";
+import { PageTabs } from "@/components/domain/PageTabs/PageTabs";
 import { TaskComposer } from "@/components/domain/TaskComposer/TaskComposer";
 import { TaskList } from "@/components/domain/TaskList/TaskList";
 import { FormAlert } from "@/components/domain/FormAlert/FormAlert";
 import { RowSkeleton } from "@/components/domain/RowSkeleton/RowSkeleton";
 import { TicketListTable } from "@/components/domain/TicketList/TicketListTable";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createTask,
   listMentions,
@@ -18,6 +19,7 @@ import {
   markMentionRead,
   setTaskCompletion,
 } from "@/lib/api/personal";
+import { chatDesk, takeChat } from "@/lib/api/chat";
 import { listTickets, ticketCounts, type Ticket, type TicketListParams } from "@/lib/api/tickets";
 import { useFreshQuery } from "@/lib/data/useFreshQuery";
 import { useFormat } from "@/lib/format/useFormat";
@@ -39,11 +41,20 @@ export interface AgentHomeScreenProps {
  * layout preference — a Tasks section beside Tickets invites a second backlog
  * with its own queue, its own owner and its own arguments about priority.
  */
-export const HOME_TABS = ["queue", "tasks", "mentions"] as const;
+export const HOME_TABS = ["queue", "tasks", "mentions", "chat"] as const;
 
 export type HomeTab = (typeof HOME_TABS)[number];
 
 const REFETCH_MS = 30_000;
+
+/**
+ * The short interval, used only by the chat tab.
+ *
+ * A floor rather than the number itself: the server's own `poll_seconds`
+ * setting decides, and this is what the pane uses before the first answer
+ * arrives to tell it.
+ */
+const CHAT_REFETCH_MS = 3_000;
 
 /**
  * The reasons a ticket is on this screen, worst first.
@@ -154,7 +165,41 @@ export function AgentHomeScreen({ currentUserId, onOpen, initialTab }: AgentHome
   const tasks = useFreshQuery("tasks", tasksFetcher, { refetchInterval: REFETCH_MS });
   const mentions = useFreshQuery("mentions", mentionsFetcher, { refetchInterval: REFETCH_MS });
 
+  /*
+   * Chat is the ONE thing on this screen that polls quickly.
+   *
+   * Everything else keeps AD-29's thirty seconds; a conversation somebody is
+   * waiting in cannot. The interval comes from the server so the agent's pane
+   * and the visitor's widget move at the same speed — two different numbers
+   * would mean an agent seeing a message seconds after the visitor believed it
+   * had been read.
+   *
+   * And only while the tab is OPEN. A short poll running behind three other
+   * tabs is load nobody asked for, on the busiest screen in the product.
+   */
+  const chatFetcher = useCallback(() => chatDesk(), []);
+
+  const chat = useFreshQuery("chat", chatFetcher, {
+    refetchInterval: tab === "chat" ? CHAT_REFETCH_MS : REFETCH_MS,
+  });
+
   const personal = counts.data?.personal ?? { tasks: 0, tasks_overdue: 0, mentions: 0 };
+
+  /*
+   * Narrowed ONCE, defensively, and used everywhere below.
+   *
+   * `chat.data?.waiting.length` reads as safe and is not: the `?.` guards the
+   * response being absent, never a response that arrived without the field.
+   * TypeScript says `waiting` is always there; a deployment where the API is a
+   * version behind says otherwise, and the difference between the two blanked
+   * the ENTIRE home screen — queue, counts and all — rather than one tab.
+   *
+   * A screen must survive a response that does not match its own type.
+   */
+  const desk = {
+    waiting: chat.data?.waiting ?? [],
+    mine: chat.data?.mine ?? [],
+  };
 
   /*
    * One refresh after a write, not two optimistic copies.
@@ -223,120 +268,153 @@ export function AgentHomeScreen({ currentUserId, onOpen, initialTab }: AgentHome
 
       <CountsStrip counts={counts.data} currentUserId={currentUserId} />
 
-      <Tabs value={tab} onValueChange={(next) => setTab(next as HomeTab)}>
-        <TabsList aria-label={t("tabs.label")}>
-          <TabsTrigger value="queue">{t("tabs.queue")}</TabsTrigger>
-          <TabsTrigger value="tasks">
-            {/*
+      <PageTabs
+        label={t("tabs.label")}
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          {
+            value: "queue",
+            label: t("tabs.queue"),
+            content: (
+              <>
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <h2 className="text-base font-semibold text-fg-default">{t("queue.title")}</h2>
+
+                  {/*
+                    The ordering, said out loud. The queue has always been
+                    sorted by urgency and then age, and nothing on screen
+                    mentioned it — so the order looked arbitrary, and an agent
+                    working top-down had no reason to trust that top meant
+                    "first".
+                  */}
+                  <p className="text-xs text-fg-subtle">{t("queue.ordering")}</p>
+                </div>
+
+                {/*
+                  Quiet, and the rows stay put. A banner that shouted would
+                  interrupt work over a blip the next interval will fix by
+                  itself.
+                */}
+                {queue.stale && queue.data !== null && (
+                  <p role="status" className="text-xs text-fg-muted">
+                    {list("stale")}
+                  </p>
+                )}
+
+                {queue.stale && queue.data === null && (
+                  <FormAlert
+                    tone="error"
+                    action={{ label: list("retry"), onSelect: queue.refetch }}
+                  >
+                    {list("loadError")}
+                  </FormAlert>
+                )}
+
+                {queue.loading && queue.data === null ? (
+                  /*
+                   * The same rule as the list: an empty state on first paint
+                   * is an answer to a question the request has not returned
+                   * yet.
+                   */
+                  <RowSkeleton label={list("loading")} rows={5} />
+                ) : rows.length === 0 ? (
+                  <EmptyState headline={t("queue.empty")} description={t("queue.emptyBody")} />
+                ) : (
+                  /*
+                   * ONE table with spanning group headings.
+                   *
+                   * Rendering a DataTable per group gave each group its own
+                   * search box and its own column picker, let the columns
+                   * settle to different widths, and repeated the header row —
+                   * so a grouped queue read as two unrelated tables instead of
+                   * one list ordered by why each ticket needs attention.
+                   */
+                  <TicketListTable
+                    tickets={grouped.rows}
+                    caption={t("queue.title")}
+                    onOpen={onOpen}
+                    assigneeNames={assigneeNames}
+                    categoryNames={categoryNames}
+                    groups={grouped.groups}
+                  />
+                )}
+              </>
+            ),
+          },
+          {
+            value: "tasks",
+            /*
               The count is part of the label, not a decoration beside it, so a
-              screen reader announces "Tasks and reminders, 4" rather than
-              reading a bare number after the tab name.
-            */}
-            {t("tabs.tasks", { count: personal.tasks })}
-          </TabsTrigger>
-          <TabsTrigger value="mentions">
-            {t("tabs.mentions", { count: personal.mentions })}
-          </TabsTrigger>
-        </TabsList>
+              screen reader announces "Tasks and reminders, 4" rather than a
+              bare number read out after the tab name.
+            */
+            label: t("tabs.tasks", { count: personal.tasks }),
+            content: (
+              <>
+                <TaskComposer
+                  onCreate={async (input) => {
+                    await createTask(input);
+                    refreshPersonal();
+                  }}
+                />
 
-        <TabsContent value="tasks" className="flex flex-col gap-4">
-          <TaskComposer
-            onCreate={async (input) => {
-              await createTask(input);
-              refreshPersonal();
-            }}
-          />
-
-          {tasks.loading && tasks.data === null ? (
-            <RowSkeleton label={list("loading")} rows={4} />
-          ) : (
-            <TaskList
-              tasks={tasks.data ?? []}
-              onToggle={async (id, completed) => {
-                await setTaskCompletion(id, completed);
-                refreshPersonal();
-              }}
-              onOpenTicket={onOpen}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="mentions">
-          {mentions.loading && mentions.data === null ? (
-            <RowSkeleton label={list("loading")} rows={3} />
-          ) : (
-            <MentionList
-              mentions={mentions.data ?? []}
-              /*
-               * At the note, not the top of the thread. The whole content of a
-               * mention is "come and read this sentence".
-               */
-              onOpen={(ticketId, messageId) => onOpen(`${ticketId}#note-${messageId}`)}
-              onMarkRead={async (id) => {
-                await markMentionRead(id);
-                refreshMentions();
-              }}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="queue" className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-baseline gap-2">
-            <h2 className="text-base font-semibold text-fg-default">{t("queue.title")}</h2>
-
-            {/*
-            The ordering, said out loud. The queue has always been sorted by
-            urgency and then age, and nothing on screen mentioned it — so the
-            order looked arbitrary, and an agent working top-down had no reason
-            to trust that top meant "first".
-          */}
-            <p className="text-xs text-fg-subtle">{t("queue.ordering")}</p>
-          </div>
-
-          {/*
-          Quiet, and the rows stay put. A banner that shouted would interrupt
-          work over a blip the next interval will fix by itself.
-        */}
-          {queue.stale && queue.data !== null && (
-            <p role="status" className="text-xs text-fg-muted">
-              {list("stale")}
-            </p>
-          )}
-
-          {queue.stale && queue.data === null && (
-            <FormAlert tone="error" action={{ label: list("retry"), onSelect: queue.refetch }}>
-              {list("loadError")}
-            </FormAlert>
-          )}
-
-          {queue.loading && queue.data === null ? (
-            /*
-            The same rule as the list: an empty state on first paint is an
-            answer to a question the request has not returned yet.
-          */
-            <RowSkeleton label={list("loading")} rows={5} />
-          ) : rows.length === 0 ? (
-            <EmptyState headline={t("queue.empty")} description={t("queue.emptyBody")} />
-          ) : (
-            /*
-            ONE table with spanning group headings.
-            Rendering a DataTable per group gave each group its own search box
-            and its own column picker, let the columns settle to different
-            widths, and repeated the header row — so a grouped queue read as
-            two unrelated tables instead of one list ordered by why each
-            ticket needs attention.
-          */
-            <TicketListTable
-              tickets={grouped.rows}
-              caption={t("queue.title")}
-              onOpen={onOpen}
-              assigneeNames={assigneeNames}
-              categoryNames={categoryNames}
-              groups={grouped.groups}
-            />
-          )}
-        </TabsContent>
-      </Tabs>
+                {tasks.loading && tasks.data === null ? (
+                  <RowSkeleton label={list("loading")} rows={4} />
+                ) : (
+                  <TaskList
+                    tasks={tasks.data ?? []}
+                    onToggle={async (id, completed) => {
+                      await setTaskCompletion(id, completed);
+                      refreshPersonal();
+                    }}
+                    onOpenTicket={onOpen}
+                  />
+                )}
+              </>
+            ),
+          },
+          {
+            value: "chat",
+            label: t("tabs.chat", { count: desk.waiting.length + desk.mine.length }),
+            content: (
+              <ChatDesk
+                waiting={desk.waiting}
+                mine={desk.mine}
+                onTake={async (id) => {
+                  await takeChat(id);
+                  chat.refetch();
+                }}
+                onOpenTicket={onOpen}
+              />
+            ),
+          },
+          {
+            value: "mentions",
+            label: t("tabs.mentions", { count: personal.mentions }),
+            content: (
+              <>
+                {mentions.loading && mentions.data === null ? (
+                  <RowSkeleton label={list("loading")} rows={3} />
+                ) : (
+                  <MentionList
+                    mentions={mentions.data ?? []}
+                    /*
+                     * At the note, not the top of the thread. The whole content of a
+                     * mention is "come and read this sentence".
+                     */
+                    onOpen={(ticketId, messageId) => onOpen(`${ticketId}#note-${messageId}`)}
+                    onMarkRead={async (id) => {
+                      await markMentionRead(id);
+                      refreshMentions();
+                    }}
+                  />
+                )}
+              </>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

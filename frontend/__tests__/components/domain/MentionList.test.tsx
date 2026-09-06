@@ -41,10 +41,7 @@ describe("mentions on Home", () => {
      * The whole content of a mention is "come and read this sentence".
      * Landing at the top of a long conversation asks somebody to search for it.
      */
-    expect(onOpen).toHaveBeenCalledWith(
-      "01JQZ0000000000000000000TT",
-      "01JQZ0000000000000000000MM",
-    );
+    expect(onOpen).toHaveBeenCalledWith("01JQZ0000000000000000000TT", "01JQZ0000000000000000000MM");
   });
 
   it("marks one as read", async () => {

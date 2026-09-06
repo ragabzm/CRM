@@ -205,6 +205,23 @@ final class SettingsRegistryTest extends TestCase
          */
         $this->assertSame([
             // Story 7.1: the channel spine.
+            'ai.capability.category_proposal',
+            'ai.capability.chatbot',
+            'ai.capability.suggested_articles',
+            'ai.capability.suggested_reply',
+            'ai.capability.summary',
+            'ai.max_characters',
+            'ai.model',
+            'ai.provider',
+            'ai.timeout_seconds',
+            'ai.transmission',
+            'branding.header',
+            'branding.logo_attachment_id',
+            'branding.primary_colour',
+            'channels.chat.abandon_after_minutes',
+            'channels.chat.allowed_origins',
+            'channels.chat.poll_seconds',
+            'channels.chat.token_minutes',
             'channels.correlation_window_hours.email',
             'channels.correlation_window_hours.web_form',
             'channels.default_department_id',

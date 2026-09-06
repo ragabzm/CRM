@@ -30,6 +30,14 @@ enum AuditAction: string
     case DepartmentUpdated = 'department.updated';
     case DepartmentDeleted = 'department.deleted';
 
+    /*
+     * Created and updated, and deliberately no `branch.deleted`. Deactivation
+     * is the only way out, because a closed branch still describes where years
+     * of tickets happened.
+     */
+    case BranchCreated = 'branch.created';
+    case BranchUpdated = 'branch.updated';
+
     case ConfigChanged = 'config.changed';
 
     /*

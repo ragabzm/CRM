@@ -9,7 +9,7 @@ use App\Modules\Portal\Domain\PortalAccount;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Tests\Feature\Security\InteractsWithSpaSession;
 use Tests\Support\MakesTickets;
@@ -44,7 +44,21 @@ final class PortalRegistrationTest extends TestCase
 
         // The limiters are the subject of their own test; everywhere else they
         // would just make the suite flaky.
-        RateLimiter::clear('portal-register');
+        /*
+         * The whole cache store, not the limiter NAME.
+         *
+         * `RateLimiter::clear($name)` clears the name, not the key the limiter
+         * actually counts against — which is the name plus whatever the
+         * limiter is keyed by, hashed. Every test in this process shares that
+         * key, so a test elsewhere silently spends this one's allowance and
+         * the result depends on which order the suite ran in.
+         *
+         * This has now been found twice by a test that was green alone and red
+         * in the suite. Clearing the store is blunt and correct: these
+         * limiters live in the cache, nothing else in a test depends on its
+         * contents, and a limiter that leaks between tests proves nothing.
+         */
+        Cache::clear();
     }
 
     private function register(array $overrides = []): \Illuminate\Testing\TestResponse
@@ -136,7 +150,7 @@ final class PortalRegistrationTest extends TestCase
     {
         $this->register()->assertStatus(201);
 
-        RateLimiter::clear('portal-register');
+        Cache::clear();
 
         $this->register()->assertStatus(422);
     }
@@ -144,7 +158,7 @@ final class PortalRegistrationTest extends TestCase
     public function test_the_same_address_in_different_case_is_the_same_person(): void
     {
         $this->register()->assertStatus(201);
-        RateLimiter::clear('portal-register');
+        Cache::clear();
 
         // Letting both register would split their requests across two accounts
         // neither of which shows the whole picture.

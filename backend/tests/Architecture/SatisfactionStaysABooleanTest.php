@@ -142,7 +142,21 @@ final class SatisfactionStaysABooleanTest extends TestCase
                 // like the portal does — same window, same lock, same history.
                 // Its authorisation is a signature rather than a session.
                 'FeedbackInvitationController.php',
+                /*
+                 * READERS, not writers, and they are here because this scan is
+                 * deliberately broad: it lists every file that mentions the
+                 * figure at all, so a new name has to be looked at rather than
+                 * merged.
+                 *
+                 * `ListTicketsRequest` validates the filter the reports click
+                 * through on; `ReportsController` and `SatisfactionReport`
+                 * count it. None of the three can change it — the only write
+                 * path is still `RateTicket`, and staff still cannot reach it.
+                 */
+                'ListTicketsRequest.php',
                 'RateTicket.php',
+                'ReportsController.php',
+                'SatisfactionReport.php',
                 'Ticket.php',
                 'TicketResource.php',
             ],

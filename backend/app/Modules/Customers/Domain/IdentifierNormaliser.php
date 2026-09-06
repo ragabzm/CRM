@@ -36,6 +36,16 @@ final class IdentifierNormaliser
             // A WhatsApp number IS a phone number. Normalising it differently
             // is how the same digits stop matching themselves.
             ContactKind::Phone, ContactKind::WhatsApp => self::phone($value),
+            /*
+             * A chat session id, taken exactly as it is.
+             *
+             * There is nothing to normalise: it is a ULID this application
+             * minted, not something a person typed, so there are no spellings
+             * of it to collapse. Lowercasing it here would be a rule that only
+             * exists to make the `match` look symmetrical, and would silently
+             * stop matching if ULIDs ever changed case.
+             */
+            ContactKind::Chat => trim($value),
         };
     }
 

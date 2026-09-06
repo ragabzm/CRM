@@ -10,7 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 final class PasswordResetTest extends TestCase
@@ -24,8 +24,21 @@ final class PasswordResetTest extends TestCase
     {
         parent::setUp();
         $this->setUpSpaOrigin();
-        RateLimiter::clear('password-reset');
-        RateLimiter::clear('password-reset-confirm');
+        /*
+         * The whole cache store, not the limiter NAME.
+         *
+         * `RateLimiter::clear($name)` clears the name, not the key the limiter
+         * actually counts against — which is the name plus whatever the
+         * limiter is keyed by, hashed. Every test in this process shares that
+         * key, so a test elsewhere silently spends this one's allowance and
+         * the result depends on which order the suite ran in.
+         *
+         * This has now been found twice by a test that was green alone and red
+         * in the suite. Clearing the store is blunt and correct: these
+         * limiters live in the cache, nothing else in a test depends on its
+         * contents, and a limiter that leaks between tests proves nothing.
+         */
+        Cache::clear();
     }
 
     /** Requests a link and returns the plaintext token from the notification. */

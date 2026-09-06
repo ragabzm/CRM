@@ -37,7 +37,13 @@ final class OneTransportShapeTest extends TestCase
          * tidy separation right up until they diverged.
          */
         $this->assertSame(
-            ['PhoneChannelAdapter.php', 'WebFormChannelAdapter.php'],
+            [
+                // One adapter per TRANSPORT, and chat is its own transport: a
+                // widget that polls is not a webhook and not a form post.
+                'ChatChannelAdapter.php',
+                'PhoneChannelAdapter.php',
+                'WebFormChannelAdapter.php',
+            ],
             $adapters,
         );
     }

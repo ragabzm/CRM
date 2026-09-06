@@ -136,6 +136,53 @@ final class Capabilities
     public const KNOWLEDGE_PUBLISH = 'knowledge.publish';
 
     /**
+     * Answering live chat.
+     *
+     * Its own capability rather than folding into `ticket.read`, because chat
+     * is the one queue where taking a row commits you to being there NOW. A
+     * desk decides which of its people are on chat this afternoon, and that
+     * decision is exactly this permission.
+     *
+     * Note what it is NOT: an availability state. There is no presence here,
+     * no "away", nothing that turns itself off — holding the capability means
+     * the waiting list is visible to you, and whether you take a conversation
+     * is a decision you make by clicking, not a status you set.
+     */
+    public const CHAT_HANDLE = 'chat.handle';
+
+    /**
+     * Reading the reports.
+     *
+     * Supervisor and above, and that is the whole permission model for this
+     * surface — there is no report-specific one. The figures are about how a
+     * DESK is performing rather than about a person, and the question "how did
+     * we do last month?" belongs to whoever is answerable for the answer.
+     *
+     * Because it stops at supervisor there is no agent self-view to protect,
+     * and so no self-view privacy rule anywhere in the reports.
+     */
+    public const REPORT_VIEW = 'report.view';
+
+    /**
+     * Creating, renaming and deactivating branches.
+     *
+     * Administrator-only, held through the Gate::before rather than granted in
+     * the role matrix — the same shape as `department.manage`, because both
+     * describe the ORGANISATION rather than the work, and both are changed
+     * about once a year by the person answerable for the org chart.
+     */
+    public const BRANCH_MANAGE = 'branch.manage';
+
+    /**
+     * Seeing which branches exist.
+     *
+     * Separate from managing them, and held by every staff role, because an
+     * agent who cannot administer the list still has to pick from it and
+     * filter by it. It is a LABEL — reading the labels is not a privilege.
+     */
+    public const BRANCH_READ = 'branch.read';
+
+    /**
      * Every capability, read from the constants themselves so the list cannot
      * fall out of step with the class.
      *

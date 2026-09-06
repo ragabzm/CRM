@@ -19,6 +19,10 @@ deptrac:
       collectors:
         - type: directory
           value: app/Modules/Security/.*
+    - name: T1_Ai
+      collectors:
+        - type: directory
+          value: app/Modules/Ai/.*
     - name: T2_Customers
       collectors:
         - type: directory
@@ -47,6 +51,14 @@ deptrac:
       collectors:
         - type: directory
           value: app/Modules/Portal/.*
+    - name: T4_Assist
+      collectors:
+        - type: directory
+          value: app/Modules/Assist/.*
+    - name: T5_Reporting
+      collectors:
+        - type: directory
+          value: app/Modules/Reporting/.*
 
     # Everything the modules are allowed to reach that is not itself a module.
     # Declaring these explicitly is what makes --fail-on-uncovered meaningful:
@@ -66,13 +78,24 @@ deptrac:
           value: '.*'
 
   ruleset:
-    T4_Sla: [T3_Tickets, T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
-    T5_Email: [T4_Channels, T3_Tickets, T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
-    T4_Channels: [T3_Tickets, T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
-    T4_Portal: [T3_Tickets, T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
-    T3_Tickets: [T2_Customers, T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
-    T2_Customers: [T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
-    T2_Knowledge: [T1_Security, T0_Platform, Vendor, AppShared, PhpInternal]
+    T4_Sla: [T3_Tickets, T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
+    # Reporting reads Tickets and Sla and writes nothing. It does not reach
+    # Channels or Email: a report about a channel's own tables is not a report
+    # about tickets.
+    # The assists read the conversation and the article corpus, and write
+    # nothing. Knowledge is in this list and in no other module's — Tickets
+    # still does not know it exists.
+    T4_Assist: [T3_Tickets, T2_Knowledge, T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
+    T5_Reporting: [T4_Sla, T3_Tickets, T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
+    T5_Email: [T4_Channels, T3_Tickets, T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
+    T4_Channels: [T3_Tickets, T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
+    T4_Portal: [T3_Tickets, T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
+    T3_Tickets: [T2_Customers, T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
+    T2_Customers: [T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
+    T2_Knowledge: [T1_Security, T1_Ai, T0_Platform, Vendor, AppShared, PhpInternal]
+    # Ai reaches Platform and nothing else. A connector that could read
+    # Tickets or Knowledge would be one the product could not run without.
+    T1_Ai: [T0_Platform, Vendor, AppShared, PhpInternal]
     T1_Security: [T0_Platform, Vendor, AppShared, PhpInternal]
     T0_Platform: [Vendor, AppShared, PhpInternal]
     Vendor: ~

@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, Shield, Ticket, Users } from "lucide-react";
+import { BarChart3, Home, Shield, Ticket, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,25 +8,37 @@ import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/lib/auth/useCurrentUser";
 import { cn } from "@/lib/utils";
 
-type NavKey = "home" | "tickets" | "customers" | "administration";
+type NavKey = "home" | "tickets" | "customers" | "reports" | "administration";
 
 interface Destination {
   key: NavKey;
   href: string;
   icon: typeof Home;
-  /** Rendered only when the user holds this role. */
-  requiresRole?: "administrator";
+  /** Rendered only when the user holds one of these roles. */
+  requiresRole?: Array<"administrator" | "supervisor">;
 }
 
 const DESTINATIONS: Destination[] = [
   { key: "home", href: "/", icon: Home },
   { key: "tickets", href: "/tickets", icon: Ticket },
   { key: "customers", href: "/customers", icon: Users },
-  { key: "administration", href: "/admin", icon: Shield, requiresRole: "administrator" },
+  /*
+   * Supervisors and above. The figures are about how a DESK is performing
+   * rather than about a person, and the question "how did the month go?"
+   * belongs to whoever is answerable for the answer — which is also why there
+   * is no agent self-view anywhere in the reports.
+   */
+  {
+    key: "reports",
+    href: "/reports",
+    icon: BarChart3,
+    requiresRole: ["supervisor", "administrator"],
+  },
+  { key: "administration", href: "/admin", icon: Shield, requiresRole: ["administrator"] },
 ];
 
 /**
- * The four destinations.
+ * The five destinations.
  *
  * Administration is *absent* for non-administrators rather than present and
  * disabled: unlike the DataTable's locked identity column, there is nothing for
@@ -50,7 +62,8 @@ export function Sidebar({ className }: { className?: string }) {
    */
   const visible = DESTINATIONS.filter(
     (destination) =>
-      !destination.requiresRole || (loaded && roles.includes(destination.requiresRole)),
+      !destination.requiresRole ||
+      (loaded && destination.requiresRole.some((role) => roles.includes(role))),
   );
 
   return (

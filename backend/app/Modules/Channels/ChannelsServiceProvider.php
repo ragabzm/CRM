@@ -6,6 +6,7 @@ namespace App\Modules\Channels;
 
 use App\Modules\Channels\Adapters\WebFormChannelAdapter;
 use App\Modules\Channels\Console\Commands\ChannelsDoctorCommand;
+use App\Modules\Channels\Console\Commands\ChatSweepCommand;
 use App\Modules\Channels\Domain\ChannelAccountAvailability;
 use App\Modules\Channels\Domain\Outbound\ChannelSender;
 use App\Modules\Channels\Infrastructure\NullChannelTransport;
@@ -18,12 +19,15 @@ use App\Modules\Channels\Domain\Intake\TicketCorrelator;
 use App\Modules\Platform\Support\Settings\RegistersSettings;
 use App\Modules\Tickets\Contracts\ChannelAvailability;
 use App\Modules\Tickets\Contracts\InboundProvenance;
+use App\Modules\Channels\Domain\Chat\ChatSettings;
+use App\Modules\Channels\Domain\Chat\EmbedOrigins;
 use App\Modules\Platform\Support\Settings\SettingDefinition;
 use App\Modules\Platform\Support\Settings\SettingsRegistry;
 use App\Modules\Platform\Support\Settings\SettingType;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use App\Modules\Tickets\Domain\Events\AgentReplyPosted;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -72,7 +76,21 @@ final class ChannelsServiceProvider extends ServiceProvider implements Registers
         $this->loadMigrationsFrom(__DIR__.'/Database/Migrations');
 
         if ($this->app->runningInConsole()) {
-            $this->commands([ChannelsDoctorCommand::class]);
+            $this->commands([ChannelsDoctorCommand::class, ChatSweepCommand::class]);
+
+            /*
+             * Minutely, like the reminder sweep and for the same reason: a
+             * conversation the visitor walked away from should leave the
+             * waiting list soon enough that an agent does not spend their
+             * afternoon answering an empty tab.
+             */
+            $this->app->booted(function (): void {
+                $this->app->make(Schedule::class)
+                    ->command(ChatSweepCommand::class)
+                    ->everyMinute()
+                    ->withoutOverlapping()
+                    ->onOneServer();
+            });
         }
 
         $this->registerRateLimiters();
@@ -143,6 +161,76 @@ final class ChannelsServiceProvider extends ServiceProvider implements Registers
          * becomes a new ticket, and one conversation becomes a pile of
          * one-message tickets nobody can follow.
          */
+        /*
+         * Live chat's three numbers.
+         *
+         * The POLL INTERVAL is the one that matters. Every other screen in the
+         * product keeps AD-29's long interval; chat gets a short one, and the
+         * whole "no persistent connection" trade rests on this number being
+         * small enough that a conversation feels like one. It is a setting
+         * rather than a constant because it is also the load: a desk with two
+         * hundred concurrent chats may want six seconds, and finding that out
+         * should not need a deployment.
+         */
+        $registry->register(new SettingDefinition(
+            key: ChatSettings::POLL_SECONDS,
+            type: SettingType::Int,
+            default: 3,
+            summary: 'How often the chat widget and the agent chat pane ask for new messages.',
+            validator: static fn (mixed $v): true|string => is_int($v) && $v >= 1 && $v <= 60
+                ? true
+                // Above a minute it is not a chat any more, and below a second
+                // it is a denial-of-service aimed at ourselves.
+                : 'The chat poll interval must be between 1 and 60 seconds.',
+        ));
+
+        $registry->register(new SettingDefinition(
+            key: ChatSettings::TOKEN_MINUTES,
+            type: SettingType::Int,
+            default: 120,
+            summary: 'How long a chat visitor conversation stays open to them.',
+            validator: static fn (mixed $v): true|string => is_int($v) && $v >= 5 && $v <= 60 * 24
+                ? true
+                : 'A chat conversation must stay open for between 5 minutes and a day.',
+        ));
+
+        $registry->register(new SettingDefinition(
+            key: ChatSettings::ABANDON_AFTER_MINUTES,
+            type: SettingType::Int,
+            default: 10,
+            summary: 'Silence, either way, after which a chat conversation is given up on.',
+            validator: static fn (mixed $v): true|string => is_int($v) && $v >= 1 && $v <= 60 * 24
+                ? true
+                : 'The chat abandonment window must be between a minute and a day.',
+        ));
+
+        /*
+         * Where the widget may be embedded.
+         *
+         * Empty by default, which is not a gap: this application's own origins
+         * are always allowed, so chat works on the portal out of the box and
+         * an administrator adds a site only when they want it on one.
+         */
+        $registry->register(new SettingDefinition(
+            key: EmbedOrigins::SETTING,
+            type: SettingType::Json,
+            default: [],
+            validator: static function (mixed $value): true|string {
+                if (! is_array($value)) {
+                    return 'Must be a list of origins, e.g. https://example.com.';
+                }
+
+                foreach ($value as $origin) {
+                    if (! is_string($origin) || preg_match('#^https?://[^/\s]+$#', trim($origin)) !== 1) {
+                        return 'Each origin must be a scheme and a host, with no path — e.g. https://example.com.';
+                    }
+                }
+
+                return true;
+            },
+            summary: 'The websites allowed to embed the chat widget.',
+        ));
+
         $registry->register(new SettingDefinition(
             key: 'channels.correlation_window_hours.web_form',
             type: SettingType::Int,

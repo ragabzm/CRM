@@ -40,6 +40,37 @@ export function PlatformSection() {
         )}
       </Panel>
 
+      {/*
+        Branding: three values, and the console says where they stop.
+      */}
+      <Panel title={t("branding")} hint={t("brandingHint")}>
+        <SettingsGroup
+          keys={["branding.primary_colour", "branding.header", "branding.logo_attachment_id"]}
+          settings={settings}
+          labels={{
+            "branding.primary_colour": t("brandColour"),
+            "branding.header": t("brandHeader"),
+            "branding.logo_attachment_id": t("brandLogo"),
+          }}
+          save={save}
+        />
+
+        {/*
+          Where the brand does NOT reach, stated here so nobody hunts for a
+          switch that was never built. An administrator who expects the staff
+          workspace to follow the brand and finds it does not will look for the
+          setting that turns that on — and the honest answer is that there
+          isn't one, by design.
+        */}
+        <p className="text-xs text-fg-muted" data-slot="brand-reach">
+          {t("brandReach")}
+        </p>
+
+        <p className="text-xs text-fg-muted" data-slot="brand-contrast-note">
+          {t("brandContrastNote")}
+        </p>
+      </Panel>
+
       <Panel title={t("language")} hint={t("defaultLocaleHint")}>
         <SettingsGroup
           keys={["platform.default_locale"]}

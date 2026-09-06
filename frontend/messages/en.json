@@ -6,7 +6,8 @@
       "home": "Home",
       "tickets": "Tickets",
       "customers": "Customers",
-      "administration": "Administration"
+      "administration": "Administration",
+      "reports": "Reports"
     },
     "actions": {
       "toggleLanguage": "العربية",
@@ -57,7 +58,8 @@
       "label": "What is on your desk",
       "queue": "Attention",
       "tasks": "Tasks and reminders ({count})",
-      "mentions": "Mentions ({count})"
+      "mentions": "Mentions ({count})",
+      "chat": "Live chat ({count})"
     },
     "tasks": {
       "titleLabel": "What do you need to do?",
@@ -76,6 +78,19 @@
       "markRead": "Mark as read",
       "empty": "Nobody has asked for you",
       "emptyBody": "When a colleague names you in an internal note, it appears here."
+    },
+    "chat": {
+      "waiting": "Waiting",
+      "mine": "Yours",
+      "take": "Take",
+      "open": "Open the ticket",
+      "anonymous": "Someone who did not give a name",
+      "noSubject": "They have not said anything yet",
+      "nobodyWaiting": "Nobody is waiting",
+      "nobodyWaitingBody": "Conversations appear here the moment a visitor sends their first message.",
+      "noneTaken": "You have not taken a conversation.",
+      "failed": "That did not work. Try again.",
+      "pollNote": "This list refreshes every few seconds. There is no typing indicator and no presence — taking a conversation is a click, not a status."
     }
   },
   "errors": {
@@ -232,7 +247,21 @@
       "saveError": "That could not be saved.",
       "retry": "Try again",
       "passwordNote": "No password is set here. The account is created without one and the person chooses their own through the \"forgot password\" link.",
-      "addDepartment": "Add department"
+      "addDepartment": "Add department",
+      "branches": {
+        "title": "Branches",
+        "body": "Which office a record belongs to. A branch is a label and a filter — it grants nothing and hides nothing.",
+        "name": "Branch name",
+        "code": "Branch code",
+        "codeHint": "Short, and shown where the full name will not fit.",
+        "add": "Add branch",
+        "active": "Open",
+        "inactive": "Closed",
+        "deactivate": "Close",
+        "reactivate": "Reopen",
+        "none": "No branches. Every record carries none, which is the correct state for a business with one office.",
+        "failed": "That did not save. Try again."
+      }
     },
     "ticketing": {
       "categories": "Categories",
@@ -361,7 +390,14 @@
       "attachmentSize": "Maximum file size",
       "language": "Language",
       "defaultLocale": "Default language",
-      "defaultLocaleHint": "Used for people who have not chosen one."
+      "defaultLocaleHint": "Used for people who have not chosen one.",
+      "branding": "Portal and branding",
+      "brandingHint": "Three values, and no more. There is no application name, no separate sign-in logo, no palette, no typography control and no custom CSS.",
+      "brandColour": "Primary colour",
+      "brandHeader": "Portal and email header",
+      "brandLogo": "Organisation logo",
+      "brandReach": "The brand reaches four surfaces: the customer portal, the public web form, the live-chat widget and outbound email. It does not reach the staff workspace or this console — those keep the product’s own design system, and there is no setting that changes that.",
+      "brandContrastNote": "A colour that fails WCAG AA contrast against the surfaces it will sit on is refused when you save it, with the measured ratio. It is never accepted with a warning."
     },
     "auditLog": {
       "title": "Audit log",
@@ -952,6 +988,18 @@
       "escalationReason": "Why is this going wrong?",
       "escalationReasonHint": "Supervisors see this instead of having to open the ticket. Say what is stuck.",
       "escalatedBanner": "Escalated"
+    },
+    "assist": {
+      "title": "Assistant",
+      "summarise": "Summarise this conversation",
+      "resummarise": "Summarise again",
+      "draft": "Draft a reply",
+      "useDraft": "Put this in the composer",
+      "findArticles": "Find articles about this",
+      "insert": "Insert",
+      "internalOnly": "Internal — not for the customer",
+      "proposed": "Suggested category:",
+      "confirmCategory": "Use it"
     }
   },
   "portal": {
@@ -1130,6 +1178,56 @@
         "solution": "Solution",
         "guide": "Guide"
       }
+    }
+  },
+  "ai": {
+    "label": "Suggested by AI — check before using"
+  },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "A fixed set of figures over a period you choose. Every one opens the tickets behind it.",
+    "loading": "Working it out…",
+    "loadError": "The figures could not be loaded.",
+    "retry": "Try again",
+    "empty": "Nothing happened in this period",
+    "emptyBody": "No tickets were raised between {from} and {to}. Try a wider range.",
+    "forbidden": "The reports are not yours to read",
+    "forbiddenBody": "Reports are for supervisors and administrators. Ask your supervisor if you need a figure from them.",
+    "cards": {
+      "total": "Total raised",
+      "open": "Open",
+      "pending": "Waiting on the customer",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
+    "sla": {
+      "title": "Are we hitting our targets?",
+      "response": "First response",
+      "resolution": "Resolution",
+      "breaches": "Missed",
+      "average": "Average",
+      "minutes": "{minutes} working minutes",
+      "notMeasured": "Nothing to measure"
+    },
+    "satisfaction": {
+      "title": "Are customers happy?",
+      "answered": "{count} answered",
+      "positive": "{count} good",
+      "negative": "{count} not good",
+      "nobodyAnswered": "Nobody rated a request in this period."
+    },
+    "breakdown": {
+      "status": "By status",
+      "category": "By category",
+      "assignee": "By assignee",
+      "none": "Not set",
+      "uncategorised": "Uncategorised",
+      "unassigned": "Unassigned"
+    },
+    "range": {
+      "from": "From",
+      "to": "To",
+      "apply": "Show"
     }
   }
 }

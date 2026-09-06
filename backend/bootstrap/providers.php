@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Ai\AiServiceProvider;
 use App\Modules\Channels\ChannelsServiceProvider;
 use App\Modules\Customers\CustomersServiceProvider;
 use App\Modules\Knowledge\KnowledgeServiceProvider;
@@ -16,6 +17,8 @@ return [
     AppServiceProvider::class,
     PlatformServiceProvider::class,
     SecurityServiceProvider::class,
+    // T1 beside Security: every future consumer sits above it.
+    AiServiceProvider::class,
     CustomersServiceProvider::class,
     KnowledgeServiceProvider::class,
     TicketsServiceProvider::class,

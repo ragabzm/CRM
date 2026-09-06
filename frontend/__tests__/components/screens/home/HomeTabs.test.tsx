@@ -10,6 +10,7 @@ const ticketCounts = vi.fn();
 const listTasks = vi.fn();
 const listMentions = vi.fn();
 const setTaskCompletion = vi.fn();
+const chatDesk = vi.fn();
 
 vi.mock("@/lib/api/tickets", async (importOriginal) => ({
   // The real module for everything else — `ticketListQuery` builds the counts
@@ -17,6 +18,11 @@ vi.mock("@/lib/api/tickets", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/tickets")>()),
   listTickets: (...a: unknown[]) => listTickets(...a),
   ticketCounts: (...a: unknown[]) => ticketCounts(...a),
+}));
+
+vi.mock("@/lib/api/chat", () => ({
+  chatDesk: () => chatDesk(),
+  takeChat: vi.fn(),
 }));
 
 vi.mock("@/lib/api/personal", () => ({
@@ -62,15 +68,30 @@ describe("Home's tabs", () => {
       },
     ]);
     listMentions.mockResolvedValue([]);
+    chatDesk.mockResolvedValue({ poll_seconds: 3, waiting: [], mine: [] });
   });
 
-  it("shows three tabs and lands on the queue", async () => {
+  it("shows four tabs and lands on the queue", async () => {
     render(<AgentHomeScreen currentUserId={7} onOpen={vi.fn()} />);
 
     const tabs = await screen.findAllByRole("tab");
 
-    expect(tabs).toHaveLength(3);
+    // The queue, tasks and reminders, live chat, mentions. All of them panels
+    // of ONE screen — none of them is a destination with a route of its own.
+    expect(tabs).toHaveLength(4);
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("survives a chat response that arrives without its lists", async () => {
+    // TypeScript says `waiting` is always there; a deployment where the API is
+    // a version behind says otherwise — and reading `.length` off it blanked
+    // the entire screen, queue and counts included, rather than one tab.
+    chatDesk.mockResolvedValue({ poll_seconds: 3 });
+
+    render(<AgentHomeScreen currentUserId={7} onOpen={vi.fn()} />);
+
+    expect(await screen.findByRole("heading", { name: en.home.title })).toBeInTheDocument();
+    expect(await screen.findAllByRole("tab")).toHaveLength(4);
   });
 
   it("puts the badge inside the tab's own name", async () => {

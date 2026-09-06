@@ -15,6 +15,7 @@ use App\Modules\Tickets\Domain\History\TicketEventKind;
 use App\Modules\Tickets\Domain\History\TicketEventRecorder;
 use App\Modules\Tickets\Domain\Ticket;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Database\QueryException;
 
@@ -173,6 +174,21 @@ final class CreateTicket
                 'priority' => ($input->priority ?? Priority::Normal)->value,
                 'status' => TicketStatus::Open->value,
                 'department_id' => $input->departmentId,
+                /*
+                 * Inherited from the customer, and NOT a parameter.
+                 *
+                 * A branch says where work happened, and the answer is
+                 * wherever the customer's office is — not whatever a caller
+                 * passed. Letting it be supplied would make the same customer
+                 * produce tickets in three branches depending on which door
+                 * they came through.
+                 *
+                 * Null when the customer has none, and that null has no
+                 * consequence anywhere: nothing is refused, nothing is
+                 * narrowed, nothing waits for it. Which is exactly why branch
+                 * needs no resolution order of its own, unlike department.
+                 */
+                'branch_id' => DB::table('customers')->where('id', $input->customerId)->value('branch_id'),
                 'creator_type' => $actor->kind(),
                 'creator_id' => $actor->id(),
                 // Unassigned: it goes to the pool, where whoever picks up work

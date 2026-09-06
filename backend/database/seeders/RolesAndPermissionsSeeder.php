@@ -67,6 +67,16 @@ final class RolesAndPermissionsSeeder extends Seeder
             Capabilities::KNOWLEDGE_VIEW,
             Capabilities::KNOWLEDGE_MANAGE,
             Capabilities::KNOWLEDGE_PUBLISH,
+
+            Capabilities::CHAT_HANDLE,
+
+            /*
+             * The reports stop here. An agent has a queue and a home screen
+             * with live counts; a supervisor is the person asked how the month
+             * went, and this is the capability that question needs.
+             */
+            Capabilities::REPORT_VIEW,
+            Capabilities::BRANCH_READ,
         ],
         Roles::AGENT => [
             Capabilities::DEPARTMENT_READ,
@@ -106,6 +116,20 @@ final class RolesAndPermissionsSeeder extends Seeder
              */
             Capabilities::KNOWLEDGE_VIEW,
             Capabilities::KNOWLEDGE_MANAGE,
+
+            /*
+             * An agent answers chat. It is the job.
+             *
+             * Held by both staff roles rather than gated further, because
+             * which people are on chat this afternoon is a rota decision, and
+             * a rota expressed as permissions is a rota an administrator has
+             * to be found to change.
+             */
+            Capabilities::CHAT_HANDLE,
+
+            // A label an agent filters their queue by. Reading it is not a
+            // privilege; administering the list is.
+            Capabilities::BRANCH_READ,
         ],
         Roles::CUSTOMER => [
             // Reading is capped to their OWN tickets by TicketVisibility. The

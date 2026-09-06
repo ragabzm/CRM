@@ -130,7 +130,9 @@ export function TaskList({ tasks, onToggle, onOpenTicket }: TaskListProps) {
                     screen reader and a printed page; a red tint survives none
                     of them.
                   */}
-                  {task.overdue ? `${t("overdue")} · ${format.dateTime(new Date(task.due_at))}` : format.dateTime(new Date(task.due_at))}
+                  {task.overdue
+                    ? `${t("overdue")} · ${format.dateTime(new Date(task.due_at))}`
+                    : format.dateTime(new Date(task.due_at))}
                 </span>
               )}
             </li>
